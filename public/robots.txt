@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://DOMINIO-A-DEFINIR/sitemap-index.xml
+Sitemap: https://colecaodeselos.netlify.app/sitemap-index.xml

@@ -42,7 +42,9 @@ A regra de publicação está centralizada em `src/lib/config.ts`:
 - `PUBLICATION_MODE=preview`: inclui registros não rascunho aptos para preview e exibe a indicação de homologação.
 - `PUBLICATION_MODE=production`: inclui somente registros com status `publicado` e aptos para publicação.
 
-O `netlify.toml` usa `npm run build`, publica `dist` e define produção por padrão. Antes do deploy, configure `SITE_URL` com o domínio definitivo no Netlify. Atualize também o Sitemap em `public/robots.txt`; o placeholder nunca deve ser tratado como domínio público real.
+A URL pública provisória é [https://colecaodeselos.netlify.app](https://colecaodeselos.netlify.app). O valor padrão fica centralizado em `src/lib/site-url.mjs` e é utilizado pela configuração do Astro e pelos geradores de URLs absolutas.
+
+O `netlify.toml` usa `npm run build`, publica `dist` e mantém produção em `PUBLICATION_MODE=production`; deploy previews e branch deploys usam `preview`. Para substituir o endereço no Netlify, acesse **Site configuration → Environment variables**, defina `SITE_URL` com a nova origem HTTPS e execute um novo deploy. A variável tem precedência sobre o valor padrão, portanto um domínio próprio poderá substituir o endereço `netlify.app` sem reescrever componentes ou dados.
 
 ## Como adicionar um selo
 
@@ -70,5 +72,5 @@ O carregador usa `import.meta.glob`, valida todos os JSONs no build e os ordena 
 - filtros executados no navegador sobre os registros já gerados;
 - nenhuma avaliação comercial automática;
 - nenhum tratamento ou geração de imagens;
-- domínio público ainda não definido;
+- o endereço `netlify.app` é provisório e pode ser substituído por domínio próprio via `SITE_URL`;
 - o primeiro registro depende de revisão visual e dos campos marcados com alta confiança ou probabilidade.
