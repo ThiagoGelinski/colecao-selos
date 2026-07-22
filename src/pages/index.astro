@@ -1,0 +1,15 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Container from '../components/layout/Container.astro';
+import SeloCard from '../components/selos/SeloCard.astro';
+import SectionTitle from '../components/ui/SectionTitle.astro';
+import { getVisibleSelos } from '../lib/selos';
+import { absoluteUrl } from '../lib/seo';
+const selos = getVisibleSelos();
+const jsonLd = { '@context':'https://schema.org', '@type':'CollectionPage', name:'Coleção Selos', description:'Catálogo filatélico digital público.', mainEntity:{ '@type':'ItemList', numberOfItems:selos.length, itemListElement:selos.map((s,i) => ({ '@type':'ListItem', position:i+1, url:absoluteUrl(`/selos/${s.slug}`), name:s.titulo })) } };
+---
+<BaseLayout title="Coleção Selos — Catálogo filatélico digital" description="Catálogo filatélico digital dedicado à organização, pesquisa e preservação de selos." canonicalPath="/" jsonLd={jsonLd}>
+  <section class="hero"><Container><div class="hero-copy"><p class="eyebrow">Arquivo filatélico digital</p><h1>Pequenos documentos. Grandes histórias.</h1><p class="lead">Um catálogo público construído para registrar cada selo com precisão técnica, contexto histórico e rastreabilidade das fontes.</p><div class="actions"><a class="button-link" href="/catalogo">Explorar catálogo</a><a class="button-link secondary" href="/sobre">Conhecer a metodologia</a></div></div><aside class="count" aria-label="Resumo do acervo"><strong>{selos.length}</strong><span>{selos.length === 1 ? 'selo catalogado' : 'selos catalogados'}</span><p>Registros estruturados, imagens preservadas e revisão contínua.</p></aside></Container></section>
+  <section class="page-section"><Container><SectionTitle eyebrow="Destaque do acervo">Registro em homologação</SectionTitle>{selos.length ? <div class="grid">{selos.map((selo,index) => <SeloCard selo={selo} eager={index === 0} />)}</div> : <div class="empty panel"><h2>Catálogo em preparação</h2><p>Nenhum registro está publicado neste ambiente.</p></div>}<p class="catalog-link"><a href="/catalogo">Ver catálogo completo →</a></p></Container></section>
+</BaseLayout>
+<style>.hero{padding-block:clamp(4rem,10vw,8.5rem);border-bottom:1px solid var(--color-border)}.hero .container{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(15rem,.55fr);gap:clamp(2rem,8vw,7rem);align-items:end}.hero-copy h1{max-width:13ch;margin:.4rem 0 1.3rem}.lead{font-size:clamp(1.05rem,2vw,1.3rem);color:#46515c}.actions{display:flex;flex-wrap:wrap;gap:.7rem;margin-top:1.8rem}.count{padding:1.5rem;border-top:3px solid var(--color-accent);background:var(--color-surface)}.count strong{display:block;font:500 clamp(3.5rem,8vw,6rem)/1 var(--serif);color:var(--color-accent-dark)}.count span{font-weight:750}.count p{margin-bottom:0;color:var(--color-muted);font-size:.9rem}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,18rem),1fr));gap:1.4rem}.grid>*{max-width:25rem}.catalog-link{margin-top:2rem;font-weight:700}.empty{padding:2rem}.empty h2{margin-top:0}@media(max-width:45rem){.hero .container{grid-template-columns:1fr}.count{max-width:24rem}}</style>

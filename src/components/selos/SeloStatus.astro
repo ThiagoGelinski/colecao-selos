@@ -1,0 +1,9 @@
+---
+import type { Selo } from '../../types/selo';
+import Badge from '../ui/Badge.astro';
+import { formatDate, formatStatus } from '../../lib/formatters';
+interface Props { selo: Selo; }
+const { selo } = Astro.props;
+---
+<aside class="status"><div><Badge tone="info">{formatStatus(selo.publicacao.status)}</Badge><p>Última revisão: <time datetime={selo.auditoria.ultima_revisao}>{formatDate(selo.auditoria.ultima_revisao)}</time></p></div>{selo.publicacao.motivo && <p><strong>Situação:</strong> {selo.publicacao.motivo}</p>}</aside>
+<style>.status{display:grid;gap:.8rem;padding:1rem 1.2rem;background:#edf5f9;border:1px solid #9eb7c8}.status div{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:1rem}.status p{margin:0;font-size:.9rem}</style>

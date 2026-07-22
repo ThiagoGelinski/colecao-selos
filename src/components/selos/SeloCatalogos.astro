@@ -1,0 +1,13 @@
+---
+import type { Selo, CatalogoRef } from '../../types/selo';
+import { catalogName, formatConfidence, isConfirmed } from '../../lib/formatters';
+interface Props { selo: Selo; }
+const { selo } = Astro.props;
+const entries: [string, CatalogoRef][] = [];
+for (const [name, ref] of Object.entries(selo.catalogos)) {
+  if (name === 'outros' && ref && typeof ref === 'object') for (const [otherName, otherRef] of Object.entries(ref)) entries.push([otherName, otherRef]);
+  else if (ref && typeof ref === 'object' && 'numero' in ref) entries.push([name, ref as CatalogoRef]);
+}
+---
+<div class="catalogs">{entries.map(([name,ref]) => <article><h3>{catalogName(name)}</h3><p class="number">{ref.numero ?? 'Não informado'}</p>{ref.tipo && <p><strong>Tipo:</strong> {ref.tipo}</p>}{!isConfirmed(ref.confianca) && <p class="status"><strong>Status:</strong> {formatConfidence(ref.confianca)}</p>}{ref.observacao && <p>{ref.observacao}</p>}{!isConfirmed(ref.confianca) && String(ref.confianca) !== formatConfidence(ref.confianca) && <p class="detail">{ref.confianca}</p>}</article>)}</div>
+<style>.catalogs{display:grid;grid-template-columns:repeat(auto-fit,minmax(11rem,1fr));gap:.75rem}.catalogs article{padding:1rem;border:1px solid var(--color-border);background:var(--color-surface)}h3{margin:0;font:700 .76rem var(--sans);color:var(--color-muted);letter-spacing:.08em;text-transform:uppercase}.number{margin:.35rem 0;font:500 1.65rem var(--serif)}article p:not(.number){margin:.4rem 0;font-size:.82rem}.status{color:var(--color-warn)}.detail{color:var(--color-muted)}</style>

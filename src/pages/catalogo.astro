@@ -1,0 +1,30 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Container from '../components/layout/Container.astro';
+import SeloCard from '../components/selos/SeloCard.astro';
+import { getVisibleSelos } from '../lib/selos';
+import { isPreviewMode } from '../lib/config';
+import { absoluteUrl } from '../lib/seo';
+const selos = getVisibleSelos();
+const unique = (values: (string | number | null | undefined)[]) => [...new Set(values.filter((v): v is string | number => v !== null && v !== undefined && v !== ''))].sort();
+const filters = { pais:unique(selos.map(s=>s.identificacao.pais)), ano:unique(selos.map(s=>s.emissao.ano)), tema:unique(selos.flatMap(s=>s.identificacao.tema)), serie:unique(selos.map(s=>s.identificacao.serie)), personagem:unique(selos.map(s=>s.identificacao.personagem?.nome)), status:unique(selos.map(s=>s.publicacao.status)) };
+const filterLabels: Record<string,string> = { pais:'País', ano:'Ano', tema:'Tema', serie:'Série', personagem:'Personagem', status:'Status' };
+const filterEntries = Object.entries(filters) as [string, (string | number)[]][];
+const jsonLd = { '@context':'https://schema.org', '@type':'CollectionPage', name:'Catálogo | Coleção Selos', mainEntity:{ '@type':'ItemList', numberOfItems:selos.length, itemListElement:selos.map((s,i)=>({ '@type':'ListItem', position:i+1, url:absoluteUrl(`/selos/${s.slug}`), name:s.titulo })) } };
+---
+<BaseLayout title="Catálogo | Coleção Selos" description="Consulte os selos catalogados por país, ano, tema, série, personagem, ID ou referência." canonicalPath="/catalogo" jsonLd={jsonLd}>
+  <Container><header class="catalog-head page-section"><p class="eyebrow">Acervo estruturado</p><h1>Catálogo</h1><p>Pesquise os registros disponíveis. Os filtros são gerados somente a partir dos dados existentes.</p></header>
+  <section class="filters panel" aria-labelledby="filter-title"><h2 id="filter-title">Pesquisar e filtrar</h2><form data-filter-form><label class="search"><span>Busca por título, ID ou número de catálogo</span><input type="search" name="q" autocomplete="off" placeholder="Ex.: SEL-000001 ou RHM 533" /></label><div class="selects">
+  {filterEntries.map(([key, values]) => values.length > 0 && (key !== 'status' || isPreviewMode) ? <label><span>{filterLabels[key]}</span><select name={key}><option value="">Todos</option>{values.map((value) => <option value={String(value)}>{value}</option>)}</select></label> : null)}
+  </div><button type="reset">Limpar filtros</button></form></section>
+  <div class="results-head"><p aria-live="polite" data-result-count>{selos.length} {selos.length === 1 ? 'registro encontrado' : 'registros encontrados'}</p></div>
+  <section class="grid" aria-label="Resultados do catálogo">{selos.map(selo => <SeloCard selo={selo} />)}</section><div class="no-results panel" data-no-results hidden><h2>Nenhum resultado encontrado</h2><p>Revise a busca ou limpe os filtros para ver os registros disponíveis.</p></div></Container>
+  <script>
+    const normalize = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR');
+    const form = document.querySelector<HTMLFormElement>('[data-filter-form]'); const cards = [...document.querySelectorAll<HTMLElement>('[data-selo-card]')]; const count = document.querySelector<HTMLElement>('[data-result-count]'); const empty = document.querySelector<HTMLElement>('[data-no-results]');
+    const apply = () => { if (!form) return; const data = new FormData(form); const q = normalize(String(data.get('q') ?? '').trim()); let visible = 0; cards.forEach(card => { const matchesSearch = !q || normalize(card.dataset.search ?? '').includes(q); const matches = ['pais','ano','serie','personagem','status'].every(key => !data.get(key) || card.dataset[key] === data.get(key)) && (!data.get('tema') || (card.dataset.temas ?? '').split('|').includes(String(data.get('tema')))); const show = matchesSearch && matches; card.hidden = !show; if (show) visible++; }); if (count) count.textContent = `${visible} ${visible === 1 ? 'registro encontrado' : 'registros encontrados'}`; if (empty) empty.hidden = visible !== 0; };
+    form?.addEventListener('input', apply); form?.addEventListener('reset', () => requestAnimationFrame(apply));
+  </script>
+</BaseLayout>
+<style>.catalog-head{padding-bottom:2rem}.catalog-head h1{margin:.3rem 0 .8rem}.catalog-head p:last-child{font-size:1.1rem}.filters{padding:clamp(1rem,3vw,1.6rem)}.filters h2{margin:0 0 1rem;font:600 1.2rem var(--serif)}form{display:grid;gap:1rem}.search{display:grid;gap:.35rem}.selects{display:grid;grid-template-columns:repeat(auto-fit,minmax(9rem,1fr));gap:.8rem}label{display:grid;gap:.3rem;font-size:.8rem;font-weight:700}input,select{width:100%;min-height:2.75rem;padding:.55rem .7rem;border:1px solid #aaa293;border-radius:.2rem;background:white;color:var(--color-text);font:inherit}button{width:max-content;padding:.55rem .8rem;border:1px solid var(--color-accent);background:transparent;color:var(--color-accent-dark);font-weight:700;cursor:pointer}.results-head{padding-block:1.5rem}.results-head p{margin:0;color:var(--color-muted)}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,18rem),1fr));gap:1.4rem;padding-bottom:5rem}.no-results{margin-bottom:5rem;padding:2rem}.no-results h2{margin-top:0}</style>
+

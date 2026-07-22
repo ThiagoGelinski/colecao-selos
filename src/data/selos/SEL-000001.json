@@ -1,0 +1,156 @@
+{
+  "schema_version": "1.0.0",
+  "id": "SEL-000001",
+  "slug": "brasil-campos-salles-20-centavos-1967",
+  "titulo": "Brasil — Campos Salles — 20 centavos",
+  "descricao_curta": "Selo definitivo brasileiro de 20 centavos com retrato de Manuel Ferraz de Campos Salles.",
+  "identificacao": {
+    "pais": "Brasil",
+    "continente": "América do Sul",
+    "administracao_postal": "Correio do Brasil",
+    "tipo": "Selo postal",
+    "categoria": "Definitivo / regular",
+    "serie": "Presidentes da República",
+    "tema": [
+      "Personalidades",
+      "Presidentes do Brasil",
+      "História política"
+    ],
+    "personagem": {
+      "nome": "Manuel Ferraz de Campos Salles",
+      "nascimento": "1841-02-15",
+      "falecimento": "1913-06-28",
+      "funcao": "4º Presidente da República do Brasil",
+      "mandato": "1898–1902"
+    },
+    "valor_facial": {
+      "valor": 20,
+      "unidade": "centavos",
+      "inscricao": "20 CTS."
+    },
+    "cor": "castanho / ocre",
+    "orientacao": "vertical"
+  },
+  "emissao": {
+    "ano": 1967,
+    "data_oficial": "1967-11-16",
+    "data_status": "provável; requer validação em catálogo ou boletim postal primário",
+    "finalidade": "uso postal regular",
+    "tiragem": null,
+    "tiragem_status": "não confirmada em fonte pública específica para este valor"
+  },
+  "tecnica": {
+    "impressao": "rotogravura / fotogravura",
+    "papel": "couché",
+    "goma_original_da_emissao": "arábica",
+    "filigrana": "Q — Brasil * Correio (5 mm)",
+    "denteacao": "pente, aproximadamente 11",
+    "dimensoes_mm": {
+      "largura": 22,
+      "altura": 27
+    },
+    "impressor": "Departamento de Correios e Telégrafos / impressão postal brasileira",
+    "impressor_status": "atribuição institucional; oficina específica não confirmada"
+  },
+  "catalogos": {
+    "RHM": {
+      "numero": "533",
+      "confianca": "confirmado por referência comercial filatélica"
+    },
+    "Scott": {
+      "numero": "1064",
+      "tipo": "A563",
+      "confianca": "confirmado por referência de imagem editorial"
+    },
+    "Michel": {
+      "numero": "1154",
+      "confianca": "confirmado por referência comercial"
+    },
+    "Yvert_et_Tellier": {
+      "numero": "843",
+      "confianca": "confirmado por duas referências independentes"
+    },
+    "Stanley_Gibbons": {
+      "numero": "1193",
+      "confianca": "alta confiança por correlação sequencial da série; revisão em catálogo impresso recomendada"
+    }
+  },
+  "exemplar": {
+    "uso_postal": "não determinado",
+    "carimbo_frontal": "não visível",
+    "goma": "ausente",
+    "charneira": "possíveis vestígios",
+    "papel": "íntegro, com tonalidade amarelada",
+    "serrilha": "presente nos quatro lados; pequenos desgastes",
+    "centragem": "boa",
+    "rasgos": "não observados",
+    "dobras": "não observadas",
+    "classificacao_visual": "bom a muito bom",
+    "observacao": "A classificação é visual e não substitui exame físico com odontômetro, luz rasante e análise de filigrana."
+  },
+  "imagens": {
+    "frente": "/assets/selos/SEL-000001/SEL-000001-frente.webp",
+    "verso": "/assets/selos/SEL-000001/SEL-000001-verso.webp",
+    "card": "/assets/selos/SEL-000001/SEL-000001-card.webp",
+    "alt": "Selo brasileiro castanho de 20 centavos com retrato de Campos Salles."
+  },
+  "historico": {
+    "resumo": "Manuel Ferraz de Campos Salles foi presidente do Brasil entre 1898 e 1902. A emissão integra a série definitiva dedicada a presidentes da República e destinava-se ao uso postal corrente.",
+    "nota": "Campos Salles é associado à Política dos Governadores e ao programa de estabilização financeira conhecido como Funding Loan."
+  },
+  "fontes": [
+    {
+      "titulo": "Sociedade Filatélica Rio-Grandense — Chave de correlação numérica",
+      "url": "https://www.sfrg.com.br/noticias/novo-guia-de-referencia-chave-de-correlacao-numerica-selos-do-brasil/",
+      "uso": "contexto sobre correlação RHM–Scott–Michel–Yvert e restrições de reprodução"
+    },
+    {
+      "titulo": "Filatelia Halibunani — RHM 533",
+      "url": "https://filateliahalibunani.com/produto/selo-regular-rhm-533-presidentes-da-republica-campos-salles-1967-dupla-circulado-1/",
+      "uso": "RHM, ano, série e categoria"
+    },
+    {
+      "titulo": "eBid — Campos Salles 1967",
+      "url": "https://www.ebid.net/us/for-sale/brazil-campos-salles-1841-1913-brown-1967-20c-4-198605491.htm",
+      "uso": "Michel, dimensões, cor e ano"
+    },
+    {
+      "titulo": "Shutterstock editorial — Brazil Campos Salles",
+      "url": "https://www.shutterstock.com/search/brazil-post-stamp?page=2",
+      "uso": "Scott 1064, tipo A563, valor e cor"
+    },
+    {
+      "titulo": "Encyclopaedia Philatelica — Manuel Ferraz de Campos Sales",
+      "url": "https://encyclopaediaphilatelica.net/ca/catalogue/letter/c?page=3",
+      "uso": "Yvert 843 e ano"
+    },
+    {
+      "titulo": "SellosMundo — Campos Salles",
+      "url": "https://stamps.sellosmundo.com/America/Brazil/stamp_12483.htm",
+      "uso": "valor facial, ano, formato e cor"
+    },
+    {
+      "titulo": "Wikimedia Commons — Arthur Bernardes, mesma série",
+      "url": "https://commons.wikimedia.org/wiki/File:Stamp_of_Brazil_-_1967_-_Colnect_152220_-_Arthur_Bernardes_1875-1955.jpeg",
+      "uso": "parâmetros técnicos da série: impressão, papel, goma, filigrana, dimensão e data da emissão correlata"
+    }
+  ],
+  "seo": {
+    "title": "Brasil — Campos Salles — 20 centavos (1967) | Coleção Selos",
+    "meta_description": "Ficha do selo brasileiro de 20 centavos com Campos Salles, emitido em 1967: catálogos, técnica, contexto histórico e estado do exemplar.",
+    "canonical_path": "/selos/brasil-campos-salles-20-centavos-1967",
+    "open_graph_title": "Campos Salles — 20 centavos — Brasil, 1967",
+    "open_graph_description": "Conheça os dados técnicos e históricos do selo SEL-000001."
+  },
+  "publicacao": {
+    "status": "homologacao",
+    "apto_para_preview": true,
+    "apto_para_publicacao": false,
+    "motivo": "aguarda aprovação visual e revisão final de campos de alta confiança"
+  },
+  "auditoria": {
+    "criado_em": "2026-07-22",
+    "ultima_revisao": "2026-07-22",
+    "versao": "1.0.0-homologacao"
+  }
+}

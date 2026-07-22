@@ -1,0 +1,7 @@
+---
+import type { Selo } from '../../types/selo';
+interface Props { selo: Selo; }
+const { selo } = Astro.props;
+---
+{selo.historico.resumo || selo.historico.nota ? <div class="history">{selo.historico.resumo && <p>{selo.historico.resumo}</p>}{selo.historico.nota && <p>{selo.historico.nota}</p>}</div> : <p class="muted">Contexto histórico pendente.</p>}
+<style>.history{font-size:1.08rem}.history p:first-child{margin-top:0}</style>

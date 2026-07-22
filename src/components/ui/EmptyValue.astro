@@ -1,0 +1,6 @@
+---
+interface Props { label?: string; }
+const { label = 'Não informado' } = Astro.props;
+---
+<span class="empty">{label}</span>
+<style>.empty{color:var(--color-muted);font-style:italic}</style>

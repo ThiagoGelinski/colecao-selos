@@ -1,0 +1,10 @@
+---
+import type { Selo } from '../../types/selo';
+interface Props { selo: Selo; }
+const { selo } = Astro.props;
+const labels: Record<string,string> = { uso_postal:'Uso postal',carimbo_frontal:'Carimbo frontal',goma:'Goma',charneira:'Charneira',papel:'Papel',serrilha:'Serrilha',centragem:'Centragem',rasgos:'Rasgos',dobras:'Dobras',manchas:'Manchas',classificacao_visual:'Classificação visual' };
+const entries = Object.entries(selo.exemplar).filter(([key,value]) => key !== 'observacao' && value != null);
+---
+<dl>{entries.map(([key,value]) => <div><dt>{labels[key] ?? key}</dt><dd>{value}</dd></div>)}</dl>
+{selo.exemplar.observacao && <aside><strong>Nota de avaliação:</strong> {selo.exemplar.observacao}</aside>}
+<style>dl{display:grid;grid-template-columns:repeat(auto-fit,minmax(14rem,1fr));gap:.8rem;margin:0}dl div{padding:.85rem;border-bottom:1px solid var(--color-border)}dt{color:var(--color-muted);font-size:.78rem;font-weight:700;text-transform:uppercase}dd{margin:.25rem 0 0}aside{margin-top:1.2rem;padding:1rem;background:#fff6e3;border:1px solid #d9b777}</style>

@@ -1,0 +1,13 @@
+---
+import type { Selo } from '../../types/selo';
+interface Props { selo: Selo; }
+const { selo } = Astro.props;
+---
+<section class="gallery" data-gallery>
+  <div class="frame"><img src={selo.imagens.frente} alt={selo.imagens.alt} width="1200" height="1200" data-gallery-image /></div>
+  {selo.imagens.verso && <div class="controls" role="group" aria-label="Lado do selo"><button type="button" aria-pressed="true" data-src={selo.imagens.frente} data-alt={selo.imagens.alt}>Frente</button><button type="button" aria-pressed="false" data-src={selo.imagens.verso} data-alt={`Verso do exemplar ${selo.id}.`}>Verso</button></div>}
+</section>
+<script>
+  document.querySelectorAll<HTMLElement>('[data-gallery]').forEach((gallery) => { const image = gallery.querySelector<HTMLImageElement>('[data-gallery-image]'); const buttons = gallery.querySelectorAll<HTMLButtonElement>('button[data-src]'); buttons.forEach((button) => button.addEventListener('click', () => { if (!image) return; image.src = button.dataset.src ?? image.src; image.alt = button.dataset.alt ?? image.alt; buttons.forEach((item) => item.setAttribute('aria-pressed', String(item === button))); })); });
+</script>
+<style>.gallery{display:grid;gap:1rem}.frame{display:grid;place-items:center;min-height:22rem;padding:clamp(1.4rem,6vw,4rem);background:var(--color-image-bg);border:1px solid #bfd2df;border-radius:var(--radius)}.frame img{width:100%;max-height:38rem;object-fit:contain}.controls{display:flex;gap:.5rem}.controls button{min-height:2.75rem;padding:.55rem 1.2rem;border:1px solid var(--color-accent);border-radius:.25rem;background:transparent;color:var(--color-accent-dark);font:700 .9rem var(--sans);cursor:pointer}.controls button[aria-pressed='true']{background:var(--color-accent);color:white}@media(max-width:30rem){.frame{min-height:18rem}}</style>

@@ -1,0 +1,11 @@
+---
+import Container from './Container.astro';
+import { isPreviewMode } from '../../lib/config';
+const path = Astro.url.pathname;
+const links = [{ href: '/', label: 'Início' }, { href: '/catalogo', label: 'Catálogo' }, { href: '/sobre', label: 'Sobre' }];
+---
+{isPreviewMode && <div class="preview">Ambiente de homologação</div>}
+<header><Container><nav aria-label="Navegação principal"><a class="brand" href="/" aria-label="Coleção Selos — início"><span aria-hidden="true">CS</span> Coleção Selos</a><ul>{links.map(({href,label}) => <li><a href={href} aria-current={path === href ? 'page' : undefined}>{label}</a></li>)}</ul></nav></Container></header>
+<style>
+.preview{padding:.32rem 1rem;background:var(--color-info);color:white;text-align:center;font-size:.78rem;letter-spacing:.08em;text-transform:uppercase}header{border-bottom:1px solid var(--color-border);background:rgb(244 240 232/.94)}nav{min-height:4.6rem;display:flex;align-items:center;justify-content:space-between;gap:1rem}.brand{display:flex;align-items:center;gap:.65rem;font-family:var(--serif);font-size:1.15rem;text-decoration:none}.brand span{display:grid;place-items:center;width:2.2rem;aspect-ratio:1;background:var(--color-accent-dark);color:white;font:700 .72rem var(--sans);letter-spacing:.08em}ul{display:flex;gap:clamp(.65rem,3vw,1.8rem);margin:0;padding:0;list-style:none}nav li a{color:var(--color-text);text-decoration:none}nav li a[aria-current='page']{text-decoration:underline;text-decoration-thickness:2px}@media(max-width:28rem){.brand{font-size:0}.brand span{font-size:.72rem}}
+</style>

@@ -1,0 +1,8 @@
+---
+import type { Selo } from '../../types/selo';
+import { formatConfidence, formatDate } from '../../lib/formatters';
+interface Props { selo: Selo; }
+const { selo } = Astro.props;
+---
+<ol class="sources">{selo.fontes.map((fonte) => <li><h3>{fonte.url ? <a href={fonte.url} target="_blank" rel="noopener noreferrer">{fonte.titulo} <span class="visually-hidden">(abre em nova aba)</span><span aria-hidden="true">↗</span></a> : fonte.titulo}</h3><p><strong>Uso no registro:</strong> {fonte.uso}</p>{fonte.data_consulta && <p><strong>Consulta:</strong> {formatDate(fonte.data_consulta)}</p>}{fonte.confianca && <p><strong>Confiança:</strong> {formatConfidence(fonte.confianca)}</p>}</li>)}</ol>
+<style>.sources{display:grid;gap:1rem;padding-left:1.4rem}.sources li{padding:0 0 1rem .4rem;border-bottom:1px solid var(--color-border)}h3{margin:0;font-size:1rem;font-family:var(--sans)}p{margin:.3rem 0;color:var(--color-muted);font-size:.9rem}</style>

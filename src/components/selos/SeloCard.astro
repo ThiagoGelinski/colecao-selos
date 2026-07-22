@@ -1,0 +1,13 @@
+---
+import type { Selo } from '../../types/selo';
+import Badge from '../ui/Badge.astro';
+import { formatFaceValue, formatStatus, formatYear } from '../../lib/formatters';
+import { isPreviewMode } from '../../lib/config';
+interface Props { selo: Selo; eager?: boolean; }
+const { selo, eager = false } = Astro.props;
+---
+<article class="card" data-selo-card data-search={`${selo.id} ${selo.titulo} ${Object.values(selo.catalogos).map((r) => r && typeof r === 'object' && 'numero' in r ? r.numero : '').join(' ')}`.toLocaleLowerCase('pt-BR')} data-pais={selo.identificacao.pais} data-ano={selo.emissao.ano ?? ''} data-temas={selo.identificacao.tema.join('|')} data-serie={selo.identificacao.serie ?? ''} data-personagem={selo.identificacao.personagem?.nome ?? ''} data-status={selo.publicacao.status}>
+  <a class="image" href={`/selos/${selo.slug}`} aria-label={`Ver ficha de ${selo.titulo}`}><img src={selo.imagens.card} alt={selo.imagens.alt} width="700" height="700" loading={eager ? 'eager' : 'lazy'} decoding="async" /></a>
+  <div class="body"><div class="meta"><span>{selo.identificacao.pais}</span><span>{formatYear(selo.emissao.ano)}</span></div><h3><a href={`/selos/${selo.slug}`}>{selo.titulo}</a></h3><dl><div><dt>Valor facial</dt><dd>{formatFaceValue(selo.identificacao.valor_facial.valor, selo.identificacao.valor_facial.unidade)}</dd></div>{selo.identificacao.serie && <div><dt>Série</dt><dd>{selo.identificacao.serie}</dd></div>}{selo.catalogos.RHM?.numero && <div><dt>RHM</dt><dd>{selo.catalogos.RHM.numero}</dd></div>}</dl>{isPreviewMode && <Badge tone="info">{formatStatus(selo.publicacao.status)}</Badge>}</div>
+</article>
+<style>.card{display:flex;flex-direction:column;min-width:0;background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow)}.image{display:grid;place-items:center;aspect-ratio:1;background:var(--color-image-bg);padding:clamp(1rem,4vw,2.3rem)}.image img{width:100%;height:100%;object-fit:contain}.body{display:grid;gap:.9rem;padding:1.25rem}.meta{display:flex;justify-content:space-between;color:var(--color-muted);font-size:.8rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase}h3{margin:0;font-size:1.35rem}h3 a{text-decoration:none}dl{display:grid;gap:.45rem;margin:0;font-size:.9rem}dl div{display:grid;grid-template-columns:6rem 1fr;gap:.75rem}dt{color:var(--color-muted)}dd{margin:0}</style>

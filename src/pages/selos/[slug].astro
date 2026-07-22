@@ -1,0 +1,36 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Container from '../../components/layout/Container.astro';
+import Breadcrumbs from '../../components/ui/Breadcrumbs.astro';
+import SectionTitle from '../../components/ui/SectionTitle.astro';
+import Badge from '../../components/ui/Badge.astro';
+import SeloGallery from '../../components/selos/SeloGallery.astro';
+import SeloFacts from '../../components/selos/SeloFacts.astro';
+import SeloCatalogos from '../../components/selos/SeloCatalogos.astro';
+import SeloHistorico from '../../components/selos/SeloHistorico.astro';
+import SeloEstado from '../../components/selos/SeloEstado.astro';
+import SeloFontes from '../../components/selos/SeloFontes.astro';
+import SeloStatus from '../../components/selos/SeloStatus.astro';
+import SeloCard from '../../components/selos/SeloCard.astro';
+import { getVisibleSelos, getSeloById } from '../../lib/selos';
+import { formatFaceValue, formatYear } from '../../lib/formatters';
+import { seloJsonLd } from '../../lib/seo';
+import type { Selo } from '../../types/selo';
+
+export function getStaticPaths() { return getVisibleSelos().map((selo) => ({ params:{ slug:selo.slug }, props:{ selo } })); }
+interface Props { selo: Selo; }
+const { selo } = Astro.props;
+const related = (selo.relacionamentos?.selos_relacionados ?? []).map(getSeloById).filter((item): item is Selo => Boolean(item));
+---
+<BaseLayout title={selo.seo.title} description={selo.seo.meta_description} canonicalPath={selo.seo.canonical_path} image={selo.seo.image ?? selo.imagens.card} type="article" jsonLd={seloJsonLd(selo)}>
+  <Container><div class="crumbs"><Breadcrumbs items={[{label:'Início',href:'/'},{label:'Catálogo',href:'/catalogo'},{label:selo.titulo}]} /></div>
+  <article><header class="record-head"><div><p class="eyebrow">{selo.id} · {selo.identificacao.pais} · {formatYear(selo.emissao.ano)}</p><h1>{selo.titulo}</h1><p class="lead">{selo.descricao_curta}</p><div class="chips">{selo.identificacao.serie && <Badge>{selo.identificacao.serie}</Badge>}<Badge>{formatFaceValue(selo.identificacao.valor_facial.valor, selo.identificacao.valor_facial.unidade)}</Badge></div></div><SeloStatus selo={selo} /></header>
+  <section class="overview"><SeloGallery selo={selo} /><div><SectionTitle eyebrow="Ficha técnica">Identificação e emissão</SectionTitle><SeloFacts selo={selo} /></div></section>
+  <section class="record-section"><SectionTitle eyebrow="Referências independentes">Catálogos</SectionTitle><SeloCatalogos selo={selo} /></section>
+  <section class="record-section readable"><SectionTitle eyebrow="Documento e memória">Contexto histórico</SectionTitle><SeloHistorico selo={selo} /></section>
+  <section class="record-section"><SectionTitle eyebrow="Avaliação por imagem">Estado do exemplar</SectionTitle><SeloEstado selo={selo} /></section>
+  <section class="record-section readable"><SectionTitle eyebrow="Rastreabilidade">Fontes consultadas</SectionTitle><SeloFontes selo={selo} /></section>
+  {related.length > 0 && <section class="record-section"><SectionTitle>Selos relacionados</SectionTitle><div class="related">{related.map(item => <SeloCard selo={item} />)}</div></section>}
+  </article></Container>
+</BaseLayout>
+<style>.crumbs{padding-top:1.5rem}.record-head{display:grid;grid-template-columns:minmax(0,1fr) minmax(17rem,.55fr);gap:2rem;align-items:end;padding-block:clamp(2rem,6vw,4.5rem)}.record-head h1{max-width:14ch;margin:.4rem 0 1rem;font-size:clamp(2.2rem,6vw,4.4rem)}.lead{font-size:1.15rem;color:#46515c}.chips{display:flex;flex-wrap:wrap;gap:.5rem}.overview{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);gap:clamp(2rem,6vw,5rem);align-items:start;padding-bottom:clamp(4rem,9vw,7rem)}.record-section{padding-block:clamp(2.5rem,7vw,5rem);border-top:1px solid var(--color-border)}.readable{max-width:52rem}.related{display:grid;grid-template-columns:repeat(auto-fill,minmax(18rem,1fr));gap:1rem}@media(max-width:50rem){.record-head,.overview{grid-template-columns:1fr}.record-head>div{order:0}.record-head>aside{order:1}}</style>

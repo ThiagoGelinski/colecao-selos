@@ -1,0 +1,23 @@
+---
+import { absoluteUrl } from '../../lib/seo';
+interface Props { title: string; description: string; canonicalPath: string; image?: string | null; type?: string; jsonLd?: object | object[]; }
+const { title, description, canonicalPath, image, type = 'website', jsonLd } = Astro.props;
+const canonical = absoluteUrl(canonicalPath);
+const socialImage = image ? absoluteUrl(image) : undefined;
+---
+<title>{title}</title>
+<meta name="description" content={description} />
+<link rel="canonical" href={canonical} />
+<meta property="og:type" content={type} />
+<meta property="og:locale" content="pt_BR" />
+<meta property="og:site_name" content="Coleção Selos" />
+<meta property="og:title" content={title} />
+<meta property="og:description" content={description} />
+<meta property="og:url" content={canonical} />
+{socialImage && <meta property="og:image" content={socialImage} />}
+<meta name="twitter:card" content={socialImage ? 'summary_large_image' : 'summary'} />
+<meta name="twitter:title" content={title} />
+<meta name="twitter:description" content={description} />
+{socialImage && <meta name="twitter:image" content={socialImage} />}
+{jsonLd && <script is:inline type="application/ld+json" set:html={JSON.stringify(jsonLd)} />}
+

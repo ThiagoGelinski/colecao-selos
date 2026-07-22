@@ -1,0 +1,15 @@
+---
+import type { Selo } from '../../types/selo';
+import EmptyValue from '../ui/EmptyValue.astro';
+import { displayValue, formatDate, formatDimensions, formatFaceValue } from '../../lib/formatters';
+interface Props { selo: Selo; }
+const { selo } = Astro.props;
+const facts = [
+  ['Valor facial', formatFaceValue(selo.identificacao.valor_facial.valor, selo.identificacao.valor_facial.unidade)], ['Categoria', selo.identificacao.categoria], ['Tipo', selo.identificacao.tipo], ['Data de emissão', formatDate(selo.emissao.data_oficial)], ['Finalidade', selo.emissao.finalidade], ['Tiragem', selo.emissao.tiragem], ['Impressão', selo.tecnica.impressao], ['Papel', selo.tecnica.papel], ['Goma original', selo.tecnica.goma_original_da_emissao], ['Filigrana', selo.tecnica.filigrana], ['Denteação', selo.tecnica.denteacao], ['Dimensões', formatDimensions(selo.tecnica.dimensoes_mm)], ['Impressor', selo.tecnica.impressor]
+] as const;
+---
+<dl class="facts">{facts.map(([label,value]) => <div><dt>{label}</dt><dd>{value == null ? <EmptyValue /> : displayValue(value)}</dd></div>)}</dl>
+{selo.emissao.data_status && <p class="note"><strong>Status da data:</strong> {selo.emissao.data_status}</p>}
+{selo.emissao.tiragem == null && selo.emissao.tiragem_status && <p class="note"><strong>Tiragem:</strong> {selo.emissao.tiragem_status}</p>}
+{selo.tecnica.impressor_status && <p class="note"><strong>Impressor:</strong> {selo.tecnica.impressor_status}</p>}
+<style>.facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));margin:0;border-top:1px solid var(--color-border)}.facts div{padding:1rem 0;border-bottom:1px solid var(--color-border)}.facts div:nth-child(odd){padding-right:1.2rem}.facts div:nth-child(even){padding-left:1.2rem;border-left:1px solid var(--color-border)}dt{color:var(--color-muted);font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em}dd{margin:.3rem 0 0}.note{padding:.8rem 1rem;background:#f3ede3;border-left:3px solid var(--color-warn);font-size:.9rem}@media(max-width:35rem){.facts{grid-template-columns:1fr}.facts div:nth-child(n){padding:1rem 0;border-left:0}}</style>
