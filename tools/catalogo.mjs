@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { access, link, mkdir, open, readFile, readdir, rename, stat, unlink, writeFile } from 'node:fs/promises';
+import { access, link, mkdir, open, readFile, readdir, rename, rmdir, stat, unlink, writeFile } from 'node:fs/promises';
 import { constants } from 'node:fs';
 import { createHash, randomUUID } from 'node:crypto';
 import path from 'node:path';
@@ -22,6 +22,7 @@ const RESERVATION_STATUSES = new Set(['reservado', 'criando', 'criado', 'falha_n
 const LOCK_TIMEOUT_MS = Number.parseInt(process.env.SELO_LOCK_TIMEOUT_MS ?? '5000', 10);
 const LOCK_STALE_MS = Number.parseInt(process.env.SELO_LOCK_STALE_MS ?? '30000', 10);
 const LOCK_RETRY_MS = Number.parseInt(process.env.SELO_LOCK_RETRY_MS ?? '50', 10);
+const LOCK_REMOVE_DELAY_MS = Number.parseInt(process.env.SELO_TEST_LOCK_REMOVE_DELAY_MS ?? '0', 10);
 
 const command = process.argv[2];
 const argv = process.argv.slice(3);
@@ -63,28 +64,74 @@ function isProcessActive(pid) {
   try { process.kill(pid, 0); return true; } catch (error) { return error?.code === 'EPERM'; }
 }
 
-async function readLockSnapshot() {
+function fileIdentity(details) {
+  return details ? { dev: details.dev, ino: details.ino } : null;
+}
+
+function sameFileIdentity(left, right) {
+  return Boolean(left && right && left.dev === right.dev && left.ino === right.ino);
+}
+
+async function readSnapshotAt(target) {
+  let handle;
   try {
-    const raw = await readFile(ID_LOCK, 'utf8');
-    const metadata = JSON.parse(raw);
-    return { raw, metadata };
-  } catch {
-    const details = await stat(ID_LOCK).catch(() => null);
-    return details ? { raw: null, metadata: { timestamp: details.mtime.toISOString() } } : null;
+    handle = await open(target, 'r');
+    const details = await handle.stat();
+    const raw = await handle.readFile('utf8');
+    let metadata = null;
+    try { metadata = JSON.parse(raw); } catch { metadata = { timestamp: details.mtime.toISOString() }; }
+    return { raw, metadata, identity: fileIdentity(details) };
+  } catch (error) {
+    if (error.code === 'ENOENT') return null;
+    throw error;
+  } finally {
+    await handle?.close();
   }
+}
+
+async function readLockSnapshot() {
+  return readSnapshotAt(ID_LOCK);
+}
+
+async function restoreQuarantinedPath(quarantine, target) {
+  try {
+    await link(quarantine, target);
+    await unlink(quarantine);
+    return true;
+  } catch (error) {
+    if (error.code !== 'EEXIST') throw error;
+    return false;
+  }
+}
+
+async function removeVerifiedFile(target, snapshot, ownershipCheck, tokenHint = 'unknown') {
+  if (!snapshot || !ownershipCheck(snapshot.metadata)) return false;
+  const currentIdentity = fileIdentity(await stat(target).catch(() => null));
+  if (!sameFileIdentity(currentIdentity, snapshot.identity)) return false;
+  if (LOCK_REMOVE_DELAY_MS > 0) await sleep(LOCK_REMOVE_DELAY_MS);
+
+  const quarantine = `${target}.removal-${process.pid}-${tokenHint}-${randomUUID()}`;
+  try { await rename(target, quarantine); }
+  catch (error) { if (error.code === 'ENOENT') return false; throw error; }
+
+  const moved = await readSnapshotAt(quarantine);
+  const proven = moved && sameFileIdentity(moved.identity, snapshot.identity) && moved.raw === snapshot.raw && ownershipCheck(moved.metadata);
+  if (!proven) {
+    await restoreQuarantinedPath(quarantine, target);
+    return false;
+  }
+  await unlink(quarantine);
+  return true;
 }
 
 async function removeStaleLock(snapshot) {
   if (!snapshot) return false;
-  const timestamp = Date.parse(snapshot.metadata?.timestamp ?? '');
-  const stale = Number.isFinite(timestamp) && Date.now() - timestamp > LOCK_STALE_MS;
-  if (!stale || isProcessActive(snapshot.metadata?.pid)) return false;
-  const current = await readLockSnapshot();
-  if (!current || current.raw !== snapshot.raw) return false;
-  await unlink(ID_LOCK).catch((error) => { if (error.code !== 'ENOENT') throw error; });
-  return true;
+  const isStaleOwner = (metadata) => {
+    const timestamp = Date.parse(metadata?.timestamp ?? '');
+    return Number.isFinite(timestamp) && Date.now() - timestamp > LOCK_STALE_MS && !isProcessActive(metadata?.pid);
+  };
+  return removeVerifiedFile(ID_LOCK, snapshot, isStaleOwner, snapshot.metadata?.token ?? 'stale');
 }
-
 async function acquireIdLock(lockCommand) {
   if (!Number.isFinite(LOCK_TIMEOUT_MS) || LOCK_TIMEOUT_MS < 0 || !Number.isFinite(LOCK_STALE_MS) || LOCK_STALE_MS < 1 || !Number.isFinite(LOCK_RETRY_MS) || LOCK_RETRY_MS < 1) {
     throw new Error('Configuração de lock inválida.');
@@ -108,9 +155,8 @@ async function acquireIdLock(lockCommand) {
 
 async function releaseIdLock(owner) {
   const snapshot = await readLockSnapshot();
-  if (!snapshot || snapshot.metadata?.token !== owner.token || snapshot.metadata?.pid !== owner.pid) return false;
-  await unlink(ID_LOCK);
-  return true;
+  const belongsToOwner = (metadata) => metadata?.token === owner.token && metadata?.pid === owner.pid;
+  return removeVerifiedFile(ID_LOCK, snapshot, belongsToOwner, owner.token);
 }
 
 async function withIdLock(lockCommand, operation) {
@@ -199,6 +245,7 @@ function inspectManifest(manifest, records = []) {
   const warnings = [];
   const informational = [];
   if (!manifest || typeof manifest !== 'object' || Array.isArray(manifest)) return { errors: ['Manifesto deve ser um objeto.'], warnings, informational };
+  if (manifest.schema_version !== '2.0.0') errors.push('Manifesto: schema_version deve ser 2.0.0.');
   if (manifest.prefix !== 'SEL') errors.push('Manifesto: prefix deve ser "SEL".');
   if (manifest.digits !== 6) errors.push('Manifesto: digits deve ser 6.');
   if (!Number.isInteger(manifest.next_sequence) || manifest.next_sequence < 1) errors.push('Manifesto: next_sequence deve ser inteiro positivo.');
@@ -210,7 +257,7 @@ function inspectManifest(manifest, records = []) {
   for (const [index, reservation] of manifest.reserved.entries()) {
     const label = `Manifesto reserved[${index}]`;
     if (!reservation || typeof reservation !== 'object' || Array.isArray(reservation)) { errors.push(`${label}: reserva deve ser objeto.`); continue; }
-    for (const field of ['id', 'sequence', 'reserved_at', 'source', 'status']) if (reservation[field] === undefined || reservation[field] === null || reservation[field] === '') errors.push(`${label}: ${field} obrigatório.`);
+    for (const field of ['id', 'sequence', 'reserved_at', 'source', 'status', 'slug']) if (reservation[field] === undefined || reservation[field] === null || reservation[field] === '') errors.push(`${label}: ${field} obrigatório.`);
     if (!ID_PATTERN.test(reservation.id ?? '')) errors.push(`${label}: ID inválido (${reservation.id ?? 'ausente'}).`);
     if (ids.has(reservation.id)) errors.push(`${label}: ID duplicado (${reservation.id}).`); else ids.add(reservation.id);
     if (!Number.isInteger(reservation.sequence) || reservation.sequence < 1) errors.push(`${label}: sequence inválida.`);
@@ -222,10 +269,28 @@ function inspectManifest(manifest, records = []) {
     }
     if (!validDate(reservation.reserved_at)) errors.push(`${label}: reserved_at inválido.`);
     if (typeof reservation.source !== 'string' || !reservation.source.trim()) errors.push(`${label}: source inválido.`);
+    if (typeof reservation.slug !== 'string' || !normalizeSlug(reservation.slug)) errors.push(`${label}: slug inválido.`);
     if (!RESERVATION_STATUSES.has(reservation.status)) errors.push(`${label}: status inválido (${reservation.status ?? 'ausente'}).`);
-    for (const field of ['created_at', 'completed_at', 'failed_at']) if (reservation[field] != null && !validDate(reservation[field])) errors.push(`${label}: ${field} inválido.`);
-    if (reservation.status === 'falha_na_criacao' && (typeof reservation.failure_reason !== 'string' || !reservation.failure_reason.trim())) errors.push(`${label}: falha_na_criacao sem failure_reason.`);
-    if (reservation.status === 'cancelado_sem_reuso') informational.push(`${label}: ID cancelado preservado sem reuso (${reservation.id}).`);
+    for (const field of ['created_at', 'completed_at', 'failed_at', 'cancelado_em']) if (reservation[field] != null && !validDate(reservation[field])) errors.push(`${label}: ${field} inválido.`);
+
+    if (reservation.status === 'criado') {
+      if (!validDate(reservation.created_at)) errors.push(`${label}: criado exige created_at.`);
+      if (!validDate(reservation.completed_at)) errors.push(`${label}: criado exige completed_at.`);
+      if (reservation.failed_at != null || reservation.failure_reason != null) errors.push(`${label}: criado não pode ter failed_at ou failure_reason.`);
+      if (reservation.cancelado_em != null || reservation.cancellation_reason != null) errors.push(`${label}: criado não pode ter dados de cancelamento.`);
+    } else if (reservation.status === 'falha_na_criacao') {
+      if (!validDate(reservation.failed_at)) errors.push(`${label}: falha_na_criacao exige failed_at.`);
+      if (typeof reservation.failure_reason !== 'string' || !reservation.failure_reason.trim()) errors.push(`${label}: falha_na_criacao exige failure_reason.`);
+      if (reservation.completed_at != null) errors.push(`${label}: falha_na_criacao não pode ter completed_at.`);
+      if (reservation.cancelado_em != null || reservation.cancellation_reason != null) errors.push(`${label}: falha_na_criacao não pode ter dados de cancelamento.`);
+    } else if (reservation.status === 'cancelado_sem_reuso') {
+      if (!validDate(reservation.cancelado_em)) errors.push(`${label}: cancelado_sem_reuso exige cancelado_em.`);
+      if (typeof reservation.cancellation_reason !== 'string' || !reservation.cancellation_reason.trim()) errors.push(`${label}: cancelado_sem_reuso exige cancellation_reason.`);
+      if (reservation.completed_at != null || reservation.failed_at != null || reservation.failure_reason != null) errors.push(`${label}: cancelado_sem_reuso possui campos incompatíveis.`);
+      informational.push(`${label}: ID cancelado preservado sem reuso (${reservation.id}).`);
+    } else if (['reservado', 'criando'].includes(reservation.status)) {
+      if (reservation.completed_at != null || reservation.failed_at != null || reservation.failure_reason != null || reservation.cancelado_em != null || reservation.cancellation_reason != null) errors.push(`${label}: ${reservation.status} possui campos incompatíveis.`);
+    }
     if (reservation.status === 'criando' && validDate(reservation.reserved_at) && Date.now() - Date.parse(reservation.reserved_at) > LOCK_STALE_MS) warnings.push(`${label}: reserva em criação antiga (${reservation.id}).`);
   }
   if (Number.isInteger(manifest.next_sequence) && manifest.next_sequence <= maximum) errors.push(`Manifesto: next_sequence (${manifest.next_sequence}) deve ser maior que a maior sequence (${maximum}).`);
@@ -237,7 +302,6 @@ function inspectManifest(manifest, records = []) {
   for (const { record, path: filePath } of records) if (record?.id && !ids.has(record.id)) errors.push(`${path.relative(ROOT, filePath)}: arquivo sem reserva no manifesto (${record.id}).`);
   return { errors, warnings, informational };
 }
-
 function assertManifestValid(manifest, records) {
   const inspection = inspectManifest(manifest, records);
   if (inspection.errors.length) throw new Error(`Manifesto inválido:\n${inspection.errors.join('\n')}`);
@@ -328,9 +392,33 @@ async function writeJsonExclusiveAtomic(target, value) {
   try {
     await writeFile(temporary, `${JSON.stringify(value, null, 2)}\n`, { encoding: 'utf8', flag: 'wx' });
     await link(temporary, target);
+    return await readSnapshotAt(target);
   } finally {
     await unlink(temporary).catch((error) => { if (error.code !== 'ENOENT') throw error; });
   }
+}
+
+async function removeVerifiedEmptyDirectory(target, identity, tokenHint) {
+  const currentIdentity = fileIdentity(await stat(target).catch(() => null));
+  if (!sameFileIdentity(currentIdentity, identity)) return false;
+  const quarantine = `${target}.removal-${process.pid}-${tokenHint}-${randomUUID()}`;
+  try { await rename(target, quarantine); }
+  catch (error) { if (error.code === 'ENOENT') return false; throw error; }
+  const movedIdentity = fileIdentity(await stat(quarantine).catch(() => null));
+  if (!sameFileIdentity(movedIdentity, identity)) {
+    await rename(quarantine, target).catch(() => {});
+    return false;
+  }
+  try { await rmdir(quarantine); return true; }
+  catch (error) {
+    await rename(quarantine, target).catch(() => {});
+    if (['ENOTEMPTY', 'EEXIST'].includes(error.code)) return false;
+    throw error;
+  }
+}
+
+function injectTransactionFailure(stage) {
+  if (process.env.SELO_TEST_FAIL_STAGE === stage) throw new Error(`Falha de teste após ${stage}.`);
 }
 
 function assertSlugAvailable(records, slug) {
@@ -368,28 +456,48 @@ async function seloNovo() {
 
       const reservation = {
         id, sequence, reserved_at: now(), source: 'selo:novo', status: 'reservado', slug,
-        created_at: null, completed_at: null, failed_at: null, failure_reason: null
+        created_at: null, completed_at: null, failed_at: null, failure_reason: null,
+        cancelado_em: null, cancellation_reason: null
       };
       manifest.reserved.push(reservation);
       manifest.next_sequence = sequence + 1;
       await writeJsonAtomic(ID_MANIFEST, manifest);
-      reservation.status = 'criando';
-      await writeJsonAtomic(ID_MANIFEST, manifest);
 
+      let createdJsonSnapshot = null;
+      let createdAssetIdentity = null;
       try {
+        reservation.status = 'criando';
+        await writeJsonAtomic(ID_MANIFEST, manifest);
         const raw = await readFile(TEMPLATE, 'utf8');
         const record = JSON.parse(raw.replaceAll('{{ID}}', id).replaceAll('{{SLUG}}', slug).replaceAll('{{TITULO}}', title).replaceAll('{{DATE}}', today()));
-        await writeJsonExclusiveAtomic(filePath, record);
+        createdJsonSnapshot = await writeJsonExclusiveAtomic(filePath, record);
         reservation.created_at = now();
+        injectTransactionFailure('json');
         await mkdir(assetDirectory);
+        createdAssetIdentity = fileIdentity(await stat(assetDirectory));
+        injectTransactionFailure('assets');
         reservation.status = 'criado';
         reservation.completed_at = now();
         await writeJsonAtomic(ID_MANIFEST, manifest);
         return { id, slug };
       } catch (error) {
+        const cleanupErrors = [];
+        if (createdAssetIdentity) {
+          try {
+            const removed = await removeVerifiedEmptyDirectory(assetDirectory, createdAssetIdentity, id);
+            if (!removed && await exists(assetDirectory)) cleanupErrors.push('pasta de assets não removida por divergência de identidade ou conteúdo');
+          } catch (cleanupError) { cleanupErrors.push(`pasta: ${cleanupError.message}`); }
+        }
+        if (createdJsonSnapshot) {
+          try {
+            const removed = await removeVerifiedFile(filePath, createdJsonSnapshot, () => true, id);
+            if (!removed && await exists(filePath)) cleanupErrors.push('JSON não removido por divergência de identidade');
+          } catch (cleanupError) { cleanupErrors.push(`JSON: ${cleanupError.message}`); }
+        }
         reservation.status = 'falha_na_criacao';
+        reservation.completed_at = null;
         reservation.failed_at = now();
-        reservation.failure_reason = error.message;
+        reservation.failure_reason = cleanupErrors.length ? `${error.message} Compensação: ${cleanupErrors.join('; ')}.` : error.message;
         await writeJsonAtomic(ID_MANIFEST, manifest);
         throw error;
       }
@@ -551,10 +659,16 @@ async function catalogoAuditoria() {
     const filesById = new Map(records.map((item) => [item.record.id, item]));
     for (const reservation of Array.isArray(manifest.reserved) ? manifest.reserved : []) {
       if (!reservation?.id) continue;
-      const hasFile = filesById.has(reservation.id);
+      const fileEntry = filesById.get(reservation.id);
+      const hasFile = Boolean(fileEntry);
+      const hasAssetDirectory = await exists(path.join(ASSET_DIR, reservation.id));
       if (reservation.status === 'criado' && !hasFile) errors.push(`Reserva criada sem JSON: ${reservation.id}.`);
       else if (['reservado', 'criando'].includes(reservation.status) && !hasFile) warnings.push(`Reserva ${reservation.status} sem JSON: ${reservation.id}.`);
       else if (['falha_na_criacao', 'cancelado_sem_reuso'].includes(reservation.status) && !hasFile) informational.push(`Reserva ${reservation.status} preservada sem JSON: ${reservation.id}.`);
+      if (reservation.status === 'falha_na_criacao' && hasFile) errors.push(`falha_na_criacao com JSON existente: ${reservation.id}.`);
+      if (reservation.status === 'cancelado_sem_reuso' && hasFile) errors.push(`cancelado_sem_reuso com JSON existente: ${reservation.id}.`);
+      if (reservation.status === 'criado' && !hasAssetDirectory) errors.push(`Reserva criada sem pasta de assets: ${reservation.id}.`);
+      if (fileEntry && normalizeSlug(reservation.slug) !== normalizeSlug(fileEntry.record.slug)) errors.push(`Slug da reserva difere do JSON em ${reservation.id}: ${reservation.slug} != ${fileEntry.record.slug}.`);
     }
   }
 

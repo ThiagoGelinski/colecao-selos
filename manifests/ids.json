@@ -14,7 +14,9 @@
       "created_at": "2026-07-22",
       "completed_at": "2026-07-22",
       "failed_at": null,
-      "failure_reason": null
+      "failure_reason": null,
+      "cancelado_em": null,
+      "cancellation_reason": null
     }
   ]
 }

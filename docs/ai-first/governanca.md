@@ -9,7 +9,7 @@
 
 ## Estados de reserva
 
-Cada entrada de `manifests/ids.json` contém `id`, `sequence`, `reserved_at`, `source`, `status`, `slug`, `created_at`, `completed_at`, `failed_at` e `failure_reason`.
+Cada entrada de `manifests/ids.json` contém `id`, `sequence`, `reserved_at`, `source`, `status`, `slug`, `created_at`, `completed_at`, `failed_at`, `failure_reason`, `cancelado_em` e `cancellation_reason`. Os campos obrigatórios e incompatíveis são validados conforme o status.
 
 - `reservado`: sequência consumida;
 - `criando`: transação em andamento;
@@ -21,7 +21,7 @@ IDs nunca são reutilizados. Lacunas são aceitas somente como histórico de seq
 
 ## Concorrência e lock
 
-A escrita do manifesto é serializada por `manifests/ids.lock`, criado com exclusividade. O proprietário é identificado por PID e token. A remoção automática de lock obsoleto exige simultaneamente idade acima do limite, PID inativo e snapshot inalterado. A liberação normal ocorre em `finally`.
+A escrita do manifesto é serializada por `manifests/ids.lock`, criado com exclusividade. O proprietário é identificado por PID e token. A remoção automática de lock obsoleto exige simultaneamente idade acima do limite, PID inativo e identidade de arquivo comprovada antes e depois de um rename para quarentena exclusiva. Token, PID, `dev` e `ino` são revalidados antes da remoção. A liberação normal ocorre em `finally` e segue o mesmo protocolo.
 
 Slug inválido, slug duplicado ou manifesto inválido são bloqueados antes da reserva. A verificação é repetida dentro do lock para fechar a janela de concorrência.
 

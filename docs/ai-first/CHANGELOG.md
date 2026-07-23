@@ -2,7 +2,9 @@
 
 ## Em desenvolvimento — Bloco 2: IDs, concorrência e transações
 
-- lock exclusivo e configurável para `manifests/ids.json`;
+- lock exclusivo e configurável para manifests/ids.json;
+- remoção do lock comprovada por dev/ino, rename exclusivo e revalidação;
+- compensação segura de JSON e pasta vazia criados pela transação;
 - detecção segura de lock obsoleto sem remover lock de processo ativo;
 - manifesto 2.0 com ciclo de vida e política de não reutilização;
 - validação prévia de manifesto, slug e integridade global;

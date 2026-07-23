@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, rmdir, unlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
@@ -13,6 +13,7 @@ function reservation(sequence, overrides = {}) {
   return {
     id, sequence, reserved_at: '2026-07-23T12:00:00.000Z', source: 'teste', status: 'criado', slug: `selo-${sequence}`,
     created_at: '2026-07-23T12:00:00.000Z', completed_at: '2026-07-23T12:00:01.000Z', failed_at: null, failure_reason: null,
+    cancelado_em: null, cancellation_reason: null,
     ...overrides
   };
 }
@@ -230,4 +231,133 @@ test('falha transacional mantém manifesto legível', async () => {
   const data = await readManifest(root);
   assert.equal(data.next_sequence, 2);
   assert.equal(data.reserved[0].status, 'falha_na_criacao');
+});
+
+test('lock substituído entre snapshot e liberação não é removido', async () => {
+  const root = await workspace();
+  const lockPath = path.join(root, 'manifests', 'ids.lock');
+  const pending = runAsync(root, 'selo:novo', ['--slug', 'troca-na-liberacao', '--titulo', 'Troca'], { SELO_TEST_LOCK_REMOVE_DELAY_MS: '500' });
+  await new Promise((resolve) => setTimeout(resolve, 150));
+  await unlink(lockPath);
+  const replacement = { pid: process.pid, timestamp: new Date().toISOString(), command: 'substituto', token: 'novo-token' };
+  await writeLock(root, replacement);
+  const result = await pending;
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(JSON.parse(await readFile(lockPath, 'utf8')), replacement);
+  await unlink(lockPath);
+});
+
+test('lock substituído antes da remoção obsoleta é preservado', async () => {
+  const root = await workspace();
+  const lockPath = path.join(root, 'manifests', 'ids.lock');
+  await writeLock(root, { pid: 99999999, timestamp: new Date(Date.now() - 60_000).toISOString(), command: 'obsoleto', token: 'antigo' });
+  const pending = runAsync(root, 'selo:novo', ['--slug', 'troca-obsoleto', '--titulo', 'Troca'], { SELO_LOCK_STALE_MS: '10', SELO_LOCK_TIMEOUT_MS: '900', SELO_LOCK_RETRY_MS: '20', SELO_TEST_LOCK_REMOVE_DELAY_MS: '500' });
+  await new Promise((resolve) => setTimeout(resolve, 150));
+  await unlink(lockPath);
+  const replacement = { pid: process.pid, timestamp: new Date().toISOString(), command: 'ativo', token: 'token-ativo' };
+  await writeLock(root, replacement);
+  const result = await pending;
+  assert.notEqual(result.status, 0);
+  assert.deepEqual(JSON.parse(await readFile(lockPath, 'utf8')), replacement);
+  await unlink(lockPath);
+});
+
+test('processo não remove lock de outro token', async () => {
+  const root = await workspace();
+  const replacement = { pid: process.pid, timestamp: new Date().toISOString(), command: 'outro', token: 'token-de-outro' };
+  await writeLock(root, replacement);
+  const result = run(root, 'selo:novo', ['--slug', 'outro-token', '--titulo', 'Token'], { SELO_LOCK_TIMEOUT_MS: '80', SELO_LOCK_RETRY_MS: '10' });
+  assert.notEqual(result.status, 0);
+  assert.deepEqual(JSON.parse(await readFile(path.join(root, 'manifests', 'ids.lock'), 'utf8')), replacement);
+});
+
+test('processo não remove lock de outro PID ativo', async () => {
+  const root = await workspace();
+  const holder = spawn(process.execPath, ['-e', 'setTimeout(() => {}, 2000)']);
+  try {
+    const replacement = { pid: holder.pid, timestamp: new Date(Date.now() - 60_000).toISOString(), command: 'holder', token: 'holder-token' };
+    await writeLock(root, replacement);
+    const result = run(root, 'selo:novo', ['--slug', 'pid-ativo', '--titulo', 'PID'], { SELO_LOCK_STALE_MS: '10', SELO_LOCK_TIMEOUT_MS: '80', SELO_LOCK_RETRY_MS: '10' });
+    assert.notEqual(result.status, 0);
+    assert.deepEqual(JSON.parse(await readFile(path.join(root, 'manifests', 'ids.lock'), 'utf8')), replacement);
+  } finally { holder.kill(); }
+});
+
+test('falha após JSON criado remove o JSON da transação', async () => {
+  const root = await workspace();
+  const result = run(root, 'selo:novo', ['--slug', 'falha-depois-json', '--titulo', 'Falha JSON'], { SELO_TEST_FAIL_STAGE: 'json' });
+  assert.notEqual(result.status, 0);
+  await assert.rejects(readFile(path.join(root, 'src', 'data', 'selos', 'SEL-000001.json'), 'utf8'), /ENOENT/);
+  const item = (await readManifest(root)).reserved[0];
+  assert.equal(item.status, 'falha_na_criacao');
+  assert.ok(item.failed_at);
+});
+
+test('falha após pasta criada remove JSON e pasta vazia', async () => {
+  const root = await workspace();
+  const result = run(root, 'selo:novo', ['--slug', 'falha-depois-pasta', '--titulo', 'Falha Pasta'], { SELO_TEST_FAIL_STAGE: 'assets' });
+  assert.notEqual(result.status, 0);
+  await assert.rejects(readFile(path.join(root, 'src', 'data', 'selos', 'SEL-000001.json'), 'utf8'), /ENOENT/);
+  await assert.rejects(readFile(path.join(root, 'public', 'assets', 'selos', 'SEL-000001'), 'utf8'));
+  assert.equal((await readManifest(root)).reserved[0].status, 'falha_na_criacao');
+});
+
+test('falha compensada mantém manifesto válido', async () => {
+  const root = await workspace();
+  assert.notEqual(run(root, 'selo:novo', ['--slug', 'manifesto-apos-falha', '--titulo', 'Falha'], { SELO_TEST_FAIL_STAGE: 'assets' }).status, 0);
+  const audit = run(root, 'catalogo:auditoria');
+  assert.equal(audit.status, 0, audit.stdout + audit.stderr);
+  assert.equal(JSON.parse(audit.stdout).errors.length, 0);
+});
+
+test('artefato preexistente nunca é removido pela falha', async () => {
+  const root = await workspace();
+  const directory = path.join(root, 'public', 'assets', 'selos', 'SEL-000001');
+  await mkdir(directory);
+  const evidence = path.join(directory, 'evidencia.txt');
+  await writeFile(evidence, 'preservar');
+  const result = run(root, 'selo:novo', ['--slug', 'preserva-existente', '--titulo', 'Preserva']);
+  assert.notEqual(result.status, 0);
+  assert.equal(await readFile(evidence, 'utf8'), 'preservar');
+  assert.equal((await readManifest(root)).next_sequence, 1);
+});
+
+test('falha_na_criacao com JSON aparece como erro', async () => {
+  const failed = reservation(1, { status: 'falha_na_criacao', completed_at: null, failed_at: '2026-07-23T12:00:02.000Z', failure_reason: 'falha', cancelado_em: null, cancellation_reason: null });
+  const root = await workspace({ manifestValue: manifest([failed], 2) });
+  await writeRecord(root, failed.id, failed.slug);
+  const result = run(root, 'catalogo:auditoria');
+  assert.notEqual(result.status, 0);
+  assert.match(result.stdout, /falha_na_criacao com JSON existente/);
+});
+
+test('reserva criada sem pasta de assets aparece como erro', async () => {
+  const created = reservation(1);
+  const root = await workspace({ manifestValue: manifest([created], 2) });
+  await writeRecord(root, created.id, created.slug);
+  await unlink(path.join(root, 'public', 'assets', 'selos', created.id, `${created.id}-frente.webp`));
+  await unlink(path.join(root, 'public', 'assets', 'selos', created.id, `${created.id}-card.webp`));
+  await rmdir(path.join(root, 'public', 'assets', 'selos', created.id));
+  const result = run(root, 'catalogo:auditoria');
+  assert.notEqual(result.status, 0);
+  assert.match(result.stdout, /Reserva criada sem pasta de assets/);
+});
+
+test('slug do manifesto diferente do registro aparece como erro', async () => {
+  const created = reservation(1, { slug: 'slug-manifesto' });
+  const root = await workspace({ manifestValue: manifest([created], 2) });
+  await writeRecord(root, created.id, 'slug-registro');
+  const result = run(root, 'catalogo:auditoria');
+  assert.notEqual(result.status, 0);
+  assert.match(result.stdout, /Slug da reserva difere do JSON/);
+});
+
+test('schema_version inválido bloqueia criação', async () => {
+  const invalid = manifest();
+  invalid.schema_version = '1.0.0';
+  const root = await workspace({ manifestValue: invalid });
+  const result = run(root, 'selo:novo', ['--slug', 'schema-invalido', '--titulo', 'Schema']);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /schema_version deve ser 2\.0\.0/);
+  assert.equal((await readManifest(root)).next_sequence, 1);
 });

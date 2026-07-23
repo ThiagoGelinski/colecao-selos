@@ -8,7 +8,7 @@ npm run selo:novo -- --slug brasil-exemplo --titulo "Brasil — Exemplo"
 
 Antes de consumir uma sequência, o comando normaliza e valida o slug, procura duplicidades e verifica a integridade global dos registros e de `manifests/ids.json`. A reserva ocorre sob lock exclusivo em `manifests/ids.lock`. O arquivo contém `pid`, `timestamp`, `command` e um token de propriedade; a liberação acontece em `finally` e somente pelo processo proprietário.
 
-O lock usa criação exclusiva. Quando já existe, o comando espera com retentativas controladas até `SELO_LOCK_TIMEOUT_MS` (padrão: 5000 ms). `SELO_LOCK_RETRY_MS` controla o intervalo. Um lock mais antigo que `SELO_LOCK_STALE_MS` (padrão: 30000 ms) só é removido automaticamente se o PID registrado não estiver ativo e se o conteúdo não tiver mudado durante a inspeção.
+O lock usa criação exclusiva. Quando já existe, o comando espera com retentativas controladas até `SELO_LOCK_TIMEOUT_MS` (padrão: 5000 ms). `SELO_LOCK_RETRY_MS` controla o intervalo. Um lock mais antigo que `SELO_LOCK_STALE_MS` (padrão: 30000 ms) só é removido automaticamente se o PID registrado não estiver ativo. Para remover, o pipeline compara `dev`/`ino`, renomeia o mesmo arquivo para uma quarentena exclusiva, valida novamente identidade, token e PID e só então apaga a quarentena. Locks substituídos são restaurados ou preservados, nunca removidos pelo proprietário anterior.
 
 Nunca apague um lock apenas por ele existir. Primeiro leia `manifests/ids.lock`, verifique o PID, o timestamp e o comando, confirme que o processo terminou e preserve uma cópia para investigação. Se o processo ainda estiver ativo, aguarde ou encerre-o de forma controlada; o pipeline nunca remove lock pertencente a outro processo ativo.
 
@@ -18,7 +18,7 @@ Nunca apague um lock apenas por ele existir. Primeiro leia `manifests/ids.lock`,
 
 Dentro do lock, o manifesto é relido e validado. A reserva passa por `reservado`, `criando` e `criado`. O JSON é criado de forma atômica e exclusiva, e a pasta de assets não pode existir previamente.
 
-Se houver falha depois da reserva, o ID recebe `falha_na_criacao`, `failed_at` e `failure_reason`. A sequência continua consumida e nunca poderá ser reutilizada. Falhas e cancelamentos são evidências auditáveis, não lacunas disponíveis.
+Se houver falha depois da reserva, o ID recebe `falha_na_criacao`, `failed_at` e `failure_reason`. JSON e pasta vazia criados pela própria transação são compensados somente após conferência de identidade; artefatos preexistentes, substituídos ou com conteúdo desconhecido são preservados. A sequência continua consumida e nunca poderá ser reutilizada. Falhas e cancelamentos são evidências auditáveis, não lacunas disponíveis.
 
 ## 3. Pesquisar e preparar
 
