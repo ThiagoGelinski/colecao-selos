@@ -1,0 +1,24 @@
+---
+import '../styles/admin.css';
+interface Props { title: string; description?: string; }
+const { title, description = 'Área administrativa da Coleção Selos' } = Astro.props;
+const user = Astro.locals.adminUser;
+const path = Astro.url.pathname;
+const nav = [
+  { href: '/admin', label: 'Visão geral', exact: true },
+  { href: '/admin/selos', label: 'Selos' },
+  { href: '/admin/configuracoes', label: 'Configurações' },
+  { href: '/admin/alterar-senha', label: 'Alterar senha' },
+];
+---
+<!doctype html><html lang="pt-BR"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width"/><meta name="robots" content="noindex,nofollow"/><title>{title} | Administração</title><meta name="description" content={description}/><link rel="icon" href="/favicon.svg"/></head>
+<body><a class="skip" href="#conteudo">Pular para o conteúdo</a><div class="admin-shell">
+<header class="admin-header"><a class="brand" href="/admin"><span>Coleção Selos</span><small>Administração</small></a><div class="identity"><span><strong>{user?.username}</strong><small>{user?.role}</small></span><button type="button" data-logout>Sair</button></div></header>
+<aside class="admin-sidebar"><nav aria-label="Navegação administrativa">{nav.map(item => <a href={item.href} aria-current={(item.exact ? path === item.href : path.startsWith(item.href)) ? 'page' : undefined}>{item.label}</a>)}<a href="/">Voltar ao catálogo</a></nav></aside>
+<main id="conteudo" class="admin-content"><slot /></main></div>
+<div class="toast" data-global-error hidden role="alert"></div>
+<script>
+  const logout = document.querySelector<HTMLButtonElement>('[data-logout]');
+  logout?.addEventListener('click', async () => { logout.disabled = true; try { await fetch('/api/admin/auth/logout', { method: 'POST' }); } finally { location.assign('/admin/login'); } });
+  window.addEventListener('admin:session-expired', () => location.assign('/admin/login?expired=1'));
+</script></body></html>

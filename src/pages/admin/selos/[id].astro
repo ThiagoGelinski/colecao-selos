@@ -1,0 +1,21 @@
+---
+export const prerender = false;
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+const id = Astro.params.id ?? '';
+---
+<AdminLayout title={`Registro ${id}`}>
+  <header class="page-head"><div><p class="eyebrow">Consulta somente leitura</p><h1>{id}</h1></div><a class="button" href="/admin/selos">Voltar à lista</a></header>
+  <section data-detail data-record-id={id}><div class="panel loading">Carregando registro…</div></section>
+  <script>
+    const target = document.querySelector<HTMLElement>('[data-detail]')!; const id = target.dataset.recordId ?? '';
+    const entities: Record<string, string> = { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }; const escape = (value: unknown) => String(value ?? '—').replace(/[&<>"']/g, (char) => entities[char] ?? char);
+    fetch(`/api/admin/selos/${encodeURIComponent(id)}`).then(async (response) => {
+      const payload = await response.json(); if (response.status === 401) { window.dispatchEvent(new Event('admin:session-expired')); return; } if (!response.ok) throw new Error(payload.error?.message);
+      const item = payload.data.resumo; const history = payload.data.historico.length ? `<ul>${payload.data.historico.map((event: { tipo: string; ocorrido_em: string }) => `<li>${escape(event.tipo)} — ${escape(event.ocorrido_em)}</li>`).join('')}</ul>` : '<p class="muted">Registro legado sem eventos editoriais.</p>';
+      const validationLayers = [['Estrutural', item.validacao.estrutural], ['Semântica', item.validacao.semantica], ['Editorial', item.validacao.editorial], ['Assets', item.validacao.assets]];
+      const validation = validationLayers.map(([label, layer]) => `<article class="panel detail-card"><h3>${label}</h3><span class="badge ${layer.estado === 'valida' ? 'ok' : 'bad'}">${escape(layer.rotulo)}${layer.estado === 'invalida' ? ` — ${escape(layer.erros)} erro(s)` : ''}</span></article>`).join('');
+      const assets = ['frente', 'card', 'verso', 'thumb'].map((kind) => { const asset = item.imagens[kind]; return `<li><strong>${escape(kind)}</strong>: ${!asset.informado ? 'não informado' : asset.valido ? 'válido e existente' : asset.caminho_valido === false ? 'caminho inválido' : 'arquivo ausente'}</li>`; }).join('');
+      target.innerHTML = `<div class="detail-grid"><dl class="panel detail-card"><dt>Título</dt><dd>${escape(item.titulo)}</dd><dt>País / ano</dt><dd>${escape(item.pais)} · ${escape(item.ano)}</dd><dt>Status</dt><dd>${escape(item.status)}</dd><dt>Resultado geral</dt><dd><span class="badge ${item.validacao.valida ? 'ok' : 'bad'}">${item.validacao.valida ? 'Válido' : `${escape(item.validacao.erros)} erro(s)`}</span></dd><dt>Página pública</dt><dd><a href="/selos/${encodeURIComponent(item.slug)}">Abrir página</a></dd></dl><div class="panel detail-card"><h2>Histórico editorial</h2>${history}</div></div><h2 class="section-title">Camadas de validação</h2><div class="validation-grid">${validation}</div><section class="panel detail-card"><h2>Assets</h2><ul>${assets}</ul></section><h2 class="section-title">Registro oficial</h2><pre class="record-json">${escape(JSON.stringify(payload.data.registro, null, 2))}</pre>`;
+    }).catch((error) => { target.innerHTML = `<div class="error">${escape(error.message || 'Erro ao carregar registro.')}</div>`; });
+  </script>
+</AdminLayout>

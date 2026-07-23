@@ -13,14 +13,36 @@ const formatLayerErrors = (label, layer) => layer.errors.map((error) => `${label
 export function uniqueFindings(values) { return [...new Set(values)]; }
 export function statusCounts(records, statuses) { return Object.fromEntries(statuses.map((status) => [status, records.filter(({ record }) => record.publicacao.status === status).length])); }
 export function validateRecord(record, filePath) {
-  const label = path.relative(ROOT, filePath); const structural = validateSeloSchema(record); const semantic = validateSeloSemantics(record); const editorial = structural.valid ? validateSeloEditorial(record) : { valid: false, errors: [] }; const fileErrors = validateFileIdentity(record, filePath);
+  const label = path.relative(ROOT, filePath); const structural = validateSeloSchema(record); const semantic = validateSeloSemantics(record); const editorialExecuted = structural.valid; const editorial = editorialExecuted ? validateSeloEditorial(record) : { valid: null, errors: [], skipped_reason: 'falha_estrutural' }; const fileErrors = validateFileIdentity(record, filePath);
   const errors = [...formatLayerErrors(label, structural), ...formatLayerErrors(label, semantic), ...formatLayerErrors(label, editorial), ...fileErrors];
   const warnings = !record?.aprovacao_humana && record?.publicacao?.status !== 'rascunho' ? [`${label}: registro legado sem bloco aprovacao_humana.`] : [];
-  return { errors, warnings, structural_errors: structural.errors, semantic_errors: semantic.errors, editorial_errors: editorial.errors, file_errors: fileErrors };
+  return { errors, warnings, structural_errors: structural.errors, semantic_errors: semantic.errors, editorial_errors: editorial.errors, file_errors: fileErrors, layer_results: { structural: { ...structural, executed: true }, semantic: { ...semantic, executed: true }, editorial: { ...editorial, executed: editorialExecuted } } };
 }
+export async function validateRecordOperational(record, filePath) {
+  const recordValidation = validateRecord(record, filePath);
+  const history = inspectEditorialHistory(record);
+  const assets = await validateAssets(record);
+  const assetsErrors = assetErrors(assets);
+  const errors = [...recordValidation.errors, ...history.errors, ...assetsErrors];
+  return {
+    valid: errors.length === 0,
+    errors,
+    warnings: [...recordValidation.warnings, ...history.warnings],
+    informational: history.informational,
+    layers: {
+      structural: recordValidation.layer_results.structural,
+      semantic: recordValidation.layer_results.semantic,
+      editorial: recordValidation.layer_results.editorial,
+      file: { valid: recordValidation.file_errors.length === 0, errors: recordValidation.file_errors },
+      history: { valid: history.errors.length === 0, errors: history.errors },
+      assets: { valid: assetsErrors.length === 0, errors: assetsErrors, items: assets },
+    },
+  };
+}
+
 export async function auditOne(reference) {
-  const { path: filePath, record } = await resolveRecord(reference); const validation = validateRecord(record, filePath); const history = inspectEditorialHistory(record); const assets = await validateAssets(record); const errors = [...validation.errors, ...history.errors, ...assetErrors(assets)];
-  const report = { generated_at: now(), id: record.id, slug: record.slug, valid: errors.length === 0, publication_blocked: errors.some((error) => /publica|aprova|hash/i.test(error)), errors, warnings: [...validation.warnings, ...history.warnings], informational: history.informational, validation: { structural_errors: validation.structural_errors, semantic_errors: validation.semantic_errors, editorial_errors: validation.editorial_errors, file_errors: validation.file_errors }, assets };
+  const { path: filePath, record } = await resolveRecord(reference); const operational = await validateRecordOperational(record, filePath);
+  const report = { generated_at: now(), id: record.id, slug: record.slug, valid: operational.valid, publication_blocked: operational.errors.some((error) => /publica|aprova|hash/i.test(error)), errors: operational.errors, warnings: operational.warnings, informational: operational.informational, validation: { structural_errors: operational.layers.structural.errors, semantic_errors: operational.layers.semantic.errors, editorial_errors: operational.layers.editorial.errors, file_errors: operational.layers.file.errors }, assets: operational.layers.assets.items };
   await writeJsonAtomic(path.join(REPORT_DIR, `${record.id}-auditoria.json`), report); return report;
 }
 export async function auditCatalog() {

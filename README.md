@@ -123,3 +123,7 @@ Todos os comandos aceitam `--json`; nesse modo o stdout contém apenas um envelo
 Com `--json`, o envelope e o código de saída são inseparáveis: `exit code 0` sempre produz `ok: true`; qualquer código diferente de zero sempre produz `ok: false`. O stdout contém exatamente um documento JSON, sem mensagens intermediárias, e o stderr permanece vazio. Os comandos retornam `CommandResult` explícito, portanto falhas de validação e auditoria não dependem de `process.exitCode` oculto.
 
 A arquitetura final separa `records`, `manifest`, `transactions`, `audit`, `maintenance`, `status`, `logging`, `history`, `assets`, `lock`, `io`, `paths`, `errors`, `output` e o orquestrador `commands`. Revogação manual e invalidação automática usam o mesmo domínio `revokeApproval`.
+
+## Painel administrativo — fundação
+
+A área administrativa somente leitura está documentada em [docs/admin/README.md](docs/admin/README.md). Ela usa rotas server-side protegidas no Netlify, reaproveita os registros e a validação operacional completa da pipeline, incluindo assets e não altera a política de publicação. O primeiro acesso administrativo usa uma credencial inicial de uso único e exige o cadastro imediato de login e senha definitivos. O hash é persistido exclusivamente no Netlify Blobs e `bootstrap_consumed=true` impede a reativação do primeiro acesso. Configure somente `ADMIN_SESSION_SECRET` conforme `docs/admin/README.md`. Nunca versione credenciais reais.
