@@ -1,0 +1,870 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://colecaodeselos.netlify.app/schemas/selo.schema.json",
+  "title": "Registro filatélico — Coleção Selos",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "id",
+    "slug",
+    "titulo",
+    "descricao_curta",
+    "identificacao",
+    "emissao",
+    "tecnica",
+    "catalogos",
+    "exemplar",
+    "imagens",
+    "historico",
+    "fontes",
+    "seo",
+    "publicacao",
+    "auditoria"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^SEL-[0-9]{6}$"
+    },
+    "slug": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+    },
+    "titulo": {
+      "type": "string",
+      "minLength": 1
+    },
+    "descricao_curta": {
+      "type": "string"
+    },
+    "identificacao": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pais",
+        "tipo",
+        "categoria",
+        "tema",
+        "valor_facial"
+      ],
+      "properties": {
+        "pais": {
+          "type": "string"
+        },
+        "continente": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "administracao_postal": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "tipo": {
+          "type": "string"
+        },
+        "categoria": {
+          "type": "string"
+        },
+        "serie": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "tema": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "personagem": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "nome"
+              ],
+              "properties": {
+                "nome": {
+                  "type": "string"
+                },
+                "nascimento": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "date"
+                },
+                "falecimento": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "date"
+                },
+                "funcao": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "mandato": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        "valor_facial": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "valor",
+            "unidade"
+          ],
+          "properties": {
+            "valor": {
+              "type": [
+                "number",
+                "string"
+              ]
+            },
+            "unidade": {
+              "type": "string"
+            },
+            "inscricao": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "cor": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "orientacao": {
+          "enum": [
+            "vertical",
+            "horizontal",
+            "quadrado",
+            null
+          ]
+        }
+      }
+    },
+    "emissao": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "ano": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1000,
+          "maximum": 9999
+        },
+        "data_oficial": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date"
+        },
+        "data_status": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "finalidade": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "tiragem": {
+          "type": [
+            "integer",
+            "number",
+            "string",
+            "null"
+          ]
+        },
+        "tiragem_status": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "tecnica": {
+      "type": "object"
+    },
+    "catalogos": {
+      "type": "object"
+    },
+    "exemplar": {
+      "type": "object"
+    },
+    "imagens": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "frente",
+        "card",
+        "alt"
+      ],
+      "properties": {
+        "frente": {
+          "type": "string",
+          "pattern": "^/assets/selos/SEL-[0-9]{6}/SEL-[0-9]{6}-frente\\.webp$"
+        },
+        "verso": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^/assets/selos/SEL-[0-9]{6}/SEL-[0-9]{6}-verso\\.webp$"
+        },
+        "card": {
+          "type": "string",
+          "pattern": "^/assets/selos/SEL-[0-9]{6}/SEL-[0-9]{6}-card\\.webp$"
+        },
+        "thumb": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^/assets/selos/SEL-[0-9]{6}/SEL-[0-9]{6}-thumb\\.webp$"
+        },
+        "alt": {
+          "type": "string"
+        }
+      }
+    },
+    "historico": {
+      "type": "object"
+    },
+    "fontes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "titulo",
+          "uso"
+        ],
+        "properties": {
+          "titulo": {
+            "type": "string",
+            "minLength": 1
+          },
+          "url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uri"
+          },
+          "tipo": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "uso": {
+            "type": "string",
+            "minLength": 1
+          },
+          "data_consulta": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "confianca": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    "seo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "title",
+        "meta_description",
+        "canonical_path"
+      ],
+      "properties": {
+        "title": {
+          "type": "string"
+        },
+        "meta_description": {
+          "type": "string"
+        },
+        "canonical_path": {
+          "type": "string",
+          "pattern": "^/selos/[a-z0-9]+(?:-[a-z0-9]+)*$"
+        },
+        "open_graph_title": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "open_graph_description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "image": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "relacionamentos": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "pais": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "serie": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "personagens": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "temas": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "anos": {
+          "type": "array",
+          "items": {
+            "type": "integer"
+          }
+        },
+        "selos_relacionados": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^SEL-[0-9]{6}$"
+          }
+        }
+      }
+    },
+    "aprovacao_humana": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "decisao",
+        "aprovado_por",
+        "aprovado_em",
+        "hash_do_registro_aprovado",
+        "versao_aprovada",
+        "escopo"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "pendente",
+            "aprovado",
+            "rejeitado",
+            "revogado"
+          ]
+        },
+        "decisao": {
+          "enum": [
+            "pendente",
+            "aprovado",
+            "rejeitado"
+          ]
+        },
+        "aprovado_por": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "aprovado_em": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "hash_do_registro_aprovado": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "versao_aprovada": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "escopo": {
+          "const": "publicacao_catalogo"
+        },
+        "observacao": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "invalidado_em": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "motivo_invalidacao": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "rejeitado_por": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "motivo_rejeicao": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "revogado_por": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "motivo_revogacao": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "rejeitado_em": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "revogado_em": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        }
+      }
+    },
+    "publicacao": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "apto_para_preview",
+        "apto_para_publicacao"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "rascunho",
+            "em_pesquisa",
+            "identificacao_parcial",
+            "aguardando_revisao",
+            "homologacao",
+            "aprovado",
+            "publicado",
+            "revisao_necessaria"
+          ]
+        },
+        "apto_para_preview": {
+          "type": "boolean"
+        },
+        "apto_para_publicacao": {
+          "type": "boolean"
+        },
+        "motivo": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "auditoria": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "criado_em",
+        "ultima_revisao",
+        "versao"
+      ],
+      "properties": {
+        "criado_em": {
+          "type": "string",
+          "format": "date"
+        },
+        "ultima_revisao": {
+          "type": "string",
+          "format": "date"
+        },
+        "versao": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "historico_editorial": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "tipo",
+          "ocorrido_em",
+          "responsavel",
+          "motivo",
+          "hash",
+          "versao"
+        ],
+        "properties": {
+          "tipo": {
+            "enum": [
+              "aprovacao",
+              "rejeicao",
+              "revogacao",
+              "publicacao",
+              "invalidacao"
+            ]
+          },
+          "ocorrido_em": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "responsavel": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          },
+          "motivo": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "hash": {
+            "pattern": "^[a-f0-9]{64}$",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "versao": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "aprovacaoValida": {
+      "type": "object",
+      "required": [
+        "status",
+        "decisao",
+        "aprovado_por",
+        "aprovado_em",
+        "hash_do_registro_aprovado",
+        "versao_aprovada"
+      ],
+      "properties": {
+        "status": {
+          "const": "aprovado"
+        },
+        "decisao": {
+          "const": "aprovado"
+        },
+        "aprovado_por": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "aprovado_em": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "hash_do_registro_aprovado": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "versao_aprovada": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "publicacao": {
+            "properties": {
+              "status": {
+                "const": "rascunho"
+              }
+            },
+            "required": [
+              "status"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
+      "then": {
+        "required": [
+          "aprovacao_humana"
+        ],
+        "properties": {
+          "aprovacao_humana": {
+            "properties": {
+              "status": {
+                "const": "pendente"
+              },
+              "decisao": {
+                "const": "pendente"
+              },
+              "aprovado_por": {
+                "type": "null"
+              },
+              "aprovado_em": {
+                "type": "null"
+              },
+              "hash_do_registro_aprovado": {
+                "type": "null"
+              },
+              "versao_aprovada": {
+                "type": "null"
+              }
+            },
+            "type": "object"
+          },
+          "publicacao": {
+            "properties": {
+              "apto_para_publicacao": {
+                "const": false
+              }
+            },
+            "type": "object"
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "publicacao": {
+            "properties": {
+              "status": {
+                "const": "aprovado"
+              }
+            },
+            "required": [
+              "status"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
+      "then": {
+        "required": [
+          "aprovacao_humana"
+        ],
+        "properties": {
+          "aprovacao_humana": {
+            "$ref": "#/$defs/aprovacaoValida"
+          },
+          "publicacao": {
+            "properties": {
+              "apto_para_publicacao": {
+                "const": false
+              }
+            },
+            "type": "object"
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "publicacao": {
+            "properties": {
+              "status": {
+                "const": "publicado"
+              }
+            },
+            "required": [
+              "status"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
+      "then": {
+        "required": [
+          "aprovacao_humana"
+        ],
+        "properties": {
+          "aprovacao_humana": {
+            "$ref": "#/$defs/aprovacaoValida"
+          },
+          "publicacao": {
+            "properties": {
+              "apto_para_publicacao": {
+                "const": true
+              },
+              "apto_para_preview": {
+                "const": true
+              }
+            },
+            "type": "object"
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "publicacao": {
+            "properties": {
+              "status": {
+                "const": "revisao_necessaria"
+              }
+            },
+            "required": [
+              "status"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
+      "then": {
+        "properties": {
+          "publicacao": {
+            "properties": {
+              "apto_para_publicacao": {
+                "const": false
+              }
+            },
+            "type": "object"
+          },
+          "aprovacao_humana": {
+            "not": {
+              "$ref": "#/$defs/aprovacaoValida"
+            }
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "publicacao": {
+            "properties": {
+              "status": {
+                "not": {
+                  "const": "publicado"
+                }
+              }
+            },
+            "required": [
+              "status"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
+      "then": {
+        "properties": {
+          "publicacao": {
+            "properties": {
+              "apto_para_publicacao": {
+                "const": false
+              }
+            },
+            "type": "object"
+          }
+        },
+        "type": "object"
+      }
+    }
+  ]
+}

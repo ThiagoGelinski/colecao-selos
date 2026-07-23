@@ -4,13 +4,31 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "test": "node --test tests/catalogo.test.mjs tests/transacoes.test.mjs tests/schema.test.mjs tests/block4.test.mjs tests/final-block4.test.mjs",
+    "test:schema": "node --test tests/schema.test.mjs",
     "dev": "astro dev",
     "build": "astro check && astro build",
     "check": "astro check",
-    "preview": "astro preview"
+    "preview": "astro preview",
+    "selo:novo": "node tools/catalogo.mjs selo:novo",
+    "selo:preparar": "node tools/catalogo.mjs selo:preparar",
+    "selo:validar": "node tools/catalogo.mjs selo:validar",
+    "selo:revisao": "node tools/catalogo.mjs selo:revisao",
+    "selo:aprovar": "node tools/catalogo.mjs selo:aprovar",
+    "selo:rejeitar": "node tools/catalogo.mjs selo:rejeitar",
+    "selo:revogar": "node tools/catalogo.mjs selo:revogar",
+    "selo:status": "node tools/catalogo.mjs selo:status",
+    "selo:publicar": "node tools/catalogo.mjs selo:publicar",
+    "selo:auditoria": "node tools/catalogo.mjs selo:auditoria",
+    "catalogo:auditoria": "node tools/catalogo.mjs catalogo:auditoria",
+    "catalogo:status": "node tools/catalogo.mjs catalogo:status",
+    "catalogo:manutencao": "node tools/catalogo.mjs catalogo:manutencao",
+    "ci": "npm test && npm run catalogo:auditoria && npm run check && npm run build"
   },
   "dependencies": {
     "@astrojs/sitemap": "^3.5.1",
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1",
     "astro": "^5.12.0"
   },
   "devDependencies": {

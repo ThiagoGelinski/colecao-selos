@@ -7,4 +7,9 @@ dist/
 .DS_Store
 Thumbs.db
 npm-debug.log*
+reports/*.json
+!reports/.gitkeep
+logs/*.jsonl
+!logs/.gitkeep
 
+manifests/ids.lock*

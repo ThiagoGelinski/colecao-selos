@@ -1,0 +1,66 @@
+{
+  "schema_version": "1.0.0",
+  "id": "{{ID}}",
+  "slug": "{{SLUG}}",
+  "titulo": "{{TITULO}}",
+  "descricao_curta": "",
+  "identificacao": {
+    "pais": "",
+    "tipo": "Selo postal",
+    "categoria": "",
+    "serie": null,
+    "tema": [],
+    "personagem": null,
+    "valor_facial": {
+      "valor": "",
+      "unidade": ""
+    },
+    "cor": null,
+    "orientacao": null
+  },
+  "emissao": {
+    "ano": null,
+    "data_oficial": null,
+    "data_status": "pendente",
+    "tiragem": null
+  },
+  "tecnica": {},
+  "catalogos": {},
+  "exemplar": {},
+  "imagens": {
+    "frente": "/assets/selos/{{ID}}/{{ID}}-frente.webp",
+    "verso": null,
+    "card": "/assets/selos/{{ID}}/{{ID}}-card.webp",
+    "thumb": null,
+    "alt": ""
+  },
+  "historico": {},
+  "historico_editorial": [],
+  "fontes": [],
+  "seo": {
+    "title": "",
+    "meta_description": "",
+    "canonical_path": "/selos/{{SLUG}}"
+  },
+  "aprovacao_humana": {
+    "status": "pendente",
+    "decisao": "pendente",
+    "escopo": "publicacao_catalogo",
+    "observacao": null,
+    "aprovado_por": null,
+    "aprovado_em": null,
+    "hash_do_registro_aprovado": null,
+    "versao_aprovada": null
+  },
+  "publicacao": {
+    "status": "rascunho",
+    "apto_para_preview": false,
+    "apto_para_publicacao": false,
+    "motivo": "registro criado; pesquisa e revisão humana pendentes"
+  },
+  "auditoria": {
+    "criado_em": "{{DATE}}",
+    "ultima_revisao": "{{DATE}}",
+    "versao": "0.1.0-rascunho"
+  }
+}
