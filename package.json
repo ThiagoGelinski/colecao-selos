@@ -30,6 +30,7 @@
   "dependencies": {
     "@astrojs/netlify": "^6.6.5",
     "@astrojs/sitemap": "^3.5.1",
+    "@netlify/blobs": "^10.7.9",
     "ajv": "^8.20.0",
     "ajv-formats": "^3.0.1",
     "astro": "^5.12.0"
