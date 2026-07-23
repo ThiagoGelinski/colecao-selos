@@ -143,10 +143,10 @@
     "open_graph_description": "Conheça os dados técnicos e históricos do selo SEL-000001."
   },
   "publicacao": {
-    "status": "homologacao",
+    "status": "publicado",
     "apto_para_preview": true,
-    "apto_para_publicacao": false,
-    "motivo": "aguarda aprovação visual e revisão final de campos de alta confiança"
+    "apto_para_publicacao": true,
+    "motivo": "registro homologado e aprovado para publicação"
   },
   "auditoria": {
     "criado_em": "2026-07-22",
