@@ -13,7 +13,7 @@ O Bloco 1 adiciona uma área administrativa server-side, separada do catálogo p
 
 ## Primeiro acesso
 
-O primeiro acesso usa a credencial temporária de bootstrap definida para o projeto. Após o login, o middleware redireciona obrigatoriamente para `/admin/alterar-senha`. Dashboard, selos, configurações e APIs administrativas normais permanecem bloqueados até a troca.
+O primeiro acesso usa o usuário `admin` e a senha temporária definida exclusivamente em `ADMIN_BOOTSTRAP_PASSWORD` no ambiente do Netlify. A senha ambiental precisa ter ao menos 16 caracteres, é convertida para scrypt na primeira inicialização e nunca é persistida em texto puro. Após o login, o middleware redireciona obrigatoriamente para `/admin/alterar-senha`. Dashboard, selos, configurações e APIs administrativas normais permanecem bloqueados até a troca.
 
 A nova senha deve ter ao menos 12 caracteres, não pode ser `admin`, não pode coincidir com o usuário e deve ser confirmada. A senha atual também é verificada. A aplicação persiste somente o hash scrypt e renova a sessão com uma nova versão de credencial; qualquer sessão anterior deixa de ser válida.
 
@@ -30,7 +30,7 @@ As credenciais ficam em um store site-wide do **Netlify Blobs**, com criptografi
 - `updated_at`;
 - marcador durável de bootstrap consumido.
 
-O filesystem efêmero da função, `localStorage` e `sessionStorage` não são usados. Se o store estiver indisponível ou ficar incompleto após a inicialização, a autenticação falha fechada. Não existe fallback para a credencial temporária depois que o estado definitivo foi persistido.
+O filesystem efêmero da função, `localStorage` e `sessionStorage` não são usados. Se o store estiver indisponível ou ficar incompleto após a inicialização, a autenticação falha fechada. O marcador `bootstrap_consumed` é a fonte de verdade. Depois da troca definitiva, a variável pode ser removida ou alterada sem afetar o login; ela não é mais consultada e não existe fallback ou recriação do bootstrap. Se estiver ausente na primeira inicialização, o sistema falha fechado sem criar credencial.
 
 Para desenvolvimento integrado, use `netlify dev`; o Netlify CLI fornece um store local isolado. Testes unitários usam um adaptador exclusivamente em memória e nunca acessam dados reais.
 
@@ -43,6 +43,7 @@ Perfis previstos: `administrador`, `catalogador`, `revisor` e `consulta`. Fora d
 ## Variáveis de ambiente
 
 - `ADMIN_SESSION_SECRET`: segredo aleatório com pelo menos 32 caracteres;
+- `ADMIN_BOOTSTRAP_PASSWORD`: senha temporária com pelo menos 16 caracteres, obrigatória somente antes da primeira inicialização e removível após a troca definitiva;
 - `ADMIN_ROLE`: perfil inicial, padrão `administrador`;
 - `ADMIN_SESSION_TTL_SECONDS`: duração entre 300 e 86400 segundos, padrão 28800;
 - `SITE_URL`: origem pública do site;
@@ -53,11 +54,12 @@ Perfis previstos: `administrador`, `catalogador`, `revisor` e `consulta`. Fora d
 ## Deploy no Netlify
 
 1. Em **Project configuration → Environment variables**, crie `ADMIN_SESSION_SECRET` com escopo de Functions e valor aleatório de pelo menos 32 caracteres.
-2. Se necessário, configure `ADMIN_ROLE` e `ADMIN_SESSION_TTL_SECONDS`.
-3. Faça o deploy da branch de preview e acesse `/admin/login`.
-4. Conclua imediatamente a troca obrigatória de senha.
-5. Verifique o diagnóstico em `/admin/configuracoes` sem expor valores sensíveis.
-
+2. Crie `ADMIN_BOOTSTRAP_PASSWORD` com uma senha temporária exclusiva de pelo menos 16 caracteres e o mesmo escopo. Não use uma senha publicada ou reutilizada.
+3. Se necessário, configure `ADMIN_ROLE` e `ADMIN_SESSION_TTL_SECONDS`.
+4. Faça o deploy da branch de preview e acesse `/admin/login` com o usuário `admin` e a senha definida no ambiente.
+5. Conclua imediatamente a troca obrigatória de senha.
+6. Remova `ADMIN_BOOTSTRAP_PASSWORD` do ambiente depois de confirmar o login definitivo.
+7. Verifique o diagnóstico em `/admin/configuracoes` sem expor valores sensíveis.
 Não coloque segredos em `netlify.toml`. O store site-wide é compartilhado por deploys do mesmo projeto; portanto, deploy previews conectados ao mesmo site usam o mesmo estado administrativo persistente.
 
 ## Arquitetura
