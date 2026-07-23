@@ -17,5 +17,15 @@ export function validateSelo(value: unknown, source = 'registro'): asserts value
   if (!selo.seo?.meta_description?.trim()) errors.push('SEO sem descrição.');
   if (!Array.isArray(selo.fontes)) errors.push('fontes deve ser um array.');
   if (!selo.catalogos || typeof selo.catalogos !== 'object' || Array.isArray(selo.catalogos)) errors.push('catálogos em formato inesperado.');
-  if (errors.length) throw new Error(`${source}:\n- ${errors.join('\n- ')}`);
+  if (selo.publicacao?.status === 'publicado' || selo.publicacao?.apto_para_publicacao === true) {
+    const aprovacao = selo.aprovacao_humana;
+    if (!aprovacao) {
+      errors.push('publicação bloqueada: aprovação humana obrigatória ausente.');
+    } else {
+      if (aprovacao.status !== 'aprovado' || aprovacao.decisao !== 'aprovado') errors.push('publicação bloqueada: decisão humana não aprovada.');
+      if (!aprovacao.revisor?.trim()) errors.push('publicação bloqueada: revisor humano não identificado.');
+      if (!aprovacao.revisado_em || Number.isNaN(Date.parse(aprovacao.revisado_em))) errors.push('publicação bloqueada: data de revisão humana inválida.');
+      if (aprovacao.escopo !== 'publicacao_catalogo') errors.push('publicação bloqueada: escopo da aprovação humana inválido.');
+    }
+  }  if (errors.length) throw new Error(`${source}:\n- ${errors.join('\n- ')}`);
 }

@@ -1,0 +1,13 @@
+{
+  "schema_version": "1.0.0",
+  "prefix": "SEL",
+  "digits": 6,
+  "next_sequence": 2,
+  "reserved": [
+    {
+      "id": "SEL-000001",
+      "reserved_at": "2026-07-22",
+      "source": "catalogo_inicial"
+    }
+  ]
+}

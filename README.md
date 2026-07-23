@@ -74,3 +74,21 @@ O carregador usa `import.meta.glob`, valida todos os JSONs no build e os ordena 
 - nenhum tratamento ou geração de imagens;
 - o endereço `netlify.app` é provisório e pode ser substituído por domínio próprio via `SITE_URL`;
 - o primeiro registro depende de revisão visual e dos campos marcados com alta confiança ou probabilidade.
+## Pipeline AI-First
+
+O projeto inclui uma pipeline local, sem banco e sem serviços externos, para reservar IDs, preparar registros, validar conteúdo, registrar revisão humana, bloquear publicação sem aprovação e gerar auditorias reproduzíveis.
+
+Comandos disponíveis:
+
+```bash
+npm run selo:novo -- --slug <slug> --titulo "<título>"
+npm run selo:preparar -- <ID-ou-slug>
+npm run selo:validar -- [ID-ou-slug]
+npm run selo:revisao -- <ID-ou-slug>
+npm run selo:aprovar -- <ID-ou-slug> --revisor "<nome>"
+npm run selo:publicar -- <ID-ou-slug>
+npm run selo:auditoria -- <ID-ou-slug>
+npm run catalogo:auditoria
+```
+
+A IA pode preparar e validar registros, mas não pode conceder aprovação humana. `selo:publicar` falha de forma fechada quando a decisão, o revisor, a data ou o escopo de aprovação estão ausentes ou inválidos. Consulte [`docs/ai-first/`](docs/ai-first/README.md) para arquitetura, workflow e governança.

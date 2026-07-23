@@ -1,0 +1,117 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://colecaodeselos.netlify.app/schemas/selo.schema.json",
+  "title": "Registro filatélico — Coleção Selos",
+  "type": "object",
+  "required": ["schema_version", "id", "slug", "titulo", "identificacao", "imagens", "fontes", "seo", "publicacao", "auditoria"],
+  "properties": {
+    "schema_version": { "type": "string", "minLength": 1 },
+    "id": { "type": "string", "pattern": "^SEL-[0-9]{6}$" },
+    "slug": { "type": "string", "minLength": 1, "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+    "titulo": { "type": "string", "minLength": 1 },
+    "descricao_curta": { "type": "string" },
+    "identificacao": {
+      "type": "object",
+      "required": ["pais", "tipo", "categoria", "tema", "valor_facial"],
+      "properties": {
+        "pais": { "type": "string", "minLength": 1 },
+        "tipo": { "type": "string", "minLength": 1 },
+        "categoria": { "type": "string", "minLength": 1 },
+        "tema": { "type": "array", "items": { "type": "string" } },
+        "valor_facial": {
+          "type": "object",
+          "required": ["valor", "unidade"],
+          "properties": {
+            "valor": { "type": ["number", "string"] },
+            "unidade": { "type": "string", "minLength": 1 }
+          }
+        }
+      }
+    },
+    "emissao": {
+      "type": "object",
+      "properties": { "ano": { "type": ["integer", "null"], "minimum": 1000, "maximum": 9999 } }
+    },
+    "catalogos": { "type": "object" },
+    "imagens": {
+      "type": "object",
+      "required": ["frente", "card", "alt"],
+      "properties": {
+        "frente": { "type": "string", "minLength": 1 },
+        "verso": { "type": ["string", "null"] },
+        "card": { "type": "string", "minLength": 1 },
+        "thumb": { "type": ["string", "null"] },
+        "alt": { "type": "string", "minLength": 1 }
+      }
+    },
+    "fontes": { "type": "array" },
+    "seo": {
+      "type": "object",
+      "required": ["title", "meta_description", "canonical_path"],
+      "properties": {
+        "title": { "type": "string", "minLength": 1 },
+        "meta_description": { "type": "string", "minLength": 1 },
+        "canonical_path": { "type": "string", "pattern": "^/" }
+      }
+    },
+    "aprovacao_humana": {
+      "type": "object",
+      "required": ["status", "decisao", "revisor", "revisado_em", "escopo"],
+      "properties": {
+        "status": { "enum": ["pendente", "aprovado", "rejeitado", "revogado"] },
+        "decisao": { "enum": ["pendente", "aprovado", "rejeitado"] },
+        "revisor": { "type": ["string", "null"] },
+        "revisado_em": { "type": ["string", "null"], "format": "date-time" },
+        "escopo": { "const": "publicacao_catalogo" },
+        "observacao": { "type": ["string", "null"] }
+      }
+    },
+    "publicacao": {
+      "type": "object",
+      "required": ["status", "apto_para_preview", "apto_para_publicacao"],
+      "properties": {
+        "status": { "enum": ["rascunho", "em_pesquisa", "identificacao_parcial", "aguardando_revisao", "homologacao", "aprovado", "publicado", "revisao_necessaria"] },
+        "apto_para_preview": { "type": "boolean" },
+        "apto_para_publicacao": { "type": "boolean" },
+        "motivo": { "type": ["string", "null"] }
+      }
+    },
+    "auditoria": {
+      "type": "object",
+      "required": ["criado_em", "ultima_revisao", "versao"],
+      "properties": {
+        "criado_em": { "type": "string", "format": "date" },
+        "ultima_revisao": { "type": "string", "format": "date" },
+        "versao": { "type": "string", "minLength": 1 }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "publicacao": {
+            "properties": { "status": { "const": "publicado" } },
+            "required": ["status"]
+          }
+        }
+      },
+      "then": {
+        "required": ["aprovacao_humana"],
+        "properties": {
+          "aprovacao_humana": {
+            "properties": {
+              "status": { "const": "aprovado" },
+              "decisao": { "const": "aprovado" },
+              "revisor": { "type": "string", "minLength": 1 },
+              "revisado_em": { "type": "string", "format": "date-time" }
+            }
+          },
+          "publicacao": {
+            "properties": { "apto_para_publicacao": { "const": true } }
+          }
+        }
+      }
+    }
+  ]
+}

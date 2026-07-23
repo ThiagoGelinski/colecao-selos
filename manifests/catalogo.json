@@ -1,0 +1,9 @@
+{
+  "schema_version": "1.0.0",
+  "catalogo": "Coleção Selos",
+  "data_directory": "src/data/selos",
+  "assets_directory": "public/assets/selos",
+  "id_manifest": "manifests/ids.json",
+  "record_schema": "schemas/selo.schema.json",
+  "human_approval_required_for_publication": true
+}

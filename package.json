@@ -7,7 +7,15 @@
     "dev": "astro dev",
     "build": "astro check && astro build",
     "check": "astro check",
-    "preview": "astro preview"
+    "preview": "astro preview",
+    "selo:novo": "node tools/catalogo.mjs selo:novo",
+    "selo:preparar": "node tools/catalogo.mjs selo:preparar",
+    "selo:validar": "node tools/catalogo.mjs selo:validar",
+    "selo:revisao": "node tools/catalogo.mjs selo:revisao",
+    "selo:aprovar": "node tools/catalogo.mjs selo:aprovar",
+    "selo:publicar": "node tools/catalogo.mjs selo:publicar",
+    "selo:auditoria": "node tools/catalogo.mjs selo:auditoria",
+    "catalogo:auditoria": "node tools/catalogo.mjs catalogo:auditoria"
   },
   "dependencies": {
     "@astrojs/sitemap": "^3.5.1",
