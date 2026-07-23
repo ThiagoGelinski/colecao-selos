@@ -1,38 +1,36 @@
-# Governança e aprovação humana
+# Governança, IDs e aprovação humana
 
 ## Papéis
 
-- **Automação/IA:** estrutura rascunhos, sinaliza lacunas, valida contratos e prepara relatórios.
-- **Catalogador:** pesquisa, fornece fontes e distingue fato de hipótese.
-- **Revisor humano:** assume responsabilidade explícita pela aprovação ou rejeição.
+- **Automação/IA:** estrutura rascunhos, valida contratos e prepara relatórios.
+- **Catalogador:** pesquisa e documenta fontes.
+- **Revisor humano:** aprova explicitamente um conteúdo identificado por hash e versão.
 - **Mantenedor:** decide commit, Pull Request, merge e deploy.
 
-## Campos de aprovação
+## Estados de reserva
 
-`aprovacao_humana` contém:
+Cada entrada de `manifests/ids.json` contém `id`, `sequence`, `reserved_at`, `source`, `status`, `slug`, `created_at`, `completed_at`, `failed_at` e `failure_reason`.
 
-- `status`: pendente, aprovado, rejeitado ou revogado;
-- `decisao`: pendente, aprovado ou rejeitado;
-- `revisor`: identidade declarada da pessoa responsável;
-- `revisado_em`: timestamp ISO 8601;
-- `escopo`: sempre `publicacao_catalogo`;
-- `observacao`: justificativa opcional.
+- `reservado`: sequência consumida;
+- `criando`: transação em andamento;
+- `criado`: JSON e pasta de assets criados;
+- `falha_na_criacao`: transação falhou, com motivo preservado;
+- `cancelado_sem_reuso`: cancelamento definitivo, sem devolver a sequência.
 
-## Bloqueios obrigatórios
+IDs nunca são reutilizados. Lacunas são aceitas somente como histórico de sequências consumidas. O manifesto deve reservar todos os arquivos existentes, manter IDs e sequences únicos e usar `next_sequence` maior que qualquer sequência registrada.
 
-Um registro só pode ficar `publicado` quando:
+## Concorrência e lock
 
-- `aprovacao_humana.status` e `decisao` forem `aprovado`;
-- houver revisor não vazio e data válida;
-- o escopo for `publicacao_catalogo`;
-- `apto_para_publicacao` for verdadeiro;
-- a validação estrutural não encontrar erros.
+A escrita do manifesto é serializada por `manifests/ids.lock`, criado com exclusividade. O proprietário é identificado por PID e token. A remoção automática de lock obsoleto exige simultaneamente idade acima do limite, PID inativo e snapshot inalterado. A liberação normal ocorre em `finally`.
 
-O schema, `selo:publicar`, `selo:validar` e as auditorias aplicam a mesma regra em profundidade.
+Slug inválido, slug duplicado ou manifesto inválido são bloqueados antes da reserva. A verificação é repetida dentro do lock para fechar a janela de concorrência.
 
-## Segurança
+## Aprovação humana
 
-- Não registrar tokens, credenciais ou dados pessoais desnecessários.
-- Não permitir que IA se identifique como revisor humano.
-- Não editar imagens homologadas por meio da pipeline.
-- Não executar commit, push, merge ou deploy dentro dos comandos de catalogação.
+`aprovacao_humana` registra `status`, `decisao`, `aprovado_por`, `aprovado_em`, `hash_do_registro_aprovado`, `versao_aprovada`, `escopo` e observação opcional. Aprovação editorial não concede aptidão técnica. Somente `selo:publicar`, após o preflight completo, define `apto_para_publicacao: true`.
+
+## Auditoria e histórico
+
+`catalogo:auditoria` verifica manifesto, reservas, arquivos, IDs internos, slugs, datas, estados e assets. Logs e relatórios locais são regeneráveis e ignorados pelo Git; não substituem o histórico Git, o Pull Request nem a revisão humana.
+
+Não registre credenciais, não permita que IA se identifique como revisora humana e não execute merge ou deploy dentro dos comandos de catalogação.

@@ -6,34 +6,35 @@
 npm run selo:novo -- --slug brasil-exemplo --titulo "Brasil — Exemplo"
 ```
 
-O comando reserva o próximo ID, cria o JSON a partir do template e prepara a pasta de assets. `SEL-000001` já está reservado; a próxima sequência é `SEL-000002`.
+Antes de consumir uma sequência, o comando normaliza e valida o slug, procura duplicidades e verifica a integridade global dos registros e de `manifests/ids.json`. A reserva ocorre sob lock exclusivo em `manifests/ids.lock`. O arquivo contém `pid`, `timestamp`, `command` e um token de propriedade; a liberação acontece em `finally` e somente pelo processo proprietário.
 
-## 2. Pesquisar e preparar
+O lock usa criação exclusiva. Quando já existe, o comando espera com retentativas controladas até `SELO_LOCK_TIMEOUT_MS` (padrão: 5000 ms). `SELO_LOCK_RETRY_MS` controla o intervalo. Um lock mais antigo que `SELO_LOCK_STALE_MS` (padrão: 30000 ms) só é removido automaticamente se o PID registrado não estiver ativo e se o conteúdo não tiver mudado durante a inspeção.
 
-Preencha somente informações sustentadas por fontes e marque incertezas explicitamente. Depois execute:
+Nunca apague um lock apenas por ele existir. Primeiro leia `manifests/ids.lock`, verifique o PID, o timestamp e o comando, confirme que o processo terminou e preserve uma cópia para investigação. Se o processo ainda estiver ativo, aguarde ou encerre-o de forma controlada; o pipeline nunca remove lock pertencente a outro processo ativo.
+
+`SEL-000001` permanece reservado como sequência 1; a próxima sequência disponível é `SEL-000002`.
+
+## 2. Transação de criação
+
+Dentro do lock, o manifesto é relido e validado. A reserva passa por `reservado`, `criando` e `criado`. O JSON é criado de forma atômica e exclusiva, e a pasta de assets não pode existir previamente.
+
+Se houver falha depois da reserva, o ID recebe `falha_na_criacao`, `failed_at` e `failure_reason`. A sequência continua consumida e nunca poderá ser reutilizada. Falhas e cancelamentos são evidências auditáveis, não lacunas disponíveis.
+
+## 3. Pesquisar e preparar
 
 ```bash
 npm run selo:preparar -- SEL-000002
 npm run selo:validar -- SEL-000002
 ```
 
-## 3. Solicitar revisão
+## 4. Solicitar revisão e aprovar
 
 ```bash
 npm run selo:revisao -- SEL-000002 --observacao "Pronto para revisão editorial"
+npm run selo:aprovar -- SEL-000002 --revisor "Nome do revisor"
 ```
 
-Isso invalida qualquer aptidão para publicação e cria uma decisão pendente.
-
-## 4. Aprovação humana
-
-Somente uma pessoa autorizada deve executar:
-
-```bash
-npm run selo:aprovar -- SEL-000002 --revisor "Nome do revisor" --observacao "Conteúdo e imagens aprovados"
-```
-
-A ferramenta registra revisor, data, escopo e decisão. Nenhum agente deve preencher esses campos fingindo ser uma pessoa.
+A aprovação humana registra identidade normalizada, data, versão e hash do conteúdo. Ela mantém `apto_para_publicacao: false`.
 
 ## 5. Publicar no registro
 
@@ -41,7 +42,7 @@ A ferramenta registra revisor, data, escopo e decisão. Nenhum agente deve preen
 npm run selo:publicar -- SEL-000002
 ```
 
-O comando falha se a aprovação humana estiver ausente ou inválida. Ele altera o estado editorial do JSON, mas não cria commit, push, merge ou deploy.
+Somente este comando pode ativar `apto_para_publicacao`, depois de validar hash, versão, estrutura e assets. Ele não cria commit, push, merge ou deploy.
 
 ## 6. Auditar
 
@@ -50,4 +51,4 @@ npm run selo:auditoria -- SEL-000002
 npm run catalogo:auditoria
 ```
 
-Os relatórios ficam em `reports/` e a trilha operacional em `logs/pipeline.jsonl`; ambos são regeneráveis e não devem conter segredos.
+A auditoria classifica achados em `errors`, `warnings` e `informational`. Relatórios locais ficam em `reports/` e eventos em `logs/pipeline.jsonl`; esses arquivos auxiliam o diagnóstico, mas não substituem commits, revisões e histórico Git.

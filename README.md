@@ -78,6 +78,10 @@ O carregador usa `import.meta.glob`, valida todos os JSONs no build e os ordena 
 
 O projeto inclui uma pipeline local, sem banco e sem serviços externos, para reservar IDs, preparar registros, validar conteúdo, registrar revisão humana, bloquear publicação sem aprovação e gerar auditorias reproduzíveis.
 
+A criação deve ser feita por `selo:novo`. O comando normaliza e verifica o slug antes de consumir uma sequência, valida `manifests/ids.json` e usa o lock exclusivo `manifests/ids.lock`. Reservas que falham ficam registradas como `falha_na_criacao`; IDs criados, falhos ou cancelados nunca são reutilizados. Os estados possíveis são `reservado`, `criando`, `criado`, `falha_na_criacao` e `cancelado_sem_reuso`.
+
+O lock registra PID, timestamp e comando. Um lock obsoleto só é removido automaticamente quando ultrapassa o limite configurado e o PID não está ativo. Para investigação manual, consulte [`docs/ai-first/workflow.md`](docs/ai-first/workflow.md). Logs locais e relatórios auxiliam o diagnóstico, mas não substituem commits, Pull Requests e o histórico Git.
+
 Comandos disponíveis:
 
 ```bash

@@ -2,13 +2,27 @@
 
 | Comando | Finalidade | Modifica dados |
 |---|---|---|
-| `selo:novo` | Reserva ID e cria rascunho | Sim |
+| `selo:novo` | Normaliza slug, reserva ID sob lock e cria rascunho transacionalmente | Sim |
 | `selo:preparar` | Verifica estrutura/assets e gera relatório | Não |
 | `selo:validar` | Valida um registro ou o catálogo | Não |
 | `selo:revisao` | Encaminha registro para decisão humana | Sim |
-| `selo:aprovar` | Registra aprovação humana explícita | Sim |
-| `selo:publicar` | Aplica publicação após aprovação válida | Sim |
+| `selo:aprovar` | Registra aprovação editorial vinculada a hash e versão | Sim |
+| `selo:publicar` | Valida conteúdo/assets e concede aptidão técnica | Sim |
 | `selo:auditoria` | Gera auditoria de um registro | Não |
-| `catalogo:auditoria` | Audita IDs, slugs, assets e registros | Não |
+| `catalogo:auditoria` | Audita manifesto, IDs, slugs, arquivos, reservas e assets | Não |
 
-Use `--` para encaminhar argumentos pelo npm. Exemplos completos estão em `workflow.md`.
+Use `--` para encaminhar argumentos pelo npm.
+
+## Configuração do lock
+
+- `SELO_LOCK_TIMEOUT_MS`: tempo máximo de espera, padrão 5000;
+- `SELO_LOCK_RETRY_MS`: intervalo entre tentativas, padrão 50;
+- `SELO_LOCK_STALE_MS`: idade mínima para considerar um lock obsoleto, padrão 30000.
+
+Exemplo:
+
+```bash
+SELO_LOCK_TIMEOUT_MS=10000 npm run selo:novo -- --slug brasil-exemplo --titulo "Brasil — Exemplo"
+```
+
+Um lock antigo nunca é removido se o PID registrado ainda estiver ativo. Consulte `workflow.md` antes de investigar ou remover manualmente `manifests/ids.lock`.

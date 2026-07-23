@@ -11,3 +11,5 @@ reports/*.json
 !reports/.gitkeep
 logs/*.jsonl
 !logs/.gitkeep
+
+manifests/ids.lock
