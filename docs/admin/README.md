@@ -37,7 +37,11 @@ As credenciais ficam em um store site-wide do **Netlify Blobs**, com consistênc
 - `updated_at`;
 - versão interna do modo de bootstrap.
 
-`bootstrap_consumed=true` e uma credencial definitiva têm precedência absoluta. Carregamentos futuros, reinícios e novos deploys apenas reutilizam esse estado; nunca recriam ou reativam a credencial inicial. Um bootstrap experimental anterior ainda não consumido é migrado uma vez para o modo atual. Se o estado estiver ausente parcialmente, incompatível ou indisponível, a autenticação falha fechada.
+`bootstrap_consumed=true` e uma credencial definitiva têm precedência absoluta. Carregamentos futuros, reinícios e novos deploys apenas reutilizam esse estado; nunca recriam ou reativam a credencial inicial. Um bootstrap experimental anterior ainda não consumido é migrado uma vez para o modo atual. Estados parciais não consumidos são reparados automaticamente e convergem para `admin` / `123456`. Uma credencial definitiva sem o marcador separado recupera o marcador como consumido sem alterar login ou hash.
+
+Se o marcador persistido disser `bootstrap_consumed=true`, mas a credencial estiver ausente ou ainda for de bootstrap, o sistema falha fechado e registra somente um código seguro no log server-side. Esse caso exige inspeção manual: o marcador nunca é apagado e a credencial definitiva nunca é sobrescrita automaticamente.
+
+Os eventos server-side distinguem configuração ausente, store indisponível, estado incompleto, migração e conflito de ETag. Senhas, hashes, segredos e conteúdo dos erros não são registrados.
 
 O filesystem efêmero da função, `localStorage`, `sessionStorage` e senhas em variáveis de ambiente não são usados. A senha definitiva nunca fica no código, no bundle cliente ou nos logs.
 
