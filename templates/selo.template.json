@@ -11,11 +11,19 @@
     "serie": null,
     "tema": [],
     "personagem": null,
-    "valor_facial": { "valor": "", "unidade": "" },
+    "valor_facial": {
+      "valor": "",
+      "unidade": ""
+    },
     "cor": null,
     "orientacao": null
   },
-  "emissao": { "ano": null, "data_oficial": null, "data_status": "pendente", "tiragem": null },
+  "emissao": {
+    "ano": null,
+    "data_oficial": null,
+    "data_status": "pendente",
+    "tiragem": null
+  },
   "tecnica": {},
   "catalogos": {},
   "exemplar": {},
@@ -28,14 +36,20 @@
   },
   "historico": {},
   "fontes": [],
-  "seo": { "title": "", "meta_description": "", "canonical_path": "/selos/{{SLUG}}" },
+  "seo": {
+    "title": "",
+    "meta_description": "",
+    "canonical_path": "/selos/{{SLUG}}"
+  },
   "aprovacao_humana": {
     "status": "pendente",
     "decisao": "pendente",
-    "revisor": null,
-    "revisado_em": null,
     "escopo": "publicacao_catalogo",
-    "observacao": null
+    "observacao": null,
+    "aprovado_por": null,
+    "aprovado_em": null,
+    "hash_do_registro_aprovado": null,
+    "versao_aprovada": null
   },
   "publicacao": {
     "status": "rascunho",
@@ -43,5 +57,9 @@
     "apto_para_publicacao": false,
     "motivo": "registro criado; pesquisa e revisão humana pendentes"
   },
-  "auditoria": { "criado_em": "{{DATE}}", "ultima_revisao": "{{DATE}}", "versao": "0.1.0-rascunho" }
+  "auditoria": {
+    "criado_em": "{{DATE}}",
+    "ultima_revisao": "{{DATE}}",
+    "versao": "0.1.0-rascunho"
+  }
 }

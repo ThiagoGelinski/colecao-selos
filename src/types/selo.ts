@@ -20,10 +20,14 @@ export interface Fonte {
 export interface AprovacaoHumana {
   status: 'pendente' | 'aprovado' | 'rejeitado' | 'revogado';
   decisao: 'pendente' | 'aprovado' | 'rejeitado';
-  revisor: string | null;
-  revisado_em: string | null;
+  aprovado_por: string | null;
+  aprovado_em: string | null;
+  hash_do_registro_aprovado: string | null;
+  versao_aprovada: string | null;
   escopo: 'publicacao_catalogo';
   observacao?: string | null;
+  invalidado_em?: string | null;
+  motivo_invalidacao?: string | null;
 }
 export interface Selo {
   schema_version: string;

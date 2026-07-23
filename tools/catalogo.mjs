@@ -2,6 +2,7 @@
 
 import { access, mkdir, readFile, readdir, rename, writeFile } from 'node:fs/promises';
 import { constants } from 'node:fs';
+import { createHash } from 'node:crypto';
 import path from 'node:path';
 import process from 'node:process';
 
@@ -14,6 +15,8 @@ const ID_MANIFEST = path.join(ROOT, 'manifests', 'ids.json');
 const TEMPLATE = path.join(ROOT, 'templates', 'selo.template.json');
 const ID_PATTERN = /^SEL-[0-9]{6}$/;
 const VALID_STATUSES = new Set(['rascunho', 'em_pesquisa', 'identificacao_parcial', 'aguardando_revisao', 'homologacao', 'aprovado', 'publicado', 'revisao_necessaria']);
+const ASSET_KINDS = ['frente', 'verso', 'card', 'thumb'];
+const REQUIRED_ASSETS = new Set(['frente', 'card']);
 
 const command = process.argv[2];
 const argv = process.argv.slice(3);
@@ -50,6 +53,24 @@ async function appendLog(event, details = {}) {
   await writeFile(path.join(LOG_DIR, 'pipeline.jsonl'), `${line}\n`, { encoding: 'utf8', flag: 'a' });
 }
 
+function canonicalize(value) {
+  if (Array.isArray(value)) return value.map(canonicalize);
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonicalize(value[key])]));
+  }
+  return value;
+}
+
+function approvedContent(record) {
+  const { aprovacao_humana: _approval, publicacao: _publication, auditoria: _audit, ...content } = record;
+  return content;
+}
+
+function recordHash(record) {
+  const canonical = JSON.stringify(canonicalize(approvedContent(record)));
+  return createHash('sha256').update(canonical, 'utf8').digest('hex');
+}
+
 function dataPath(id) { return path.join(DATA_DIR, `${id}.json`); }
 
 async function loadRecords() {
@@ -65,11 +86,27 @@ async function resolveRecord(reference) {
   return found;
 }
 
+function approvalErrors(record, label) {
+  const errors = [];
+  const approval = record.aprovacao_humana;
+  if (!approval) return [`${label}: publicação bloqueada sem aprovacao_humana.`];
+  if (approval.status !== 'aprovado' || approval.decisao !== 'aprovado') errors.push(`${label}: aprovação humana não aprovada.`);
+  if (!approval.aprovado_por?.trim()) errors.push(`${label}: aprovado_por obrigatório.`);
+  if (!approval.aprovado_em || Number.isNaN(Date.parse(approval.aprovado_em))) errors.push(`${label}: aprovado_em inválido.`);
+  if (!/^[a-f0-9]{64}$/.test(approval.hash_do_registro_aprovado ?? '')) errors.push(`${label}: hash aprovado inválido.`);
+  if (!approval.versao_aprovada?.trim()) errors.push(`${label}: versao_aprovada obrigatória.`);
+  if (approval.escopo !== 'publicacao_catalogo') errors.push(`${label}: escopo de aprovação inválido.`);
+  if (approval.hash_do_registro_aprovado && approval.hash_do_registro_aprovado !== recordHash(record)) errors.push(`${label}: hash do registro diverge do conteúdo aprovado.`);
+  return errors;
+}
+
 function validateRecord(record, filePath) {
   const errors = [];
   const warnings = [];
   const label = path.relative(ROOT, filePath);
+  const fileId = path.basename(filePath, '.json');
   if (!ID_PATTERN.test(record.id ?? '')) errors.push(`${label}: ID inválido.`);
+  if (fileId !== record.id) errors.push(`${label}: nome do arquivo (${fileId}) difere do ID interno (${record.id ?? 'ausente'}).`);
   if (!record.slug?.trim()) errors.push(`${label}: slug obrigatório.`);
   if (!record.titulo?.trim()) errors.push(`${label}: título obrigatório.`);
   if (!record.imagens?.frente?.trim()) errors.push(`${label}: imagem de frente obrigatória.`);
@@ -79,39 +116,48 @@ function validateRecord(record, filePath) {
   if (!record.seo?.title?.trim() || !record.seo?.meta_description?.trim()) errors.push(`${label}: SEO obrigatório incompleto.`);
   if (!VALID_STATUSES.has(record.publicacao?.status)) errors.push(`${label}: status editorial inválido.`);
   if (record.emissao?.ano != null && (!Number.isInteger(record.emissao.ano) || record.emissao.ano < 1000 || record.emissao.ano > 9999)) errors.push(`${label}: ano inválido.`);
-
-  const approval = record.aprovacao_humana;
-  if (record.publicacao?.status === 'publicado' || record.publicacao?.apto_para_publicacao === true) {
-    if (!approval) errors.push(`${label}: publicação bloqueada sem aprovacao_humana.`);
-    else {
-      if (approval.status !== 'aprovado' || approval.decisao !== 'aprovado') errors.push(`${label}: aprovação humana não aprovada.`);
-      if (!approval.revisor?.trim()) errors.push(`${label}: revisor humano obrigatório.`);
-      if (!approval.revisado_em || Number.isNaN(Date.parse(approval.revisado_em))) errors.push(`${label}: data de revisão humana inválida.`);
-      if (approval.escopo !== 'publicacao_catalogo') errors.push(`${label}: escopo de aprovação inválido.`);
-    }
-  } else if (!approval) warnings.push(`${label}: registro legado sem bloco aprovacao_humana.`);
+  if (record.publicacao?.status === 'publicado' || record.publicacao?.apto_para_publicacao === true) errors.push(...approvalErrors(record, label));
+  else if (!record.aprovacao_humana) warnings.push(`${label}: registro legado sem bloco aprovacao_humana.`);
   return { errors, warnings };
+}
+
+function validateAssetPath(id, kind, publicPath) {
+  if (typeof publicPath !== 'string' || !publicPath) return { valid: false, error: `${kind}: caminho ausente.` };
+  if (publicPath.includes('..') || publicPath.includes('\\') || publicPath.includes('%')) return { valid: false, error: `${kind}: caminho inseguro ou path traversal.` };
+  const expected = `/assets/selos/${id}/${id}-${kind}.webp`;
+  if (publicPath !== expected) return { valid: false, error: `${kind}: nome ou diretório inválido; esperado ${expected}.` };
+  return { valid: true, absolute: path.join(ASSET_DIR, id, `${id}-${kind}.webp`) };
 }
 
 async function validateAssets(record) {
   const results = [];
-  for (const [kind, publicPath] of Object.entries(record.imagens ?? {})) {
-    if (!['frente', 'verso', 'card', 'thumb'].includes(kind) || !publicPath) continue;
-    const absolute = path.join(ROOT, 'public', publicPath.replace(/^\//, '').replace(/^assets[\\/]/, 'assets/'));
-    results.push({ kind, path: publicPath, exists: await exists(absolute) });
+  for (const kind of ASSET_KINDS) {
+    const publicPath = record.imagens?.[kind];
+    if (!publicPath && !REQUIRED_ASSETS.has(kind)) continue;
+    const checked = validateAssetPath(record.id, kind, publicPath);
+    results.push({ kind, path: publicPath ?? null, path_valid: checked.valid, exists: checked.valid ? await exists(checked.absolute) : false, error: checked.error ?? null });
   }
   return results;
+}
+
+function assetErrors(assets) {
+  return assets.flatMap((asset) => {
+    if (!asset.path_valid) return [`asset ${asset.kind}: ${asset.error}`];
+    if (!asset.exists) return [`asset ${asset.kind}: arquivo não encontrado (${asset.path}).`];
+    return [];
+  });
 }
 
 async function auditOne(reference) {
   const { path: filePath, record } = await resolveRecord(reference);
   const validation = validateRecord(record, filePath);
   const assets = await validateAssets(record);
+  const errors = [...validation.errors, ...assetErrors(assets)];
   const report = {
     generated_at: now(), id: record.id, slug: record.slug,
-    valid: validation.errors.length === 0 && assets.every((item) => item.exists),
-    publication_blocked: record.publicacao?.status === 'publicado' && validation.errors.some((error) => error.includes('aprova')),
-    errors: validation.errors,
+    valid: errors.length === 0,
+    publication_blocked: errors.some((error) => error.includes('publicação') || error.includes('aprova') || error.includes('hash')),
+    errors,
     warnings: validation.warnings,
     assets
   };
@@ -145,7 +191,7 @@ async function seloNovo() {
 async function seloPreparar() {
   const { record } = await resolveRecord(args._[0]);
   const report = await auditOne(record.id);
-  const output = { ...report, stage: 'preparacao', ready_for_review: report.errors.length === 0 };
+  const output = { ...report, stage: 'preparacao', ready_for_review: report.errors.length === 0 && report.assets.every((asset) => asset.path_valid && asset.exists) };
   await writeJsonAtomic(path.join(REPORT_DIR, `${record.id}-preparacao.json`), output);
   await appendLog('selo_preparar', { id: record.id, ready: output.ready_for_review });
   console.log(JSON.stringify(output, null, 2));
@@ -154,7 +200,12 @@ async function seloPreparar() {
 
 async function seloValidar() {
   const targets = args._[0] ? [await resolveRecord(args._[0])] : await loadRecords();
-  const results = targets.map(({ path: filePath, record }) => ({ id: record.id, ...validateRecord(record, filePath) }));
+  const results = [];
+  for (const { path: filePath, record } of targets) {
+    const validation = validateRecord(record, filePath);
+    const assets = await validateAssets(record);
+    results.push({ id: record.id, errors: [...validation.errors, ...assetErrors(assets)], warnings: validation.warnings });
+  }
   console.log(JSON.stringify(results, null, 2));
   if (results.some((result) => result.errors.length)) process.exitCode = 1;
 }
@@ -162,7 +213,7 @@ async function seloValidar() {
 async function seloRevisao() {
   const { path: filePath, record } = await resolveRecord(args._[0]);
   if (record.publicacao.status === 'publicado') throw new Error('Registro publicado não pode retornar à revisão por este comando.');
-  record.aprovacao_humana = { status: 'pendente', decisao: 'pendente', revisor: null, revisado_em: null, escopo: 'publicacao_catalogo', observacao: args.observacao || null };
+  record.aprovacao_humana = { status: 'pendente', decisao: 'pendente', aprovado_por: null, aprovado_em: null, hash_do_registro_aprovado: null, versao_aprovada: null, escopo: 'publicacao_catalogo', observacao: args.observacao || null };
   record.publicacao.status = 'aguardando_revisao';
   record.publicacao.apto_para_publicacao = false;
   record.publicacao.motivo = 'aguardando aprovação humana para publicação';
@@ -176,32 +227,62 @@ async function seloAprovar() {
   if (!args.revisor) throw new Error('Uso: npm run selo:aprovar -- <ID> --revisor <nome> [--observacao <texto>]');
   const { path: filePath, record } = await resolveRecord(args._[0]);
   if (record.publicacao.status === 'publicado') throw new Error('Registro já publicado.');
-  record.aprovacao_humana = { status: 'aprovado', decisao: 'aprovado', revisor: args.revisor, revisado_em: now(), escopo: 'publicacao_catalogo', observacao: args.observacao || null };
   record.publicacao.status = 'aprovado';
   record.publicacao.apto_para_publicacao = true;
   record.publicacao.motivo = 'registro aprovado por revisão humana; publicação pendente';
   record.auditoria.ultima_revisao = today();
+  record.aprovacao_humana = {
+    status: 'aprovado', decisao: 'aprovado', aprovado_por: args.revisor, aprovado_em: now(),
+    hash_do_registro_aprovado: recordHash(record), versao_aprovada: record.auditoria.versao,
+    escopo: 'publicacao_catalogo', observacao: args.observacao || null
+  };
+  const validation = validateRecord(record, filePath);
+  if (validation.errors.length) throw new Error(`APROVAÇÃO BLOQUEADA:\n${validation.errors.join('\n')}`);
   await writeJsonAtomic(filePath, record);
-  await appendLog('selo_aprovar', { id: record.id, revisor: args.revisor });
+  await appendLog('selo_aprovar', { id: record.id, aprovado_por: args.revisor, hash: record.aprovacao_humana.hash_do_registro_aprovado });
   console.log(`${record.id} aprovado por ${args.revisor}.`);
+}
+
+async function invalidateApproval(filePath, record, currentHash) {
+  record.aprovacao_humana.status = 'revogado';
+  record.aprovacao_humana.decisao = 'pendente';
+  record.aprovacao_humana.invalidado_em = now();
+  record.aprovacao_humana.motivo_invalidacao = 'conteúdo alterado após aprovação';
+  record.publicacao.status = 'revisao_necessaria';
+  record.publicacao.apto_para_publicacao = false;
+  record.publicacao.motivo = 'aprovação invalidada por divergência de hash';
+  record.auditoria.ultima_revisao = today();
+  await writeJsonAtomic(filePath, record);
+  await appendLog('aprovacao_invalidada', { id: record.id, hash_aprovado: record.aprovacao_humana.hash_do_registro_aprovado, hash_atual: currentHash });
 }
 
 async function seloPublicar() {
   const { path: filePath, record } = await resolveRecord(args._[0]);
   const approval = record.aprovacao_humana;
-  if (!approval || approval.status !== 'aprovado' || approval.decisao !== 'aprovado' || !approval.revisor || !approval.revisado_em) {
-    throw new Error('PUBLICAÇÃO BLOQUEADA: aprovação humana válida é obrigatória.');
+  const basicApprovalValid = approval?.status === 'aprovado' && approval?.decisao === 'aprovado' && approval?.aprovado_por && approval?.aprovado_em && approval?.hash_do_registro_aprovado && approval?.versao_aprovada;
+  if (!basicApprovalValid) throw new Error('PUBLICAÇÃO BLOQUEADA: aprovação humana válida é obrigatória.');
+
+  const currentHash = recordHash(record);
+  if (currentHash !== approval.hash_do_registro_aprovado || record.auditoria?.versao !== approval.versao_aprovada) {
+    await invalidateApproval(filePath, record, currentHash);
+    throw new Error('PUBLICAÇÃO BLOQUEADA: conteúdo ou versão diverge da aprovação; aprovação invalidada.');
   }
-  record.publicacao.status = 'publicado';
-  record.publicacao.apto_para_preview = true;
-  record.publicacao.apto_para_publicacao = true;
-  record.publicacao.motivo = 'registro homologado e aprovado para publicação';
-  record.auditoria.ultima_revisao = today();
-  const validation = validateRecord(record, filePath);
-  if (validation.errors.length) throw new Error(`PUBLICAÇÃO BLOQUEADA:\n${validation.errors.join('\n')}`);
-  await writeJsonAtomic(filePath, record);
-  await appendLog('selo_publicar', { id: record.id, revisor: approval.revisor });
-  console.log(`${record.id} marcado como publicado.`);
+
+  const assets = await validateAssets(record);
+  const preflightErrors = [...validateRecord(record, filePath).errors, ...assetErrors(assets)];
+  if (preflightErrors.length) throw new Error(`PUBLICAÇÃO BLOQUEADA:\n${preflightErrors.join('\n')}`);
+
+  const candidate = structuredClone(record);
+  candidate.publicacao.status = 'publicado';
+  candidate.publicacao.apto_para_preview = true;
+  candidate.publicacao.apto_para_publicacao = true;
+  candidate.publicacao.motivo = 'registro homologado e aprovado para publicação';
+  candidate.auditoria.ultima_revisao = today();
+  const finalErrors = validateRecord(candidate, filePath).errors;
+  if (finalErrors.length) throw new Error(`PUBLICAÇÃO BLOQUEADA:\n${finalErrors.join('\n')}`);
+  await writeJsonAtomic(filePath, candidate);
+  await appendLog('selo_publicar', { id: candidate.id, aprovado_por: approval.aprovado_por, hash: currentHash });
+  console.log(`${candidate.id} marcado como publicado.`);
 }
 
 async function seloAuditoria() {
@@ -221,12 +302,12 @@ async function catalogoAuditoria() {
     if (ids.has(record.id)) validation.errors.push(`ID duplicado: ${record.id}`); else ids.add(record.id);
     if (slugs.has(record.slug)) validation.errors.push(`Slug duplicado: ${record.slug}`); else slugs.add(record.slug);
     const assets = await validateAssets(record);
-    results.push({ id: record.id, slug: record.slug, errors: validation.errors, warnings: validation.warnings, assets });
+    results.push({ id: record.id, slug: record.slug, errors: [...validation.errors, ...assetErrors(assets)], warnings: validation.warnings, assets });
   }
   const manifest = await readJson(ID_MANIFEST);
   const reserved = new Set(manifest.reserved.map((item) => item.id));
   for (const result of results) if (!reserved.has(result.id)) result.errors.push(`ID não reservado no manifesto: ${result.id}`);
-  const report = { generated_at: now(), total: results.length, valid: results.every((item) => !item.errors.length && item.assets.every((asset) => asset.exists)), records: results };
+  const report = { generated_at: now(), total: results.length, valid: results.every((item) => !item.errors.length), records: results };
   await writeJsonAtomic(path.join(REPORT_DIR, 'catalogo-auditoria.json'), report);
   await appendLog('catalogo_auditoria', { total: report.total, valid: report.valid });
   console.log(JSON.stringify(report, null, 2));
