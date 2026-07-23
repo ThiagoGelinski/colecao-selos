@@ -27,3 +27,13 @@
 - validação antes de toda escrita de registro;
 - testes do contrato, template, catálogo real e equivalência entre camadas;
 - CI obrigatória com instalação limpa, testes, auditoria, check e build, sem deploy.
+## Em desenvolvimento — Bloco 4: modularização e operação editorial
+
+- CLI modular com paths, I/O, lock, manifesto, registros, assets, transações, auditoria, histórico, erros e saída;
+- erros tipados, exit codes, `--json` e diagnóstico `--debug`;
+- comandos `selo:rejeitar`, `selo:revogar`, `selo:status`, `catalogo:status` e `catalogo:manutencao`;
+- histórico editorial append-only para aprovação, rejeição, revogação, invalidação e publicação;
+- logs com PID, comando e `transaction_id`;
+- auditorias editorial e operacional ampliadas;
+- manutenção segura, diagnóstica por padrão, com dry-run e limpeza explícita;
+- testes integrados preservando os Blocos 1–3.

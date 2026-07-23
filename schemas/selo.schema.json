@@ -470,6 +470,44 @@
             "string",
             "null"
           ]
+        },
+        "rejeitado_por": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "motivo_rejeicao": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "revogado_por": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "motivo_revogacao": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "rejeitado_em": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "revogado_em": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
         }
       }
     },
@@ -528,6 +566,60 @@
         "versao": {
           "type": "string",
           "minLength": 1
+        }
+      }
+    },
+    "historico_editorial": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "tipo",
+          "ocorrido_em",
+          "responsavel",
+          "motivo",
+          "hash",
+          "versao"
+        ],
+        "properties": {
+          "tipo": {
+            "enum": [
+              "aprovacao",
+              "rejeicao",
+              "revogacao",
+              "publicacao",
+              "invalidacao"
+            ]
+          },
+          "ocorrido_em": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "responsavel": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          },
+          "motivo": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "hash": {
+            "pattern": "^[a-f0-9]{64}$",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "versao": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
         }
       }
     }

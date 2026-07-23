@@ -34,3 +34,12 @@ Um lock antigo nunca é removido se o PID registrado ainda estiver ativo. Consul
 - `npm run ci`: testes, `catalogo:auditoria`, `check` e `build` na ordem da CI.
 
 Os resultados de `selo:validar` separam erros estruturais (`structural_errors`) de semânticos, editoriais, nomes de arquivo e assets. Cada erro de schema expõe `instancePath`, `keyword`, `message` e `params`, permitindo localizar precisamente o campo inválido.
+## Comandos editoriais e operacionais
+
+- `selo:rejeitar -- <ref> --revisor <nome> --motivo <texto>`: rejeita e move para revisão necessária;
+- `selo:revogar -- <ref> --revisor <nome> --motivo <texto>`: revoga somente aprovação ativa;
+- `selo:status -- <ref>`: mostra hashes, assets, reserva e bloqueios;
+- `catalogo:status`: resume registros, reservas, achados e próximo ID;
+- `catalogo:manutencao`: diagnostica resíduos; `--dry-run` explicita simulação e `--limpar` solicita limpeza comprovada.
+
+Use `--json` para integração sem texto adicional. Use `--debug` ou `SELO_DEBUG=1` para stack trace. Exit codes: `0` sucesso; `1` validação/auditoria; `2` uso; `3` integridade/manifesto; `4` lock; `5` transação; `6` aprovação/publicação; `7` assets; `8` erro interno.

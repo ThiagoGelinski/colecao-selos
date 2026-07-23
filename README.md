@@ -102,3 +102,19 @@ A IA pode preparar e validar registros, mas não pode conceder aprovação human
 `schemas/selo.schema.json` é o contrato estrutural executável (JSON Schema Draft 2020-12). A mesma compilação AJV é reutilizada pelo CLI e pelo carregador do Astro; regras cruzadas que dependem do projeto, como canonical derivado do slug, permanecem na camada semântica compartilhada. Os diagnósticos distinguem `structural_errors`, `semantic_errors`, `editorial_errors`, `file_errors` e `asset_errors` e informam caminho, palavra-chave e mensagem.
 
 Use `npm run test:schema` para testar somente o contrato ou `npm run ci` para executar localmente a mesma sequência obrigatória da CI: testes, auditoria do catálogo, Astro Check e build. O workflow de GitHub Actions valida Pull Requests e a branch `main`; ele não aprova registros, não altera estados editoriais, não faz merge e não publica/deploya o site.
+## Operação editorial e diagnóstico
+
+O executável `tools/catalogo.mjs` é apenas o ponto de entrada. A implementação está separada em `src/lib/catalogo/` por paths/configuração, I/O atômico, lock, manifesto, registros, assets, transações, auditoria, histórico editorial, comandos, erros e saída.
+
+Novos comandos:
+
+```bash
+npm run selo:rejeitar -- SEL-000002 --revisor "Nome" --motivo "Motivo"
+npm run selo:revogar -- SEL-000002 --revisor "Nome" --motivo "Motivo"
+npm run selo:status -- SEL-000002 --json
+npm run catalogo:status -- --json
+npm run catalogo:manutencao -- --dry-run --json
+npm run catalogo:manutencao -- --limpar --json
+```
+
+Todos os comandos aceitam `--json`; nesse modo o stdout contém apenas um envelope `{ ok, command, data, warnings }` ou `{ ok, command, error }`. Use `--debug` ou `SELO_DEBUG=1` somente para diagnóstico com stack trace. Operações mutáveis recebem `transaction_id` no log. A manutenção é somente diagnóstica por padrão e nunca remove lock ativo ou artefato recente/não comprovado.

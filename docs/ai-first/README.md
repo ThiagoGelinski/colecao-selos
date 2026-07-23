@@ -27,3 +27,8 @@ Consulte [workflow.md](./workflow.md) para o fluxo e [governanca.md](./governanc
 O arquivo `schemas/selo.schema.json` usa JSON Schema Draft 2020-12 e é compilado uma única vez por `src/lib/selo-validation.mjs` com AJV e formatos oficiais. CLI, testes e runtime Astro consomem esse mesmo validador. A validação estrutural trata tipos, obrigatoriedade, formatos, enums e propriedades desconhecidas; a camada semântica compartilhada trata relações do projeto, como `seo.canonical_path` igual a `/selos/<slug>`. Regras de autorização editorial, arquivos e assets são relatadas separadamente.
 
 A CI executa `npm ci`, testes, auditoria, check e build. Ela é exclusivamente verificadora: não concede aprovação humana, não muda status, não faz merge e não dispara publicação.
+## Arquitetura final do CLI
+
+`tools/catalogo.mjs` trata argumentos, envelopes, debug e exit codes. `src/lib/catalogo/` contém módulos sem ciclos para assets, auditoria, comandos, erros, histórico, I/O, lock, manifesto, saída, paths, registros e transações. O Schema executável continua sendo a única fonte estrutural.
+
+Cada transição editorial acrescenta um evento imutável a `historico_editorial`; rejeição e revogação preservam dados anteriores. A auditoria editorial verifica coerência dos eventos, enquanto a operacional examina locks, quarentenas, temporários, reservas e diretórios/assets.

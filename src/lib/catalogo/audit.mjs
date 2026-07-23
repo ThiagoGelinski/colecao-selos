@@ -1,0 +1,2 @@
+export function statusCounts(records, statuses) { return Object.fromEntries(statuses.map((status) => [status, records.filter(({ record }) => record.publicacao.status === status).length])); }
+export function uniqueFindings(values) { return [...new Set(values)]; }

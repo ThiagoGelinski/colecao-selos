@@ -38,3 +38,8 @@ Não registre credenciais, não permita que IA se identifique como revisora huma
 ## Contrato e limites da automação
 
 O JSON Schema executável é a fonte única para a estrutura do registro. Alterações incompatíveis exigem atualização explícita do schema, template, tipos e testes. Regras semânticas do domínio ficam na biblioteca compartilhada, não duplicadas entre CLI e site. A aprovação humana continua vinculada ao conteúdo e nunca é produzida pela CI; sucesso técnico significa apenas que o contrato, a auditoria e o build passaram.
+## Histórico e manutenção operacional
+
+O histórico editorial é append-only: eventos anteriores não são reescritos nem apagados. Não se cria histórico retroativo para registros legados. Revisor humano é obrigatório para aprovação, rejeição e revogação; invalidação automática identifica o responsável como `pipeline` e explicita o motivo.
+
+Auditoria editorial avalia estado, sequência e evidências de decisão. Auditoria operacional avalia lock, manifesto, transações, temporários, quarentenas e assets. Manutenção não equivale a aprovação, publicação ou deploy e exige `--limpar` para qualquer remoção.

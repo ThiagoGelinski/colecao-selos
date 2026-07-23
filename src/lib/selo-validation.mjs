@@ -20,7 +20,7 @@ function canonicalize(value) {
 }
 
 export function approvedContent(record) {
-  const { aprovacao_humana: _approval, publicacao: _publication, auditoria: _audit, ...content } = record;
+  const { aprovacao_humana: _approval, publicacao: _publication, auditoria: _audit, historico_editorial: _history, ...content } = record;
   return content;
 }
 

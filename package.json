@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test tests/catalogo.test.mjs tests/transacoes.test.mjs tests/schema.test.mjs",
+    "test": "node --test tests/catalogo.test.mjs tests/transacoes.test.mjs tests/schema.test.mjs tests/block4.test.mjs",
     "test:schema": "node --test tests/schema.test.mjs",
     "dev": "astro dev",
     "build": "astro check && astro build",
@@ -15,9 +15,14 @@
     "selo:validar": "node tools/catalogo.mjs selo:validar",
     "selo:revisao": "node tools/catalogo.mjs selo:revisao",
     "selo:aprovar": "node tools/catalogo.mjs selo:aprovar",
+    "selo:rejeitar": "node tools/catalogo.mjs selo:rejeitar",
+    "selo:revogar": "node tools/catalogo.mjs selo:revogar",
+    "selo:status": "node tools/catalogo.mjs selo:status",
     "selo:publicar": "node tools/catalogo.mjs selo:publicar",
     "selo:auditoria": "node tools/catalogo.mjs selo:auditoria",
     "catalogo:auditoria": "node tools/catalogo.mjs catalogo:auditoria",
+    "catalogo:status": "node tools/catalogo.mjs catalogo:status",
+    "catalogo:manutencao": "node tools/catalogo.mjs catalogo:manutencao",
     "ci": "npm test && npm run catalogo:auditoria && npm run check && npm run build"
   },
   "dependencies": {
