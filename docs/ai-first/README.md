@@ -32,3 +32,8 @@ A CI executa `npm ci`, testes, auditoria, check e build. Ela é exclusivamente v
 `tools/catalogo.mjs` trata argumentos, envelopes, debug e exit codes. `src/lib/catalogo/` contém módulos sem ciclos para assets, auditoria, comandos, erros, histórico, I/O, lock, manifesto, saída, paths, registros e transações. O Schema executável continua sendo a única fonte estrutural.
 
 Cada transição editorial acrescenta um evento imutável a `historico_editorial`; rejeição e revogação preservam dados anteriores. A auditoria editorial verifica coerência dos eventos, enquanto a operacional examina locks, quarentenas, temporários, reservas e diretórios/assets.
+## Correções finais do Bloco 4
+
+Todos os comandos retornam resultado explícito com `ok`, `data`, `warnings`, `error` e `exitCode`. O entrypoint converte esse contrato em um único envelope JSON coerente. `commands.mjs` apenas valida argumentos, chama serviços, compõe respostas e integra logging; registros, manifesto, transações, auditoria, manutenção e status não dependem dele.
+
+O logging novo usa exclusivamente `reviewer`, `previous_status`, `new_status`, `hash`, `version`, `error_code` e `message`, além de timestamp, comando, PID e transaction ID.

@@ -156,7 +156,7 @@ test('nome do revisor é normalizado no registro e no log', async () => {
   const record = await json(file);
   assert.equal(record.aprovacao_humana.aprovado_por, 'Revisora Humana');
   const log = await readFile(path.join(root, 'logs', 'pipeline.jsonl'), 'utf8');
-  assert.equal(JSON.parse(log.trim()).aprovado_por, 'Revisora Humana');
+  assert.equal(JSON.parse(log.trim()).reviewer, 'Revisora Humana');
 });
 
 test('falha estrutural de aprovação não modifica o JSON', async () => {

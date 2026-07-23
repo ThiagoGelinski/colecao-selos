@@ -37,3 +37,12 @@
 - auditorias editorial e operacional ampliadas;
 - manutenção segura, diagnóstica por padrão, com dry-run e limpeza explícita;
 - testes integrados preservando os Blocos 1–3.
+## Correções finais — Bloco 4
+
+- envelope JSON agora sempre corresponde ao exit code;
+- comandos retornam resultados explícitos, sem depender de `process.exitCode` oculto;
+- modularização real de records, manifest, transactions, audit, maintenance, status e logging;
+- revogação manual e invalidação automática unificadas em `revokeApproval`;
+- auditoria de histórico e diagnóstico operacional ampliados;
+- logging novo com nomes de campos padronizados;
+- testes de falha JSON, ciclos, histórico e manutenção adicionados.

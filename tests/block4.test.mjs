@@ -44,7 +44,7 @@ function run(root, command, ...args) { return spawnSync(process.execPath, [TOOL,
 async function json(file) { return JSON.parse(await readFile(file, 'utf8')); }
 async function approve(root) { const result = run(root, 'selo:aprovar', ID, '--revisor', '  Revisora Humana  '); assert.equal(result.status, 0, result.stderr); }
 
-for (const moduleName of ['assets.mjs', 'audit.mjs', 'commands.mjs', 'errors.mjs', 'history.mjs', 'io.mjs', 'lock.mjs', 'manifest.mjs', 'output.mjs', 'paths.mjs', 'records.mjs', 'transactions.mjs']) {
+for (const moduleName of ['assets.mjs', 'audit.mjs', 'commands.mjs', 'errors.mjs', 'history.mjs', 'io.mjs', 'logging.mjs', 'lock.mjs', 'manifest.mjs', 'maintenance.mjs', 'output.mjs', 'paths.mjs', 'records.mjs', 'status.mjs', 'transactions.mjs']) {
   test(`módulo ${moduleName} importa sem erro`, async () => { await import(`../src/lib/catalogo/${moduleName}`); });
 }
 

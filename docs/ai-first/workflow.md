@@ -61,3 +61,6 @@ Pull Requests e pushes em `main` executam instalação limpa, testes, auditoria,
 Rejeição exige revisor e motivo e não apaga aprovação anterior. Revogação exige aprovação ativa e preserva autor, data, hash e versão aprovados. Aprovação, rejeição, revogação, invalidação e publicação acrescentam eventos cronológicos em `historico_editorial`.
 
 Antes de limpeza, execute `catalogo:manutencao -- --dry-run --json`. `--limpar` remove somente resíduos antigos cuja identidade é novamente comprovada no momento destrutivo; locks ativos e artefatos recentes são preservados. Toda operação mutável e limpeza registra `transaction_id`.
+## 9. Serviços modulares e resultado explícito
+
+O orquestrador não implementa manifesto, transação, auditoria, manutenção ou resolução de registros. Cada serviço retorna dados estruturados. Revogação manual e invalidação por hash chamam `revokeApproval`, que preserva aprovação/histórico e distingue os eventos `revogacao` e `invalidacao`.

@@ -43,3 +43,8 @@ O JSON Schema executável é a fonte única para a estrutura do registro. Altera
 O histórico editorial é append-only: eventos anteriores não são reescritos nem apagados. Não se cria histórico retroativo para registros legados. Revisor humano é obrigatório para aprovação, rejeição e revogação; invalidação automática identifica o responsável como `pipeline` e explicita o motivo.
 
 Auditoria editorial avalia estado, sequência e evidências de decisão. Auditoria operacional avalia lock, manifesto, transações, temporários, quarentenas e assets. Manutenção não equivale a aprovação, publicação ou deploy e exige `--limpar` para qualquer remoção.
+## Auditoria e logging finais
+
+A auditoria cruza o último evento com o estado atual, exige aprovação anterior para publicação/invalidação e detecta transições consecutivas incompatíveis. A manutenção inspeciona temporários e diretórios de remoção em manifests, registros, assets, reports e logs, além de JSON de relatório, linhas JSONL e transações sem evento final. Limpeza continua proibida para locks ativos, itens recentes e assets vinculados a registros válidos.
+
+Eventos novos usam nomes de campos padronizados em inglês técnico; logs históricos não são reescritos.

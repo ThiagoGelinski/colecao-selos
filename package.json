@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test tests/catalogo.test.mjs tests/transacoes.test.mjs tests/schema.test.mjs tests/block4.test.mjs",
+    "test": "node --test tests/catalogo.test.mjs tests/transacoes.test.mjs tests/schema.test.mjs tests/block4.test.mjs tests/final-block4.test.mjs",
     "test:schema": "node --test tests/schema.test.mjs",
     "dev": "astro dev",
     "build": "astro check && astro build",

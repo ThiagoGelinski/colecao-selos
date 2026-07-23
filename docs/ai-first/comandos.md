@@ -43,3 +43,6 @@ Os resultados de `selo:validar` separam erros estruturais (`structural_errors`) 
 - `catalogo:manutencao`: diagnostica resíduos; `--dry-run` explicita simulação e `--limpar` solicita limpeza comprovada.
 
 Use `--json` para integração sem texto adicional. Use `--debug` ou `SELO_DEBUG=1` para stack trace. Exit codes: `0` sucesso; `1` validação/auditoria; `2` uso; `3` integridade/manifesto; `4` lock; `5` transação; `6` aprovação/publicação; `7` assets; `8` erro interno.
+### JSON e código de saída
+
+`--json` garante um único JSON no stdout e stderr vazio. `ok: true` corresponde somente ao código 0; `ok: false` corresponde ao código não zero informado pelo erro tipado ou resultado do comando. Relatórios inválidos são anexados aos detalhes do erro, sem impressão humana adicional.

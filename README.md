@@ -118,3 +118,8 @@ npm run catalogo:manutencao -- --limpar --json
 ```
 
 Todos os comandos aceitam `--json`; nesse modo o stdout contém apenas um envelope `{ ok, command, data, warnings }` ou `{ ok, command, error }`. Use `--debug` ou `SELO_DEBUG=1` somente para diagnóstico com stack trace. Operações mutáveis recebem `transaction_id` no log. A manutenção é somente diagnóstica por padrão e nunca remove lock ativo ou artefato recente/não comprovado.
+### Garantia do modo JSON
+
+Com `--json`, o envelope e o código de saída são inseparáveis: `exit code 0` sempre produz `ok: true`; qualquer código diferente de zero sempre produz `ok: false`. O stdout contém exatamente um documento JSON, sem mensagens intermediárias, e o stderr permanece vazio. Os comandos retornam `CommandResult` explícito, portanto falhas de validação e auditoria não dependem de `process.exitCode` oculto.
+
+A arquitetura final separa `records`, `manifest`, `transactions`, `audit`, `maintenance`, `status`, `logging`, `history`, `assets`, `lock`, `io`, `paths`, `errors`, `output` e o orquestrador `commands`. Revogação manual e invalidação automática usam o mesmo domínio `revokeApproval`.
