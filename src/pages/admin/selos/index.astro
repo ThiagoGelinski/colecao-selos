@@ -13,7 +13,7 @@ import AdminLayout from '../../../layouts/AdminLayout.astro';
     const entities: Record<string, string> = { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' };
     const escape = (value: unknown) => String(value ?? '—').replace(/[&<>"']/g, (char) => entities[char] ?? char);
     const imageSummary = (item: any) => { const required = item.imagens.frente.valido && item.imagens.card.valido; const optional = ['verso', 'thumb'].filter((kind) => item.imagens[kind].informado).map((kind) => item.imagens[kind].valido ? kind : `${kind} com erro`); return `${required ? 'Frente + card válidos' : 'Assets obrigatórios com erro'}${optional.length ? ` + ${optional.join(', ')}` : ''}`; };
-    const validationTitle = (item: any) => `Estrutural: ${item.validacao.estrutural.valida ? 'ok' : 'erro'}; semântica: ${item.validacao.semantica.valida ? 'ok' : 'erro'}; editorial: ${item.validacao.editorial.valida ? 'ok' : 'erro'}; assets: ${item.validacao.assets.valida ? 'ok' : 'erro'}`;
+    const validationTitle = (item: any) => `Estrutural: ${item.validacao.estrutural.rotulo}; semântica: ${item.validacao.semantica.rotulo}; editorial: ${item.validacao.editorial.rotulo}; assets: ${item.validacao.assets.rotulo}`;
     async function load() {
       if (!form || !results) return; results.innerHTML = '<div class="loading">Carregando registros…</div>';
       const data = new FormData(form); const params = new URLSearchParams({ q:String(data.get('q') || ''), status:String(data.get('status') || ''), sort:String(data.get('sort') || 'id'), page:String(page), pageSize:'20' });

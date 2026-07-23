@@ -8,7 +8,7 @@ const STATUS_GROUPS = {
 };
 const normalize = (value) => String(value ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR');
 export function sanitizeSearch(value) { return String(value ?? '').replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 100); }
-const layerSummary = (layer) => ({ valida: Boolean(layer?.valid), erros: layer?.errors?.length ?? 0 });
+const layerSummary = (layer) => { const estado = layer?.executed === false ? 'nao_executada' : layer?.valid === true ? 'valida' : 'invalida'; return { estado, executada: layer?.executed !== false, valida: layer?.valid === true ? true : layer?.executed === false ? null : false, erros: layer?.errors?.length ?? 0, rotulo: estado === 'nao_executada' ? 'Não executada' : estado === 'valida' ? 'Aprovada' : 'Inválida' }; };
 export function toAdminRecord(record, validation) {
   const assetItems = validation?.layers?.assets?.items ?? [];
   const assetByKind = new Map(assetItems.map((asset) => [asset.kind, asset]));

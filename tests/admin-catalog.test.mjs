@@ -20,6 +20,22 @@ test('registro completamente válido aprova todas as camadas operacionais', () =
   assert.equal(validation.layers.assets.items.every((asset) => asset.path_valid && asset.exists), true);
 });
 
+test('falha estrutural marca editorial como não executada e painel não a aprova', async () => {
+  const record = clone(official); delete record.titulo;
+  const result = await validateRecordOperational(record, dataPath(record.id));
+  const projected = toAdminRecord(record, result);
+  assert.equal(result.layers.structural.valid, false);
+  assert.equal(result.layers.structural.executed, true);
+  assert.equal(result.layers.editorial.executed, false);
+  assert.equal(result.layers.editorial.valid, null);
+  assert.equal(result.layers.editorial.skipped_reason, 'falha_estrutural');
+  assert.equal(projected.validacao.editorial.estado, 'nao_executada');
+  assert.equal(projected.validacao.editorial.executada, false);
+  assert.equal(projected.validacao.editorial.valida, null);
+  assert.equal(projected.validacao.editorial.rotulo, 'Não executada');
+  assert.notEqual(projected.validacao.editorial.rotulo, 'Aprovada');
+  assert.equal(projected.validacao.valida, false);
+});
 test('adaptador projeta registro oficial e existência real dos assets', () => {
   assert.equal(adminRecord.id, official.id); assert.equal(adminRecord.titulo, official.titulo); assert.equal(adminRecord.pais, official.identificacao.pais); assert.equal(adminRecord.status, official.publicacao.status);
   assert.equal(adminRecord.imagens.frente.informado, true); assert.equal(adminRecord.imagens.frente.existe, true); assert.equal(adminRecord.imagens.card.valido, true); assert.equal(adminRecord.validacao.valida, true); assert.equal(adminRecord.validacao.assets.valida, true);

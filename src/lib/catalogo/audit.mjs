@@ -13,10 +13,10 @@ const formatLayerErrors = (label, layer) => layer.errors.map((error) => `${label
 export function uniqueFindings(values) { return [...new Set(values)]; }
 export function statusCounts(records, statuses) { return Object.fromEntries(statuses.map((status) => [status, records.filter(({ record }) => record.publicacao.status === status).length])); }
 export function validateRecord(record, filePath) {
-  const label = path.relative(ROOT, filePath); const structural = validateSeloSchema(record); const semantic = validateSeloSemantics(record); const editorial = structural.valid ? validateSeloEditorial(record) : { valid: false, errors: [] }; const fileErrors = validateFileIdentity(record, filePath);
+  const label = path.relative(ROOT, filePath); const structural = validateSeloSchema(record); const semantic = validateSeloSemantics(record); const editorialExecuted = structural.valid; const editorial = editorialExecuted ? validateSeloEditorial(record) : { valid: null, errors: [], skipped_reason: 'falha_estrutural' }; const fileErrors = validateFileIdentity(record, filePath);
   const errors = [...formatLayerErrors(label, structural), ...formatLayerErrors(label, semantic), ...formatLayerErrors(label, editorial), ...fileErrors];
   const warnings = !record?.aprovacao_humana && record?.publicacao?.status !== 'rascunho' ? [`${label}: registro legado sem bloco aprovacao_humana.`] : [];
-  return { errors, warnings, structural_errors: structural.errors, semantic_errors: semantic.errors, editorial_errors: editorial.errors, file_errors: fileErrors };
+  return { errors, warnings, structural_errors: structural.errors, semantic_errors: semantic.errors, editorial_errors: editorial.errors, file_errors: fileErrors, layer_results: { structural: { ...structural, executed: true }, semantic: { ...semantic, executed: true }, editorial: { ...editorial, executed: editorialExecuted } } };
 }
 export async function validateRecordOperational(record, filePath) {
   const recordValidation = validateRecord(record, filePath);
@@ -30,9 +30,9 @@ export async function validateRecordOperational(record, filePath) {
     warnings: [...recordValidation.warnings, ...history.warnings],
     informational: history.informational,
     layers: {
-      structural: { valid: recordValidation.structural_errors.length === 0, errors: recordValidation.structural_errors },
-      semantic: { valid: recordValidation.semantic_errors.length === 0, errors: recordValidation.semantic_errors },
-      editorial: { valid: recordValidation.editorial_errors.length === 0, errors: recordValidation.editorial_errors },
+      structural: recordValidation.layer_results.structural,
+      semantic: recordValidation.layer_results.semantic,
+      editorial: recordValidation.layer_results.editorial,
       file: { valid: recordValidation.file_errors.length === 0, errors: recordValidation.file_errors },
       history: { valid: history.errors.length === 0, errors: history.errors },
       assets: { valid: assetsErrors.length === 0, errors: assetsErrors, items: assets },
