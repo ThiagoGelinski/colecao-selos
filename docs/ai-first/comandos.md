@@ -26,3 +26,11 @@ SELO_LOCK_TIMEOUT_MS=10000 npm run selo:novo -- --slug brasil-exemplo --titulo "
 ```
 
 Um lock antigo nunca é removido se o PID registrado ainda estiver ativo. Consulte `workflow.md` antes de investigar ou remover manualmente `manifests/ids.lock`.
+
+## Validação e CI
+
+- `npm run test:schema`: contrato, formatos, condicionais, registros reais e equivalência CLI/runtime;
+- `npm test`: testes dos Blocos 1–3;
+- `npm run ci`: testes, `catalogo:auditoria`, `check` e `build` na ordem da CI.
+
+Os resultados de `selo:validar` separam erros estruturais (`structural_errors`) de semânticos, editoriais, nomes de arquivo e assets. Cada erro de schema expõe `instancePath`, `keyword`, `message` e `params`, permitindo localizar precisamente o campo inválido.

@@ -29,6 +29,7 @@ export interface AprovacaoHumana {
   invalidado_em?: string | null;
   motivo_invalidacao?: string | null;
 }
+
 export interface Selo {
   schema_version: string;
   id: string;
@@ -58,6 +59,6 @@ export interface Selo {
   seo: { title: string; meta_description: string; canonical_path: string; open_graph_title?: string | null; open_graph_description?: string | null; image?: string | null };
   relacionamentos?: { pais?: string[]; serie?: string[]; personagens?: string[]; temas?: string[]; anos?: number[]; selos_relacionados?: string[] };
   aprovacao_humana?: AprovacaoHumana;
-  publicacao: { status: StatusPublicacao; apto_para_preview?: boolean; apto_para_publicacao?: boolean; motivo?: string | null };
+  publicacao: { status: StatusPublicacao; apto_para_preview: boolean; apto_para_publicacao: boolean; motivo?: string | null };
   auditoria: { criado_em: string; ultima_revisao: string; versao: string };
 }

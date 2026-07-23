@@ -18,3 +18,12 @@
 - aprovação humana vinculada a hash e versão;
 - validação segura de assets e caminhos;
 - publicação atômica e testes de integridade.
+
+## Em desenvolvimento — Bloco 3: JSON Schema executável, testes integrados e CI
+
+- schema Draft 2020-12 compilado por AJV com formatos e condicionais editoriais;
+- validador único compartilhado entre CLI e runtime Astro;
+- separação de erros estruturais, semânticos, editoriais, arquivos e assets;
+- validação antes de toda escrita de registro;
+- testes do contrato, template, catálogo real e equivalência entre camadas;
+- CI obrigatória com instalação limpa, testes, auditoria, check e build, sem deploy.

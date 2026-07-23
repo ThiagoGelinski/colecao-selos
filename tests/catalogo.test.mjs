@@ -72,7 +72,7 @@ test('alteração após aprovação é detectada pela validação', async () => 
   await writeFile(file, `${JSON.stringify(record, null, 2)}\n`);
   const result = run(root, 'selo:validar', ID);
   assert.notEqual(result.status, 0);
-  assert.match(result.stdout, /hash do registro diverge/i);
+  assert.match(result.stdout, /diverge do hash aprovado/i);
 });
 
 test('hash divergente bloqueia publicação e invalida aprovação', async () => {

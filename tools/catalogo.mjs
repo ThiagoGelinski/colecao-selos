@@ -2,7 +2,8 @@
 
 import { access, link, mkdir, open, readFile, readdir, rename, rmdir, stat, unlink, writeFile } from 'node:fs/promises';
 import { constants } from 'node:fs';
-import { createHash, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
+import { formatValidationIssue, recordHash, validateSeloEditorial, validateSeloSchema, validateSeloSemantics } from '../src/lib/selo-validation.mjs';
 import path from 'node:path';
 import process from 'node:process';
 
@@ -15,7 +16,6 @@ const ID_MANIFEST = path.join(ROOT, 'manifests', 'ids.json');
 const ID_LOCK = path.join(ROOT, 'manifests', 'ids.lock');
 const TEMPLATE = path.join(ROOT, 'templates', 'selo.template.json');
 const ID_PATTERN = /^SEL-[0-9]{6}$/;
-const VALID_STATUSES = new Set(['rascunho', 'em_pesquisa', 'identificacao_parcial', 'aguardando_revisao', 'homologacao', 'aprovado', 'publicado', 'revisao_necessaria']);
 const ASSET_KINDS = ['frente', 'verso', 'card', 'thumb'];
 const REQUIRED_ASSETS = new Set(['frente', 'card']);
 const RESERVATION_STATUSES = new Set(['reservado', 'criando', 'criado', 'falha_na_criacao', 'cancelado_sem_reuso']);
@@ -165,24 +165,6 @@ async function withIdLock(lockCommand, operation) {
   finally { await releaseIdLock(owner); }
 }
 
-function canonicalize(value) {
-  if (Array.isArray(value)) return value.map(canonicalize);
-  if (value && typeof value === 'object') {
-    return Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonicalize(value[key])]));
-  }
-  return value;
-}
-
-function approvedContent(record) {
-  const { aprovacao_humana: _approval, publicacao: _publication, auditoria: _audit, ...content } = record;
-  return content;
-}
-
-function recordHash(record) {
-  const canonical = JSON.stringify(canonicalize(approvedContent(record)));
-  return createHash('sha256').update(canonical, 'utf8').digest('hex');
-}
-
 function dataPath(id) { return path.join(DATA_DIR, `${id}.json`); }
 
 async function inspectRecordFiles() {
@@ -307,41 +289,25 @@ function assertManifestValid(manifest, records) {
   if (inspection.errors.length) throw new Error(`Manifesto inválido:\n${inspection.errors.join('\n')}`);
   return inspection;
 }
-function approvalErrors(record, label) {
-  const errors = [];
-  const approval = record.aprovacao_humana;
-  if (!approval) return [`${label}: publicação bloqueada sem aprovacao_humana.`];
-  if (approval.status !== 'aprovado' || approval.decisao !== 'aprovado') errors.push(`${label}: aprovação humana não aprovada.`);
-  if (!approval.aprovado_por?.trim()) errors.push(`${label}: aprovado_por obrigatório.`);
-  if (!approval.aprovado_em || Number.isNaN(Date.parse(approval.aprovado_em))) errors.push(`${label}: aprovado_em inválido.`);
-  if (!/^[a-f0-9]{64}$/.test(approval.hash_do_registro_aprovado ?? '')) errors.push(`${label}: hash aprovado inválido.`);
-  if (!approval.versao_aprovada?.trim()) errors.push(`${label}: versao_aprovada obrigatória.`);
-  if (approval.escopo !== 'publicacao_catalogo') errors.push(`${label}: escopo de aprovação inválido.`);
-  if (approval.hash_do_registro_aprovado && approval.hash_do_registro_aprovado !== recordHash(record)) errors.push(`${label}: hash do registro diverge do conteúdo aprovado.`);
-  return errors;
+function formatLayerErrors(label, layer) {
+  return layer.errors.map((error) => `${label}: ${formatValidationIssue(error)}`);
 }
 
 function validateRecord(record, filePath) {
-  const errors = [];
-  const warnings = [];
   const label = path.relative(ROOT, filePath);
+  const structural = validateSeloSchema(record);
+  const semantic = validateSeloSemantics(record);
+  const editorial = structural.valid ? validateSeloEditorial(record) : { valid: false, errors: [] };
+  const fileErrors = [];
   const fileId = path.basename(filePath, '.json');
-  if (!ID_PATTERN.test(record.id ?? '')) errors.push(`${label}: ID inválido.`);
-  if (fileId !== record.id) errors.push(`${label}: nome do arquivo (${fileId}) difere do ID interno (${record.id ?? 'ausente'}).`);
-  if (!record.slug?.trim()) errors.push(`${label}: slug obrigatório.`);
-  if (!record.titulo?.trim()) errors.push(`${label}: título obrigatório.`);
-  if (!record.imagens?.frente?.trim()) errors.push(`${label}: imagem de frente obrigatória.`);
-  if (!record.imagens?.card?.trim()) errors.push(`${label}: imagem de card obrigatória.`);
-  if (!Array.isArray(record.fontes)) errors.push(`${label}: fontes deve ser array.`);
-  if (!record.catalogos || typeof record.catalogos !== 'object' || Array.isArray(record.catalogos)) errors.push(`${label}: catálogos deve ser objeto.`);
-  if (!record.seo?.title?.trim() || !record.seo?.meta_description?.trim()) errors.push(`${label}: SEO obrigatório incompleto.`);
-  if (!VALID_STATUSES.has(record.publicacao?.status)) errors.push(`${label}: status editorial inválido.`);
-  if (record.emissao?.ano != null && (!Number.isInteger(record.emissao.ano) || record.emissao.ano < 1000 || record.emissao.ano > 9999)) errors.push(`${label}: ano inválido.`);
-  if (record.publicacao?.status === 'aprovado' || record.publicacao?.status === 'publicado' || record.publicacao?.apto_para_publicacao === true || record.aprovacao_humana?.status === 'aprovado') errors.push(...approvalErrors(record, label));
-  else if (!record.aprovacao_humana) warnings.push(`${label}: registro legado sem bloco aprovacao_humana.`);
-  return { errors, warnings };
+  if (fileId !== record?.id) fileErrors.push(`${label}: nome do arquivo (${fileId}) difere do ID interno (${record?.id ?? 'ausente'}).`);
+  const structuralErrors = formatLayerErrors(label, structural);
+  const semanticErrors = formatLayerErrors(label, semantic);
+  const editorialErrors = formatLayerErrors(label, editorial);
+  const errors = [...structuralErrors, ...semanticErrors, ...editorialErrors, ...fileErrors];
+  const warnings = !record?.aprovacao_humana && record?.publicacao?.status !== 'rascunho' ? [`${label}: registro legado sem bloco aprovacao_humana.`] : [];
+  return { errors, warnings, structural_errors: structural.errors, semantic_errors: semantic.errors, editorial_errors: editorial.errors, file_errors: fileErrors };
 }
-
 function validateAssetPath(id, kind, publicPath) {
   if (typeof publicPath !== 'string' || !publicPath) return { valid: false, error: `${kind}: caminho ausente.` };
   if (publicPath.includes('..') || publicPath.includes('\\') || publicPath.includes('%')) return { valid: false, error: `${kind}: caminho inseguro ou path traversal.` };
@@ -380,6 +346,7 @@ async function auditOne(reference) {
     publication_blocked: errors.some((error) => error.includes('publicação') || error.includes('aprova') || error.includes('hash')),
     errors,
     warnings: validation.warnings,
+    validation: { structural_errors: validation.structural_errors, semantic_errors: validation.semantic_errors, editorial_errors: validation.editorial_errors, file_errors: validation.file_errors },
     assets
   };
   await writeJsonAtomic(path.join(REPORT_DIR, `${record.id}-auditoria.json`), report);
@@ -470,6 +437,8 @@ async function seloNovo() {
         await writeJsonAtomic(ID_MANIFEST, manifest);
         const raw = await readFile(TEMPLATE, 'utf8');
         const record = JSON.parse(raw.replaceAll('{{ID}}', id).replaceAll('{{SLUG}}', slug).replaceAll('{{TITULO}}', title).replaceAll('{{DATE}}', today()));
+        const candidateValidation = validateRecord(record, filePath);
+        if (candidateValidation.errors.length) throw new Error('TEMPLATE INVÁLIDO:\n' + candidateValidation.errors.join('\n'));
         createdJsonSnapshot = await writeJsonExclusiveAtomic(filePath, record);
         reservation.created_at = now();
         injectTransactionFailure('json');
@@ -530,25 +499,37 @@ async function seloValidar() {
   for (const { path: filePath, record } of targets) {
     const validation = validateRecord(record, filePath);
     const assets = await validateAssets(record);
-    results.push({ id: record.id, errors: [...validation.errors, ...assetErrors(assets)], warnings: validation.warnings });
+    const asset_errors = assetErrors(assets);
+    results.push({
+      id: record.id,
+      valid: validation.errors.length === 0 && asset_errors.length === 0,
+      structural_errors: validation.structural_errors,
+      semantic_errors: validation.semantic_errors,
+      editorial_errors: validation.editorial_errors,
+      file_errors: validation.file_errors,
+      asset_errors,
+      errors: [...validation.errors, ...asset_errors],
+      warnings: validation.warnings
+    });
   }
   console.log(JSON.stringify(results, null, 2));
-  if (results.some((result) => result.errors.length)) process.exitCode = 1;
+  if (results.some((result) => !result.valid)) process.exitCode = 1;
 }
-
 async function seloRevisao() {
   const { path: filePath, record } = await resolveRecord(args._[0]);
   if (record.publicacao.status === 'publicado') throw new Error('Registro publicado não pode retornar à revisão por este comando.');
-  record.aprovacao_humana = { status: 'pendente', decisao: 'pendente', aprovado_por: null, aprovado_em: null, hash_do_registro_aprovado: null, versao_aprovada: null, escopo: 'publicacao_catalogo', observacao: args.observacao || null };
-  record.publicacao.status = 'aguardando_revisao';
-  record.publicacao.apto_para_publicacao = false;
-  record.publicacao.motivo = 'aguardando aprovação humana para publicação';
-  record.auditoria.ultima_revisao = today();
-  await writeJsonAtomic(filePath, record);
-  await appendLog('selo_revisao', { id: record.id });
-  console.log(`${record.id} encaminhado para revisão humana.`);
+  const candidate = structuredClone(record);
+  candidate.aprovacao_humana = { status: 'pendente', decisao: 'pendente', aprovado_por: null, aprovado_em: null, hash_do_registro_aprovado: null, versao_aprovada: null, escopo: 'publicacao_catalogo', observacao: args.observacao || null };
+  candidate.publicacao.status = 'aguardando_revisao';
+  candidate.publicacao.apto_para_publicacao = false;
+  candidate.publicacao.motivo = 'aguardando aprovação humana para publicação';
+  candidate.auditoria.ultima_revisao = today();
+  const validation = validateRecord(candidate, filePath);
+  if (validation.errors.length) throw new Error(`REVISÃO BLOQUEADA:\n${validation.errors.join('\n')}`);
+  await writeJsonAtomic(filePath, candidate);
+  await appendLog('selo_revisao', { id: candidate.id });
+  console.log(`${candidate.id} encaminhado para revisão humana.`);
 }
-
 async function seloAprovar() {
   const reviewer = typeof args.revisor === 'string' ? args.revisor.trim() : '';
   if (!reviewer) throw new Error('Uso: npm run selo:aprovar -- <ID> --revisor <nome não vazio> [--observacao <texto>]');
@@ -565,9 +546,8 @@ async function seloAprovar() {
     hash_do_registro_aprovado: recordHash(candidate), versao_aprovada: candidate.auditoria.versao,
     escopo: 'publicacao_catalogo', observacao: args.observacao || null
   };
-  const label = path.relative(ROOT, filePath);
-  const errors = [...validateRecord(candidate, filePath).errors, ...approvalErrors(candidate, label)];
-  if (errors.length) throw new Error(`APROVAÇÃO BLOQUEADA:\n${[...new Set(errors)].join('\n')}`);
+  const errors = validateRecord(candidate, filePath).errors;
+  if (errors.length) throw new Error(`APROVAÇÃO BLOQUEADA:\n${errors.join('\n')}`);
 
   await writeJsonAtomic(filePath, candidate);
   await appendLog('selo_aprovar', { id: candidate.id, aprovado_por: reviewer, hash: candidate.aprovacao_humana.hash_do_registro_aprovado });
@@ -575,18 +555,20 @@ async function seloAprovar() {
 }
 
 async function invalidateApproval(filePath, record, currentHash) {
-  record.aprovacao_humana.status = 'revogado';
-  record.aprovacao_humana.decisao = 'pendente';
-  record.aprovacao_humana.invalidado_em = now();
-  record.aprovacao_humana.motivo_invalidacao = 'conteúdo alterado após aprovação';
-  record.publicacao.status = 'revisao_necessaria';
-  record.publicacao.apto_para_publicacao = false;
-  record.publicacao.motivo = 'aprovação invalidada por divergência de hash';
-  record.auditoria.ultima_revisao = today();
-  await writeJsonAtomic(filePath, record);
-  await appendLog('aprovacao_invalidada', { id: record.id, hash_aprovado: record.aprovacao_humana.hash_do_registro_aprovado, hash_atual: currentHash });
+  const candidate = structuredClone(record);
+  candidate.aprovacao_humana.status = 'revogado';
+  candidate.aprovacao_humana.decisao = 'pendente';
+  candidate.aprovacao_humana.invalidado_em = now();
+  candidate.aprovacao_humana.motivo_invalidacao = 'conteúdo alterado após aprovação';
+  candidate.publicacao.status = 'revisao_necessaria';
+  candidate.publicacao.apto_para_publicacao = false;
+  candidate.publicacao.motivo = 'aprovação invalidada por divergência de hash';
+  candidate.auditoria.ultima_revisao = today();
+  const validation = validateRecord(candidate, filePath);
+  if (validation.errors.length) throw new Error(`INVALIDAÇÃO BLOQUEADA:\n${validation.errors.join('\n')}`);
+  await writeJsonAtomic(filePath, candidate);
+  await appendLog('aprovacao_invalidada', { id: candidate.id, hash_aprovado: candidate.aprovacao_humana.hash_do_registro_aprovado, hash_atual: currentHash });
 }
-
 async function seloPublicar() {
   const { path: filePath, record } = await resolveRecord(args._[0]);
   const approval = record.aprovacao_humana;
@@ -645,7 +627,7 @@ async function catalogoAuditoria() {
     const recordErrors = [...validation.errors, ...assetErrors(assets)];
     errors.push(...recordErrors);
     warnings.push(...validation.warnings);
-    results.push({ id: file.record.id, slug: file.record.slug, file: file.name, errors: recordErrors, warnings: validation.warnings, informational: [], assets });
+    results.push({ id: file.record.id, slug: file.record.slug, file: file.name, errors: recordErrors, warnings: validation.warnings, informational: [], validation: { structural_errors: validation.structural_errors, semantic_errors: validation.semantic_errors, editorial_errors: validation.editorial_errors, file_errors: validation.file_errors }, assets });
   }
 
   let manifest;

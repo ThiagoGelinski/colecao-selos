@@ -1,12 +1,25 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, readFile, rmdir, unlink, writeFile } from 'node:fs/promises';
+import { access, mkdtemp, mkdir, readFile, rmdir, unlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
 
 const TOOL = path.resolve('tools/catalogo.mjs');
 const TEMPLATE_SOURCE = path.resolve('templates/selo.template.json');
+
+async function waitForFile(target, timeout = 2_000) {
+  const deadline = Date.now() + timeout;
+  while (Date.now() < deadline) {
+    try {
+      await access(target);
+      return;
+    } catch {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+  }
+  throw new Error(`Tempo esgotado aguardando arquivo: ${target}`);
+}
 
 function reservation(sequence, overrides = {}) {
   const id = `SEL-${String(sequence).padStart(6, '0')}`;
@@ -237,7 +250,8 @@ test('lock substituído entre snapshot e liberação não é removido', async ()
   const root = await workspace();
   const lockPath = path.join(root, 'manifests', 'ids.lock');
   const pending = runAsync(root, 'selo:novo', ['--slug', 'troca-na-liberacao', '--titulo', 'Troca'], { SELO_TEST_LOCK_REMOVE_DELAY_MS: '500' });
-  await new Promise((resolve) => setTimeout(resolve, 150));
+  await waitForFile(lockPath);
+  await new Promise((resolve) => setTimeout(resolve, 100));
   await unlink(lockPath);
   const replacement = { pid: process.pid, timestamp: new Date().toISOString(), command: 'substituto', token: 'novo-token' };
   await writeLock(root, replacement);

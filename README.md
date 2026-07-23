@@ -96,3 +96,9 @@ npm run catalogo:auditoria
 ```
 
 A IA pode preparar e validar registros, mas não pode conceder aprovação humana. `selo:publicar` falha de forma fechada quando a decisão, o revisor, a data ou o escopo de aprovação estão ausentes ou inválidos. Consulte [`docs/ai-first/`](docs/ai-first/README.md) para arquitetura, workflow e governança.
+
+### Contrato executável e CI
+
+`schemas/selo.schema.json` é o contrato estrutural executável (JSON Schema Draft 2020-12). A mesma compilação AJV é reutilizada pelo CLI e pelo carregador do Astro; regras cruzadas que dependem do projeto, como canonical derivado do slug, permanecem na camada semântica compartilhada. Os diagnósticos distinguem `structural_errors`, `semantic_errors`, `editorial_errors`, `file_errors` e `asset_errors` e informam caminho, palavra-chave e mensagem.
+
+Use `npm run test:schema` para testar somente o contrato ou `npm run ci` para executar localmente a mesma sequência obrigatória da CI: testes, auditoria do catálogo, Astro Check e build. O workflow de GitHub Actions valida Pull Requests e a branch `main`; ele não aprova registros, não altera estados editoriais, não faz merge e não publica/deploya o site.

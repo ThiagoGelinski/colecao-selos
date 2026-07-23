@@ -52,3 +52,7 @@ npm run catalogo:auditoria
 ```
 
 A auditoria classifica achados em `errors`, `warnings` e `informational`. Relatórios locais ficam em `reports/` e eventos em `logs/pipeline.jsonl`; esses arquivos auxiliam o diagnóstico, mas não substituem commits, revisões e histórico Git.
+
+## 7. Verificar na CI
+
+Pull Requests e pushes em `main` executam instalação limpa, testes, auditoria, Astro Check e build. O mesmo fluxo pode ser reproduzido com `npm run ci`. Falhas de schema interrompem comandos mutáveis antes da gravação e também interrompem o carregamento/build. A CI não substitui a revisão humana e não contém etapa de deploy.

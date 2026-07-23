@@ -34,3 +34,7 @@ Slug inválido, slug duplicado ou manifesto inválido são bloqueados antes da r
 `catalogo:auditoria` verifica manifesto, reservas, arquivos, IDs internos, slugs, datas, estados e assets. Logs e relatórios locais são regeneráveis e ignorados pelo Git; não substituem o histórico Git, o Pull Request nem a revisão humana.
 
 Não registre credenciais, não permita que IA se identifique como revisora humana e não execute merge ou deploy dentro dos comandos de catalogação.
+
+## Contrato e limites da automação
+
+O JSON Schema executável é a fonte única para a estrutura do registro. Alterações incompatíveis exigem atualização explícita do schema, template, tipos e testes. Regras semânticas do domínio ficam na biblioteca compartilhada, não duplicadas entre CLI e site. A aprovação humana continua vinculada ao conteúdo e nunca é produzida pela CI; sucesso técnico significa apenas que o contrato, a auditoria e o build passaram.
