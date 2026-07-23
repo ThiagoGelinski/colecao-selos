@@ -43,7 +43,7 @@ export function validateSelo(value: unknown, source = 'registro'): asserts value
   if (!Array.isArray(selo.fontes)) errors.push('fontes deve ser um array.');
   if (!selo.catalogos || typeof selo.catalogos !== 'object' || Array.isArray(selo.catalogos)) errors.push('catálogos em formato inesperado.');
 
-  if (selo.publicacao?.status === 'publicado' || selo.publicacao?.apto_para_publicacao === true) {
+  if (selo.publicacao?.status === 'aprovado' || selo.publicacao?.status === 'publicado' || selo.publicacao?.apto_para_publicacao === true || selo.aprovacao_humana?.status === 'aprovado') {
     const approval = selo.aprovacao_humana;
     if (!approval) {
       errors.push('publicação bloqueada: aprovação humana obrigatória ausente.');

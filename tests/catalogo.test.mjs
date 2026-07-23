@@ -130,3 +130,69 @@ test('preparação só libera revisão quando todos os assets existem', async ()
   assert.notEqual(result.status, 0);
   assert.match(result.stdout, /"ready_for_review": false/);
 });
+
+test('revisor ausente bloqueia aprovação', async () => {
+  const { root, file } = await fixture();
+  const before = await readFile(file, 'utf8');
+  const result = run(root, 'selo:aprovar', ID);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /revisor/i);
+  assert.equal(await readFile(file, 'utf8'), before);
+});
+
+test('revisor composto apenas por espaços bloqueia aprovação', async () => {
+  const { root, file } = await fixture();
+  const before = await readFile(file, 'utf8');
+  const result = run(root, 'selo:aprovar', ID, '--revisor', '   ');
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /revisor/i);
+  assert.equal(await readFile(file, 'utf8'), before);
+});
+
+test('nome do revisor é normalizado no registro e no log', async () => {
+  const { root, file } = await fixture();
+  const result = run(root, 'selo:aprovar', ID, '--revisor', '  Revisora Humana  ');
+  assert.equal(result.status, 0, result.stderr);
+  const record = await json(file);
+  assert.equal(record.aprovacao_humana.aprovado_por, 'Revisora Humana');
+  const log = await readFile(path.join(root, 'logs', 'pipeline.jsonl'), 'utf8');
+  assert.equal(JSON.parse(log.trim()).aprovado_por, 'Revisora Humana');
+});
+
+test('falha estrutural de aprovação não modifica o JSON', async () => {
+  const record = baseRecord();
+  record.titulo = '';
+  const { root, file } = await fixture({ record });
+  const before = await readFile(file, 'utf8');
+  const result = run(root, 'selo:aprovar', ID, '--revisor', 'Revisora');
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /APROVAÇÃO BLOQUEADA/);
+  assert.equal(await readFile(file, 'utf8'), before);
+});
+
+test('fluxo positivo completo aprova e publica com sucesso', async () => {
+  const { root, file } = await fixture();
+  assert.equal(run(root, 'selo:aprovar', ID, '--revisor', 'Revisora').status, 0);
+  const publish = run(root, 'selo:publicar', ID);
+  assert.equal(publish.status, 0, publish.stderr);
+  const record = await json(file);
+  assert.equal(record.publicacao.status, 'publicado');
+  assert.equal(record.publicacao.apto_para_publicacao, true);
+});
+
+test('aprovação editorial mantém apto_para_publicacao false', async () => {
+  const { root, file } = await fixture();
+  const result = run(root, 'selo:aprovar', ID, '--revisor', 'Revisora');
+  assert.equal(result.status, 0, result.stderr);
+  const record = await json(file);
+  assert.equal(record.publicacao.status, 'aprovado');
+  assert.equal(record.publicacao.apto_para_publicacao, false);
+});
+
+test('apto_para_publicacao só se torna true após publicar', async () => {
+  const { root, file } = await fixture();
+  assert.equal(run(root, 'selo:aprovar', ID, '--revisor', 'Revisora').status, 0);
+  assert.equal((await json(file)).publicacao.apto_para_publicacao, false);
+  assert.equal(run(root, 'selo:publicar', ID).status, 0);
+  assert.equal((await json(file)).publicacao.apto_para_publicacao, true);
+});

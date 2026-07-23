@@ -116,7 +116,7 @@ function validateRecord(record, filePath) {
   if (!record.seo?.title?.trim() || !record.seo?.meta_description?.trim()) errors.push(`${label}: SEO obrigatório incompleto.`);
   if (!VALID_STATUSES.has(record.publicacao?.status)) errors.push(`${label}: status editorial inválido.`);
   if (record.emissao?.ano != null && (!Number.isInteger(record.emissao.ano) || record.emissao.ano < 1000 || record.emissao.ano > 9999)) errors.push(`${label}: ano inválido.`);
-  if (record.publicacao?.status === 'publicado' || record.publicacao?.apto_para_publicacao === true) errors.push(...approvalErrors(record, label));
+  if (record.publicacao?.status === 'aprovado' || record.publicacao?.status === 'publicado' || record.publicacao?.apto_para_publicacao === true || record.aprovacao_humana?.status === 'aprovado') errors.push(...approvalErrors(record, label));
   else if (!record.aprovacao_humana) warnings.push(`${label}: registro legado sem bloco aprovacao_humana.`);
   return { errors, warnings };
 }
@@ -224,23 +224,28 @@ async function seloRevisao() {
 }
 
 async function seloAprovar() {
-  if (!args.revisor) throw new Error('Uso: npm run selo:aprovar -- <ID> --revisor <nome> [--observacao <texto>]');
+  const reviewer = typeof args.revisor === 'string' ? args.revisor.trim() : '';
+  if (!reviewer) throw new Error('Uso: npm run selo:aprovar -- <ID> --revisor <nome não vazio> [--observacao <texto>]');
   const { path: filePath, record } = await resolveRecord(args._[0]);
   if (record.publicacao.status === 'publicado') throw new Error('Registro já publicado.');
-  record.publicacao.status = 'aprovado';
-  record.publicacao.apto_para_publicacao = true;
-  record.publicacao.motivo = 'registro aprovado por revisão humana; publicação pendente';
-  record.auditoria.ultima_revisao = today();
-  record.aprovacao_humana = {
-    status: 'aprovado', decisao: 'aprovado', aprovado_por: args.revisor, aprovado_em: now(),
-    hash_do_registro_aprovado: recordHash(record), versao_aprovada: record.auditoria.versao,
+
+  const candidate = structuredClone(record);
+  candidate.publicacao.status = 'aprovado';
+  candidate.publicacao.apto_para_publicacao = false;
+  candidate.publicacao.motivo = 'registro aprovado por revisão humana; validação técnica e publicação pendentes';
+  candidate.auditoria.ultima_revisao = today();
+  candidate.aprovacao_humana = {
+    status: 'aprovado', decisao: 'aprovado', aprovado_por: reviewer, aprovado_em: now(),
+    hash_do_registro_aprovado: recordHash(candidate), versao_aprovada: candidate.auditoria.versao,
     escopo: 'publicacao_catalogo', observacao: args.observacao || null
   };
-  const validation = validateRecord(record, filePath);
-  if (validation.errors.length) throw new Error(`APROVAÇÃO BLOQUEADA:\n${validation.errors.join('\n')}`);
-  await writeJsonAtomic(filePath, record);
-  await appendLog('selo_aprovar', { id: record.id, aprovado_por: args.revisor, hash: record.aprovacao_humana.hash_do_registro_aprovado });
-  console.log(`${record.id} aprovado por ${args.revisor}.`);
+  const label = path.relative(ROOT, filePath);
+  const errors = [...validateRecord(candidate, filePath).errors, ...approvalErrors(candidate, label)];
+  if (errors.length) throw new Error(`APROVAÇÃO BLOQUEADA:\n${[...new Set(errors)].join('\n')}`);
+
+  await writeJsonAtomic(filePath, candidate);
+  await appendLog('selo_aprovar', { id: candidate.id, aprovado_por: reviewer, hash: candidate.aprovacao_humana.hash_do_registro_aprovado });
+  console.log(`${candidate.id} aprovado por ${reviewer}.`);
 }
 
 async function invalidateApproval(filePath, record, currentHash) {
