@@ -3,109 +3,120 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { accessDecision } from '../src/lib/admin/access.mjs';
 import { apiError, apiPayload, jsonResponse, safeApiFailure } from '../src/lib/admin/api.mjs';
-import { authenticateAdmin, changeAdminPassword } from '../src/lib/admin/auth-service.mjs';
-import { hashPassword, validateNewPassword, verifyCredentials } from '../src/lib/admin/auth.mjs';
-import { AuthConfigurationError, loadAuthConfig, loadBootstrapPassword } from '../src/lib/admin/config.mjs';
+import { authenticateAdmin, changeAdminPassword, completeFirstAccess } from '../src/lib/admin/auth-service.mjs';
+import { hashPassword, normalizeAdminUsername, validateNewPassword, verifyCredentials } from '../src/lib/admin/auth.mjs';
+import { AuthConfigurationError, loadAuthConfig } from '../src/lib/admin/config.mjs';
 import { AdminStorageError, createMemoryAdminStore, loadAdminCredentials } from '../src/lib/admin/credential-store.mjs';
 import { createSession, sessionCookieOptions, verifySession } from '../src/lib/admin/session.mjs';
 import { clearRateLimits, consumeRateLimit } from '../src/lib/admin/rate-limit.mjs';
 
 const secret = 'segredo-de-teste-com-mais-de-trinta-e-dois-caracteres';
-const bootstrapPassword = 'bootstrap-temporario-exclusivo-2026';
-const bootstrap = { env: { ADMIN_BOOTSTRAP_PASSWORD: bootstrapPassword } };
 const config = () => loadAuthConfig({ ADMIN_SESSION_SECRET: secret, ADMIN_ROLE: 'administrador', ADMIN_SESSION_TTL_SECONDS: '3600' });
+async function definitiveStore() { const store = createMemoryAdminStore(); const result = await completeFirstAccess(store, 'Curador.Principal', 'senha-definitiva-forte', 'senha-definitiva-forte'); assert.equal(result.ok, true); return { store, credentials: result.credentials }; }
 
-test('rotas administrativas exigem sessão e o catálogo público continua acessível', () => {
-  assert.equal(accessDecision('/admin', false).action, 'redirect-login'); assert.equal(accessDecision('/api/admin/dashboard', false).action, 'json-unauthorized');
-  assert.equal(accessDecision('/admin/login', false).action, 'allow'); assert.equal(accessDecision('/api/admin/auth/login', false).action, 'allow'); assert.equal(accessDecision('/catalogo', false).action, 'allow');
+test('admin/123456 funciona somente antes do cadastro definitivo', async () => {
+  const store = createMemoryAdminStore(); const auth = await authenticateAdmin(store, 'admin', '123456'); assert.equal(auth.valid, true); assert.equal(auth.credentials.bootstrap_required, true); assert.equal(auth.credentials.bootstrap_consumed, false);
 });
 
-test('primeiro bootstrap usa a senha configurada no ambiente e persiste somente hash', async () => {
-  const store = createMemoryAdminStore(); const auth = await authenticateAdmin(store, 'admin', bootstrapPassword, bootstrap); const snapshot = store.snapshot();
-  assert.equal(auth.valid, true); assert.equal(auth.credentials.bootstrap_required, true); assert.equal(auth.credentials.credential_version, 1); assert.equal(snapshot.state.bootstrap_secret_version, 1);
-  assert.match(snapshot.credentials.password_hash, /^scrypt\$/); assert.doesNotMatch(JSON.stringify(snapshot), new RegExp(bootstrapPassword));
+test('senha inicial diferente é recusada com resposta de autenticação genérica', async () => {
+  const store = createMemoryAdminStore(); assert.equal((await authenticateAdmin(store, 'admin', '654321')).valid, false); const response = jsonResponse(apiError('INVALID_CREDENTIALS', 'Usuário ou senha inválidos.'), 401); assert.doesNotMatch(await response.text(), /123456/);
 });
 
-test('ausência ou senha ambiental curta no primeiro acesso falha fechado sem criar estado', async () => {
-  const missing = createMemoryAdminStore(); await assert.rejects(() => authenticateAdmin(missing, 'admin', 'qualquer-valor', { env: {} }), AuthConfigurationError); assert.deepEqual(missing.snapshot(), { credentials: null, state: null });
-  const short = createMemoryAdminStore(); await assert.rejects(() => loadAdminCredentials(short, { env: { ADMIN_BOOTSTRAP_PASSWORD: 'curta' } }), /ao menos 16 caracteres/); assert.deepEqual(short.snapshot(), { credentials: null, state: null });
+test('dashboard e APIs normais permanecem bloqueados durante o bootstrap', () => {
+  assert.equal(accessDecision('/admin', true, true).action, 'redirect-first-access'); assert.equal(accessDecision('/admin/selos', true, true).action, 'redirect-first-access'); assert.equal(accessDecision('/admin/configuracoes', true, true).action, 'redirect-first-access'); assert.equal(accessDecision('/admin/alterar-senha', true, true).action, 'redirect-first-access'); assert.equal(accessDecision('/api/admin/dashboard', true, true).action, 'json-bootstrap-required');
 });
 
-test('senha de bootstrap incorreta é recusada', async () => {
-  const store = createMemoryAdminStore(); const auth = await authenticateAdmin(store, 'admin', 'segredo-temporario-incorreto', bootstrap); assert.equal(auth.valid, false);
+test('primeiro acesso, sessão e logout são permitidos durante o bootstrap', () => {
+  assert.equal(accessDecision('/admin/primeiro-acesso', true, true).action, 'allow'); assert.equal(accessDecision('/api/admin/auth/first-access', true, true).action, 'allow'); assert.equal(accessDecision('/api/admin/auth/session', true, true).action, 'allow'); assert.equal(accessDecision('/api/admin/auth/logout', true, true).action, 'allow');
 });
 
-test('bootstrap bloqueia dashboard e APIs normais, mas permite troca, sessão e logout', () => {
-  assert.equal(accessDecision('/admin', true, true).action, 'redirect-change-password'); assert.equal(accessDecision('/admin/selos', true, true).action, 'redirect-change-password');
-  assert.equal(accessDecision('/admin/configuracoes', true, true).action, 'redirect-change-password'); assert.equal(accessDecision('/api/admin/dashboard', true, true).action, 'json-bootstrap-required');
-  assert.equal(accessDecision('/admin/alterar-senha', true, true).action, 'allow'); assert.equal(accessDecision('/api/admin/auth/change-password', true, true).action, 'allow');
-  assert.equal(accessDecision('/api/admin/auth/session', true, true).action, 'allow'); assert.equal(accessDecision('/api/admin/auth/logout', true, true).action, 'allow');
+test('catálogo público continua funcionando sem sessão', () => {
+  assert.equal(accessDecision('/catalogo', false).action, 'allow'); assert.equal(accessDecision('/selos/brasil-campos-salles-20-centavos-1967', false).action, 'allow'); assert.equal(accessDecision('/admin', false).action, 'redirect-login');
 });
 
-test('política recusa senha curta, igual ao usuário e confirmação divergente', () => {
-  assert.equal(validateNewPassword('curta', 'curta', 'admin').code, 'PASSWORD_TOO_SHORT'); assert.equal(validateNewPassword('administrador', 'administrador', 'administrador').code, 'PASSWORD_NOT_ALLOWED');
-  assert.equal(validateNewPassword('senha-definitiva-forte', 'outra-senha-forte', 'admin').code, 'PASSWORD_CONFIRMATION_MISMATCH');
+test('novo usuário é normalizado e usuário inválido é recusado', async () => {
+  assert.equal(normalizeAdminUsername('  Curador.Principal  '), 'curador.principal'); for (const invalid of ['', 'abc', 'nome com espaço', 'usuário', 'a'.repeat(65)]) assert.equal(normalizeAdminUsername(invalid), null);
+  const store = createMemoryAdminStore(); const result = await completeFirstAccess(store, 'x!', 'senha-definitiva-forte', 'senha-definitiva-forte'); assert.equal(result.ok, false); assert.equal(result.code, 'INVALID_USERNAME');
 });
 
-test('troca recusa senha atual incorreta sem modificar o estado persistido', async () => {
-  const store = createMemoryAdminStore(); await loadAdminCredentials(store, bootstrap); const before = store.snapshot(); const result = await changeAdminPassword(store, 'incorreta', 'senha-definitiva-forte', 'senha-definitiva-forte', 'administrador', bootstrap);
-  assert.equal(result.ok, false); assert.equal(result.code, 'INVALID_CURRENT_PASSWORD'); assert.deepEqual(store.snapshot(), before);
+test('senha curta e 123456 não podem ser senha definitiva', () => {
+  assert.equal(validateNewPassword('curta', 'curta', 'curador').valid, false); assert.equal(validateNewPassword('123456', '123456', 'curador').valid, false);
 });
 
-test('troca definitiva válida consome bootstrap e recusa a senha temporária', async () => {
-  const store = createMemoryAdminStore(); const before = await loadAdminCredentials(store, bootstrap); const result = await changeAdminPassword(store, bootstrapPassword, 'senha-definitiva-forte', 'senha-definitiva-forte', 'administrador', bootstrap);
-  assert.equal(result.ok, true); const snapshot = store.snapshot(); assert.equal(snapshot.credentials.bootstrap_required, false); assert.equal(snapshot.credentials.credential_version, 2); assert.equal(snapshot.state.bootstrap_consumed, true);
-  assert.match(snapshot.credentials.password_hash, /^scrypt\$/); assert.doesNotMatch(JSON.stringify(snapshot), /senha-definitiva-forte|bootstrap-temporario-exclusivo-2026/);
-  assert.equal((await authenticateAdmin(store, 'admin', bootstrapPassword, { env: {} })).valid, false); assert.equal((await authenticateAdmin(store, 'admin', 'senha-definitiva-forte', { env: {} })).valid, true); assert.notEqual(before.password_hash, snapshot.credentials.password_hash);
+test('senha igual ao login e confirmação divergente são recusadas', () => {
+  assert.equal(validateNewPassword('curadorprincipal', 'curadorprincipal', 'curadorprincipal').code, 'PASSWORD_NOT_ALLOWED'); assert.equal(validateNewPassword('senha-definitiva-forte', 'outra-senha-forte', 'curador').code, 'PASSWORD_CONFIRMATION_MISMATCH');
 });
 
-test('remoção ou alteração da variável após consumo não quebra login nem recria bootstrap', async () => {
-  const store = createMemoryAdminStore(); await changeAdminPassword(store, bootstrapPassword, 'senha-definitiva-forte', 'senha-definitiva-forte', 'administrador', bootstrap); const before = store.snapshot();
-  const withoutVariable = await authenticateAdmin(store, 'admin', 'senha-definitiva-forte', { env: {} }); const changedVariable = await authenticateAdmin(store, 'admin', 'senha-definitiva-forte', { env: { ADMIN_BOOTSTRAP_PASSWORD: 'outro-segredo-temporario-2026' } });
-  assert.equal(withoutVariable.valid, true); assert.equal(changedVariable.valid, true); assert.deepEqual(store.snapshot(), before); assert.equal(store.snapshot().state.bootstrap_consumed, true); assert.equal(store.snapshot().credentials.bootstrap_required, false);
+test('cadastro definitivo salva username normalizado e consome bootstrap', async () => {
+  const { store, credentials } = await definitiveStore(); const snapshot = store.snapshot(); assert.equal(credentials.username, 'curador.principal'); assert.equal(credentials.bootstrap_required, false); assert.equal(credentials.bootstrap_consumed, true); assert.equal(snapshot.state.bootstrap_consumed, true); assert.equal(snapshot.credentials.credential_version, 2);
 });
 
-test('bootstrap legado ainda não consumido é migrado para o segredo ambiental', async () => {
-  const store = createMemoryAdminStore(); const timestamp = new Date().toISOString(); const legacyHash = await hashPassword('valor-legado-inseguro');
-  await store.createBootstrapState({ schema_version: 1, initialized: true, bootstrap_consumed: false, updated_at: timestamp }); await store.createCredentials({ schema_version: 1, username: 'admin', password_hash: legacyHash, bootstrap_required: true, credential_version: 1, updated_at: timestamp });
-  const migrated = await loadAdminCredentials(store, bootstrap); assert.equal(migrated.credential_version, 2); assert.equal(migrated.state.bootstrap_secret_version, 1); assert.equal(await verifyCredentials('admin', 'valor-legado-inseguro', migrated), false); assert.equal(await verifyCredentials('admin', bootstrapPassword, migrated), true);
+test('somente hash é persistido, sem senha definitiva em texto puro', async () => {
+  const { store } = await definitiveStore(); const serialized = JSON.stringify(store.snapshot()); assert.match(store.snapshot().credentials.password_hash, /^scrypt\$/); assert.doesNotMatch(serialized, /senha-definitiva-forte/);
 });
 
-test('troca renova versão e invalida a sessão anterior', async () => {
-  const store = createMemoryAdminStore(); const before = await loadAdminCredentials(store, bootstrap); const oldSession = await createSession(config(), before); const changed = await changeAdminPassword(store, bootstrapPassword, 'senha-definitiva-forte', 'senha-definitiva-forte', 'administrador', bootstrap); assert.equal(changed.ok, true);
-  assert.equal((await verifySession(oldSession.token, config(), changed.credentials)).valid, false); const renewed = await createSession(config(), changed.credentials); assert.equal((await verifySession(renewed.token, config(), changed.credentials)).valid, true);
+test('novo username e nova senha autenticam após o cadastro', async () => {
+  const { store } = await definitiveStore(); assert.equal((await authenticateAdmin(store, 'curador.principal', 'senha-definitiva-forte')).valid, true); assert.equal((await authenticateAdmin(store, 'Curador.Principal', 'senha-definitiva-forte')).valid, false);
 });
 
-test('não existe derivação de senha fixa pública no código de autenticação', async () => {
-  const source = `${await readFile(new URL('../src/lib/admin/auth.mjs', import.meta.url), 'utf8')}\n${await readFile(new URL('../src/lib/admin/credential-store.mjs', import.meta.url), 'utf8')}`;
-  assert.doesNotMatch(source, /hashPassword\(\s*['"]admin['"]\s*\)/); assert.doesNotMatch(source, /derivePasswordHash\(\s*['"]admin['"]\s*\)/); assert.doesNotMatch(source, /hashBootstrapPassword/);
+test('admin/123456 é recusado definitivamente após o cadastro', async () => {
+  const { store } = await definitiveStore(); assert.equal((await authenticateAdmin(store, 'admin', '123456')).valid, false);
 });
 
-test('armazenamento indisponível falha fechado e não oferece fallback de bootstrap', async () => {
-  const store = createMemoryAdminStore({ fail: true }); await assert.rejects(() => authenticateAdmin(store, 'admin', bootstrapPassword, bootstrap), AdminStorageError);
-  const response = safeApiFailure(new AdminStorageError('detalhe-interno')); assert.equal(response.status, 503); assert.doesNotMatch(await response.text(), /detalhe-interno|bootstrap-temporario/);
+test('bootstrap não reaparece após recarregar o estado', async () => {
+  const { store } = await definitiveStore(); const before = store.snapshot(); const firstReload = await loadAdminCredentials(store); const secondReload = await loadAdminCredentials(store); assert.equal(firstReload.bootstrap_required, false); assert.equal(secondReload.bootstrap_consumed, true); assert.deepEqual(store.snapshot(), before);
 });
 
-test('autenticação definitiva aceita credencial válida e recusa usuário incorreto', async () => {
-  const credentials = { username: 'curador', passwordHash: await hashPassword('senha-segura-de-teste') }; assert.equal(await verifyCredentials('curador', 'senha-segura-de-teste', credentials), true); assert.equal(await verifyCredentials('outro', 'senha-segura-de-teste', credentials), false);
+test('bootstrap não reaparece após nova inicialização da aplicação sobre o mesmo store', async () => {
+  const { store } = await definitiveStore(); const loadedByNewRuntime = await authenticateAdmin(store, 'curador.principal', 'senha-definitiva-forte'); assert.equal(loadedByNewRuntime.valid, true); assert.equal((await authenticateAdmin(store, 'admin', '123456')).valid, false);
+});
+
+test('bootstrap_consumed=true nunca é revertido', async () => {
+  const { store } = await definitiveStore(); for (let index = 0; index < 3; index += 1) await loadAdminCredentials(store); assert.equal(store.snapshot().state.bootstrap_consumed, true); assert.equal(store.snapshot().credentials.bootstrap_consumed, true);
+});
+
+test('sessão de bootstrap é invalidada e sessão definitiva é válida', async () => {
+  const store = createMemoryAdminStore(); const bootstrapCredentials = await loadAdminCredentials(store); const oldSession = await createSession(config(), bootstrapCredentials); const completed = await completeFirstAccess(store, 'curador', 'senha-definitiva-forte', 'senha-definitiva-forte'); assert.equal(completed.ok, true);
+  assert.equal((await verifySession(oldSession.token, config(), completed.credentials)).valid, false); const newSession = await createSession(config(), completed.credentials); assert.equal((await verifySession(newSession.token, config(), completed.credentials)).valid, true);
+});
+
+test('alteração posterior exige senha atual e mantém o login', async () => {
+  const { store } = await definitiveStore(); const wrong = await changeAdminPassword(store, 'incorreta', 'segunda-senha-definitiva', 'segunda-senha-definitiva'); assert.equal(wrong.ok, false); assert.equal(wrong.code, 'INVALID_CURRENT_PASSWORD');
+  const changed = await changeAdminPassword(store, 'senha-definitiva-forte', 'segunda-senha-definitiva', 'segunda-senha-definitiva'); assert.equal(changed.ok, true); assert.equal(changed.credentials.username, 'curador.principal'); assert.equal((await authenticateAdmin(store, 'curador.principal', 'segunda-senha-definitiva')).valid, true); assert.equal((await authenticateAdmin(store, 'curador.principal', 'senha-definitiva-forte')).valid, false);
+});
+
+test('estado experimental não consumido migra uma vez para admin/123456', async () => {
+  const store = createMemoryAdminStore(); const timestamp = new Date().toISOString(); const oldHash = await hashPassword('segredo-experimental-antigo'); await store.createBootstrapState({ schema_version: 1, initialized: true, bootstrap_consumed: false, bootstrap_secret_version: 1, updated_at: timestamp }); await store.createCredentials({ schema_version: 1, username: 'admin', password_hash: oldHash, bootstrap_required: true, credential_version: 4, updated_at: timestamp });
+  const migrated = await loadAdminCredentials(store); assert.equal(migrated.credential_version, 5); assert.equal(migrated.state.bootstrap_mode_version, 2); assert.equal(await verifyCredentials('admin', '123456', migrated), true); assert.equal(await verifyCredentials('admin', 'segredo-experimental-antigo', migrated), false); const version = migrated.credential_version; assert.equal((await loadAdminCredentials(store)).credential_version, version);
+});
+
+test('estado já consumido é preservado e nunca sobrescrito pela migração', async () => {
+  const store = createMemoryAdminStore(); const timestamp = new Date().toISOString(); const definitiveHash = await hashPassword('senha-definitiva-forte'); await store.createBootstrapState({ schema_version: 1, initialized: true, bootstrap_consumed: true, bootstrap_secret_version: 1, updated_at: timestamp }); await store.createCredentials({ schema_version: 1, username: 'dono', password_hash: definitiveHash, bootstrap_required: false, credential_version: 7, updated_at: timestamp });
+  const loaded = await loadAdminCredentials(store); assert.equal(loaded.username, 'dono'); assert.equal(loaded.credential_version, 7); assert.equal(loaded.bootstrap_consumed, true); assert.equal(await verifyCredentials('dono', 'senha-definitiva-forte', loaded), true); assert.equal(await verifyCredentials('admin', '123456', loaded), false);
+});
+
+test('Netlify Blobs indisponível falha fechado', async () => {
+  const store = createMemoryAdminStore({ fail: true }); await assert.rejects(() => authenticateAdmin(store, 'admin', '123456'), AdminStorageError); const response = safeApiFailure(new AdminStorageError('detalhe-interno')); assert.equal(response.status, 503); assert.doesNotMatch(await response.text(), /detalhe-interno|123456/);
+});
+
+test('mecanismo experimental de senha ambiental foi removido de código, exemplo, docs e diagnóstico', async () => {
+  const paths = ['../src/lib/admin/config.mjs', '../src/lib/admin/credential-store.mjs', '../src/lib/admin/catalog-service.ts', '../src/pages/admin/configuracoes.astro', '../.env.example', '../docs/admin/README.md']; const contents = await Promise.all(paths.map((path) => readFile(new URL(path, import.meta.url), 'utf8'))); assert.doesNotMatch(contents.join('\n'), /ADMIN_BOOTSTRAP_[A-Z]+/);
 });
 
 test('sessão assinada expira, detecta adulteração e preserva perfil', async () => {
-  const credentials = { username: 'curador', credential_version: 3, bootstrap_required: false }; const now = Date.now(); const session = await createSession(config(), credentials, now);
-  assert.deepEqual((await verifySession(session.token, config(), credentials, now + 1000)).user, { username: 'curador', role: 'administrador', bootstrapRequired: false }); assert.equal((await verifySession(`${session.token}x`, config(), credentials, now)).valid, false); assert.equal((await verifySession(session.token, config(), credentials, now + 3_601_000)).reason, 'expired');
+  const credentials = { username: 'curador', credential_version: 3, bootstrap_required: false }; const now = Date.now(); const session = await createSession(config(), credentials, now); assert.deepEqual((await verifySession(session.token, config(), credentials, now + 1000)).user, { username: 'curador', role: 'administrador', bootstrapRequired: false }); assert.equal((await verifySession(`${session.token}x`, config(), credentials, now)).valid, false); assert.equal((await verifySession(session.token, config(), credentials, now + 3_601_000)).reason, 'expired');
 });
 
-test('logout continua removendo o cookie com as proteções da sessão', () => { assert.deepEqual(sessionCookieOptions(0), { httpOnly: true, secure: true, sameSite: 'lax', path: '/', maxAge: 0 }); });
+test('logout continua removendo cookie com as proteções da sessão', () => { assert.deepEqual(sessionCookieOptions(0), { httpOnly: true, secure: true, sameSite: 'lax', path: '/', maxAge: 0 }); });
 
-test('configuração de sessão e bootstrap mantém erros públicos seguros', async () => {
-  assert.throws(() => loadAuthConfig({}), AuthConfigurationError); assert.doesNotThrow(() => config()); assert.equal(loadBootstrapPassword(bootstrap.env), bootstrapPassword);
-  const response = safeApiFailure(new AuthConfigurationError('ADMIN_BOOTSTRAP_PASSWORD=valor-secreto')); assert.equal(response.status, 503); const body = await response.text(); assert.doesNotMatch(body, /valor-secreto/);
+test('configuração exige somente segredo de sessão e erros públicos são seguros', async () => {
+  assert.throws(() => loadAuthConfig({}), AuthConfigurationError); assert.doesNotThrow(() => config()); const response = safeApiFailure(new AuthConfigurationError('ADMIN_SESSION_SECRET=valor-secreto')); assert.equal(response.status, 503); assert.doesNotMatch(await response.text(), /valor-secreto/);
 });
 
 test('respostas JSON seguem contrato sem cache', async () => {
   const success = jsonResponse(apiPayload({ total: 1 })); const failure = jsonResponse(apiError('INVALID_ID', 'Inválido.'), 400); assert.equal(success.headers.get('cache-control'), 'no-store'); assert.deepEqual(await success.json(), { ok: true, data: { total: 1 } }); assert.deepEqual(await failure.json(), { ok: false, error: { code: 'INVALID_ID', message: 'Inválido.' } });
 });
 
-test('rate limit funciona para chaves de login e alteração sem armazenar senhas', () => {
-  clearRateLimits(); assert.equal(consumeRateLimit('change-password:ip:admin', { limit: 2 }, 100).allowed, true); assert.equal(consumeRateLimit('change-password:ip:admin', { limit: 2 }, 101).allowed, true); assert.equal(consumeRateLimit('change-password:ip:admin', { limit: 2 }, 102).allowed, false);
+test('rate limit rigoroso bloqueia login e primeiro acesso sem armazenar senhas', () => {
+  clearRateLimits(); assert.equal(consumeRateLimit('login:ip', { limit: 3, windowMs: 300_000 }, 100).allowed, true); assert.equal(consumeRateLimit('login:ip', { limit: 3, windowMs: 300_000 }, 101).allowed, true); assert.equal(consumeRateLimit('login:ip', { limit: 3, windowMs: 300_000 }, 102).allowed, true); assert.equal(consumeRateLimit('login:ip', { limit: 3, windowMs: 300_000 }, 103).allowed, false);
 });

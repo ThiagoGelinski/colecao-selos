@@ -8,6 +8,7 @@ const nav = [
   { href: '/admin', label: 'Visão geral', exact: true },
   { href: '/admin/selos', label: 'Selos' },
   { href: '/admin/configuracoes', label: 'Configurações' },
+  { href: '/admin/alterar-senha', label: 'Alterar senha' },
 ];
 ---
 <!doctype html><html lang="pt-BR"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width"/><meta name="robots" content="noindex,nofollow"/><title>{title} | Administração</title><meta name="description" content={description}/><link rel="icon" href="/favicon.svg"/></head>
@@ -21,4 +22,3 @@ const nav = [
   logout?.addEventListener('click', async () => { logout.disabled = true; try { await fetch('/api/admin/auth/logout', { method: 'POST' }); } finally { location.assign('/admin/login'); } });
   window.addEventListener('admin:session-expired', () => location.assign('/admin/login?expired=1'));
 </script></body></html>
-

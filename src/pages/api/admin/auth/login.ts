@@ -10,7 +10,7 @@ export const POST: APIRoute = async ({ request, cookies, url }) => {
   try {
     const origin = request.headers.get('origin'); if (origin && origin !== url.origin) return jsonResponse(apiError('INVALID_ORIGIN', 'Origem da requisição inválida.'), 403);
     const length = Number(request.headers.get('content-length') || 0); if (length > 4096) return jsonResponse(apiError('PAYLOAD_TOO_LARGE', 'Requisição excede o limite permitido.'), 413);
-    const client = request.headers.get('x-nf-client-connection-ip') || request.headers.get('x-forwarded-for')?.split(',')[0] || 'local'; const rate = consumeRateLimit(`login:${client}`, { limit: 5, windowMs: 60_000 });
+    const client = request.headers.get('x-nf-client-connection-ip') || request.headers.get('x-forwarded-for')?.split(',')[0] || 'local'; const rate = consumeRateLimit(`login:${client}`, { limit: 3, windowMs: 300_000 });
     if (!rate.allowed) return jsonResponse(apiError('RATE_LIMITED', 'Muitas tentativas. Aguarde antes de tentar novamente.'), 429, { 'Retry-After': String(Math.ceil((rate.resetAt - Date.now()) / 1000)) });
     let body: unknown; try { body = await request.json(); } catch { return jsonResponse(apiError('INVALID_JSON', 'Corpo JSON inválido.'), 400); }
     if (!body || typeof body !== 'object') return jsonResponse(apiError('INVALID_INPUT', 'Credenciais inválidas.'), 400); const { username, password } = body as Record<string, unknown>;
