@@ -50,7 +50,7 @@ Para desenvolvimento local, copie `.env.example` para `.env`, substitua todos os
 ## Arquitetura
 
 - `src/lib/admin/catalog-domain.mjs`: filtros, projeção e estatísticas puras;
-- `src/lib/admin/catalog-service.ts`: adaptador de leitura dos JSON e validação compartilhada `validateSeloData`;
+- `src/lib/admin/catalog-service.ts`: adaptador de leitura dos JSON e validação operacional compartilhada `validateRecordOperational`, incluindo assets;
 - `src/lib/admin/auth.mjs`: configuração, hash, credenciais e sessão;
 - `src/middleware.ts`: autorização de rotas e headers;
 - `src/pages/api/admin`: backend JSON padronizado;
@@ -71,4 +71,3 @@ npm run lint
 npm run typecheck
 npm run build
 ```
-

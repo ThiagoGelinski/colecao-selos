@@ -8,14 +8,23 @@ const STATUS_GROUPS = {
 };
 const normalize = (value) => String(value ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR');
 export function sanitizeSearch(value) { return String(value ?? '').replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 100); }
+const layerSummary = (layer) => ({ valida: Boolean(layer?.valid), erros: layer?.errors?.length ?? 0 });
 export function toAdminRecord(record, validation) {
-  const images = record.imagens ?? {};
+  const assetItems = validation?.layers?.assets?.items ?? [];
+  const assetByKind = new Map(assetItems.map((asset) => [asset.kind, asset]));
+  const imageState = (kind) => {
+    const asset = assetByKind.get(kind);
+    return { informado: Boolean(record.imagens?.[kind]), caminho_valido: asset?.path_valid ?? null, existe: asset?.exists ?? null, valido: Boolean(asset?.path_valid && asset?.exists), erro: asset?.error ?? null };
+  };
   return {
     id: record.id, slug: record.slug, titulo: record.titulo, pais: record.identificacao?.pais ?? null,
     ano: record.emissao?.ano ?? null, status: record.publicacao?.status ?? 'desconhecido',
     atualizado_em: record.auditoria?.ultima_revisao ?? null,
-    imagens: { frente: Boolean(images.frente), verso: Boolean(images.verso), card: Boolean(images.card), thumb: Boolean(images.thumb) },
-    validacao: { valida: Boolean(validation?.valid), erros: validation?.errors?.length ?? null },
+    imagens: { frente: imageState('frente'), verso: imageState('verso'), card: imageState('card'), thumb: imageState('thumb') },
+    validacao: {
+      valida: Boolean(validation?.valid), erros: validation?.errors?.length ?? 0,
+      estrutural: layerSummary(validation?.layers?.structural), semantica: layerSummary(validation?.layers?.semantic), editorial: layerSummary(validation?.layers?.editorial), assets: layerSummary(validation?.layers?.assets),
+    },
   };
 }
 export function dashboardStats(records, validations = new Map()) {

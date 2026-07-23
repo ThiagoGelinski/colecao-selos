@@ -8,6 +8,6 @@ const site = process.env.SITE_URL ?? DEFAULT_SITE_URL;
 export default defineConfig({
   site,
   output: 'static',
-  adapter: netlify({ imageCDN: false }),
+  adapter: netlify({ imageCDN: false, includeFiles: ['./public/assets/selos/**/*'] }),
   integrations: [sitemap()],
 });

@@ -126,4 +126,4 @@ A arquitetura final separa `records`, `manifest`, `transactions`, `audit`, `main
 
 ## Painel administrativo — fundação
 
-A área administrativa somente leitura está documentada em [docs/admin/README.md](docs/admin/README.md). Ela usa rotas server-side protegidas no Netlify, reaproveita os registros e validadores da pipeline e não altera a política de publicação. Configure as variáveis ADMIN_* apenas no .env local ou na interface do Netlify; nunca versione credenciais reais.
+A área administrativa somente leitura está documentada em [docs/admin/README.md](docs/admin/README.md). Ela usa rotas server-side protegidas no Netlify, reaproveita os registros e a validação operacional completa da pipeline, incluindo assets e não altera a política de publicação. Configure as variáveis ADMIN_* apenas no .env local ou na interface do Netlify; nunca versione credenciais reais.
