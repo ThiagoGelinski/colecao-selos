@@ -1,0 +1,223 @@
+---
+export const prerender = false;
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+---
+<AdminLayout title="Novo Selo">
+  <header class="page-head">
+    <div>
+      <p class="eyebrow">Cadastro manual</p>
+      <h1>Novo Selo</h1>
+      <p class="muted">Cria um rascunho inicial. Imagens, pesquisa e publicação serão tratados em etapas posteriores.</p>
+    </div>
+    <a class="button" href="/admin/selos">Voltar à lista</a>
+  </header>
+
+  <div class="panel" role="alert" aria-live="assertive" id="form-errors" hidden>
+    <p class="error-summary"><strong>Corrija os erros antes de enviar:</strong></p>
+    <ul id="error-list"></ul>
+  </div>
+
+  <form class="panel novo-selo-form" id="novo-selo-form" novalidate>
+    <section class="form-section">
+      <h2 class="section-title">1. Identificação básica</h2>
+
+      <div class="field" id="field-titulo">
+        <label for="titulo">Título do registro <span class="required" aria-hidden="true">*</span></label>
+        <p class="field-hint">Nome descritivo do selo, ex.: "Brasil — Campos Salles — 20 cruzeiros — 1967"</p>
+        <input
+          type="text"
+          id="titulo"
+          name="titulo"
+          maxlength="500"
+          autocomplete="off"
+          required
+          aria-required="true"
+          aria-describedby="titulo-error"
+        />
+        <p class="field-error" id="titulo-error" role="alert" hidden></p>
+      </div>
+
+      <div class="field" id="field-slug">
+        <label for="slug">Slug (identificador na URL) <span class="required" aria-hidden="true">*</span></label>
+        <p class="field-hint">Apenas letras minúsculas, números e hífens. Gerado automaticamente a partir do título.</p>
+        <div class="slug-row">
+          <input
+            type="text"
+            id="slug"
+            name="slug"
+            maxlength="200"
+            autocomplete="off"
+            pattern="^[a-z0-9]+(?:-[a-z0-9]+)*$"
+            required
+            aria-required="true"
+            aria-describedby="slug-preview slug-error"
+          />
+          <button type="button" id="slug-regenerate" class="button button-sm">↺ Gerar do título</button>
+        </div>
+        <p class="field-hint muted" id="slug-preview">URL pública (após publicação): <code>/selos/<span id="slug-value">—</span></code></p>
+        <p class="field-error" id="slug-error" role="alert" hidden></p>
+      </div>
+    </section>
+
+    <section class="form-section">
+      <h2 class="section-title">2. Estado editorial inicial</h2>
+      <dl class="info-grid">
+        <dt>Status inicial</dt><dd><span class="badge">rascunho</span></dd>
+        <dt>ID</dt><dd class="muted">Gerado automaticamente pelo catálogo (ex.: SEL-000002)</dd>
+        <dt>Publicação</dt><dd class="muted">Não publicado no catálogo público</dd>
+      </dl>
+    </section>
+
+    <div class="form-actions">
+      <button type="submit" id="submit-btn" class="button button-primary">
+        <span id="submit-label">Criar rascunho</span>
+      </button>
+      <a href="/admin/selos" class="button button-ghost">Cancelar</a>
+    </div>
+  </form>
+
+  <div class="panel success-panel" id="success-panel" hidden role="status" aria-live="polite">
+    <h2>✓ Rascunho criado com sucesso</h2>
+    <p>O registro foi criado com o ID <strong id="created-id"></strong>.</p>
+    <p class="muted">Redirecionando para a página do registro…</p>
+  </div>
+
+  <script>
+    // Normalização de slug idêntica à do servidor (normalizeSlug)
+    function normalizeSlug(value: string): string {
+      return value
+        .trim()
+        .toLocaleLowerCase('pt-BR')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[\s_]+/g, '-')
+        .replace(/[^a-z0-9-]/g, '')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '');
+    }
+
+    const form      = document.getElementById('novo-selo-form') as HTMLFormElement;
+    const tituloEl  = document.getElementById('titulo') as HTMLInputElement;
+    const slugEl    = document.getElementById('slug') as HTMLInputElement;
+    const slugValue = document.getElementById('slug-value') as HTMLSpanElement;
+    const regenBtn  = document.getElementById('slug-regenerate') as HTMLButtonElement;
+    const submitBtn = document.getElementById('submit-btn') as HTMLButtonElement;
+    const submitLbl = document.getElementById('submit-label') as HTMLSpanElement;
+    const errPanel  = document.getElementById('form-errors') as HTMLDivElement;
+    const errList   = document.getElementById('error-list') as HTMLUListElement;
+    const successPanel = document.getElementById('success-panel') as HTMLDivElement;
+    const createdId = document.getElementById('created-id') as HTMLSpanElement;
+
+    // Derivar slug do título automaticamente (apenas se slug não foi editado manualmente)
+    let slugManuallyEdited = false;
+    tituloEl.addEventListener('input', () => {
+      if (!slugManuallyEdited) {
+        const generated = normalizeSlug(tituloEl.value);
+        slugEl.value = generated;
+        slugValue.textContent = generated || '—';
+      }
+    });
+    slugEl.addEventListener('input', () => {
+      slugManuallyEdited = true;
+      slugValue.textContent = slugEl.value || '—';
+    });
+    regenBtn.addEventListener('click', () => {
+      const generated = normalizeSlug(tituloEl.value);
+      slugEl.value = generated;
+      slugValue.textContent = generated || '—';
+      slugManuallyEdited = false;
+    });
+
+    function showFieldError(fieldId: string, errorId: string, message: string) {
+      const field = document.getElementById(fieldId);
+      const error = document.getElementById(errorId) as HTMLParagraphElement | null;
+      field?.classList.add('field-invalid');
+      if (error) { error.textContent = message; error.hidden = false; }
+    }
+    function clearFieldError(fieldId: string, errorId: string) {
+      const field = document.getElementById(fieldId);
+      const error = document.getElementById(errorId) as HTMLParagraphElement | null;
+      field?.classList.remove('field-invalid');
+      if (error) { error.hidden = true; error.textContent = ''; }
+    }
+    function clearAllErrors() {
+      clearFieldError('field-titulo', 'titulo-error');
+      clearFieldError('field-slug', 'slug-error');
+      errPanel.hidden = true;
+      errList.innerHTML = '';
+    }
+    function showSummaryErrors(messages: string[]) {
+      errList.innerHTML = messages.map((m) => `<li>${m}</li>`).join('');
+      errPanel.hidden = false;
+      errPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function validate(): boolean {
+      clearAllErrors();
+      const errors: string[] = [];
+      const titulo = tituloEl.value.trim();
+      const slug   = slugEl.value.trim();
+      if (!titulo) {
+        showFieldError('field-titulo', 'titulo-error', 'O título é obrigatório.');
+        errors.push('Título: campo obrigatório.');
+      }
+      const slugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+      if (!slug) {
+        showFieldError('field-slug', 'slug-error', 'O slug é obrigatório.');
+        errors.push('Slug: campo obrigatório.');
+      } else if (!slugPattern.test(slug)) {
+        showFieldError('field-slug', 'slug-error', 'Slug inválido. Use apenas letras minúsculas, números e hífens.');
+        errors.push('Slug: formato inválido.');
+      }
+      if (errors.length) { showSummaryErrors(errors); return false; }
+      return true;
+    }
+
+    let submitting = false;
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      if (submitting) return;
+      if (!validate()) return;
+      submitting = true;
+      submitBtn.disabled = true;
+      submitLbl.textContent = 'Criando…';
+
+      try {
+        const response = await fetch('/api/admin/selos', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+          body: JSON.stringify({ titulo: tituloEl.value.trim(), slug: slugEl.value.trim() }),
+        });
+
+        if (response.status === 401) { window.dispatchEvent(new Event('admin:session-expired')); return; }
+
+        const payload = await response.json() as { ok: boolean; data?: { id: string; slug: string }; error?: { code: string; message: string; details?: unknown } };
+
+        if (!response.ok || !payload.ok) {
+          const message = payload.error?.message ?? 'Erro ao criar o registro.';
+          const details = payload.error?.details as Record<string, unknown> | undefined;
+          const campos = Array.isArray(details?.campos) ? details.campos as string[] : null;
+          if (campos?.includes('titulo')) showFieldError('field-titulo', 'titulo-error', message);
+          const campo = typeof details?.campo === 'string' ? details.campo : null;
+          if (campo === 'slug' || payload.error?.code === 'TRANSACTION_ERROR') showFieldError('field-slug', 'slug-error', message);
+          showSummaryErrors([message]);
+          return;
+        }
+
+        // Sucesso
+        form.hidden = true;
+        createdId.textContent = payload.data!.id;
+        successPanel.hidden = false;
+        setTimeout(() => { location.assign(`/admin/selos/${encodeURIComponent(payload.data!.id)}`); }, 1500);
+      } catch {
+        showSummaryErrors(['Erro inesperado. Verifique a conexão e tente novamente.']);
+      } finally {
+        if (!form.hidden) {
+          submitting = false;
+          submitBtn.disabled = false;
+          submitLbl.textContent = 'Criar rascunho';
+        }
+      }
+    });
+  </script>
+</AdminLayout>
