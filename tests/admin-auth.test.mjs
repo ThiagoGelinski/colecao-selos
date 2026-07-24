@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { randomBytes, scryptSync } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { accessDecision } from '../src/lib/admin/access.mjs';
 import { apiError, apiPayload, jsonResponse, safeApiFailure } from '../src/lib/admin/api.mjs';
@@ -7,10 +8,12 @@ import { authenticateAdmin, changeAdminPassword, completeFirstAccess } from '../
 import { hashPassword, normalizeAdminUsername, validateNewPassword, verifyCredentials } from '../src/lib/admin/auth.mjs';
 import { AuthConfigurationError, loadAuthConfig } from '../src/lib/admin/config.mjs';
 import { AdminStorageError, createMemoryAdminStore, loadAdminCredentials } from '../src/lib/admin/credential-store.mjs';
+import { logAdminAuth } from '../src/lib/admin/logging.mjs';
 import { createSession, sessionCookieOptions, verifySession } from '../src/lib/admin/session.mjs';
 import { clearRateLimits, consumeRateLimit } from '../src/lib/admin/rate-limit.mjs';
 
 const secret = 'segredo-de-teste-com-mais-de-trinta-e-dois-caracteres';
+function legacyPasswordHash(password) { const salt = randomBytes(16); const derived = scryptSync(password, salt, 32, { N: 16384, r: 8, p: 1, maxmem: 64 * 1024 * 1024 }); return `scrypt$${16384}$${8}$${1}$${salt.toString('base64url')}$${derived.toString('base64url')}`; }
 const config = () => loadAuthConfig({ ADMIN_SESSION_SECRET: secret, ADMIN_ROLE: 'administrador', ADMIN_SESSION_TTL_SECONDS: '3600' });
 async function definitiveStore() { const store = createMemoryAdminStore(); const result = await completeFirstAccess(store, 'Curador.Principal', 'senha-definitiva-forte', 'senha-definitiva-forte'); assert.equal(result.ok, true); return { store, credentials: result.credentials }; }
 
@@ -119,4 +122,41 @@ test('respostas JSON seguem contrato sem cache', async () => {
 
 test('rate limit rigoroso bloqueia login e primeiro acesso sem armazenar senhas', () => {
   clearRateLimits(); assert.equal(consumeRateLimit('login:ip', { limit: 3, windowMs: 300_000 }, 100).allowed, true); assert.equal(consumeRateLimit('login:ip', { limit: 3, windowMs: 300_000 }, 101).allowed, true); assert.equal(consumeRateLimit('login:ip', { limit: 3, windowMs: 300_000 }, 102).allowed, true); assert.equal(consumeRateLimit('login:ip', { limit: 3, windowMs: 300_000 }, 103).allowed, false);
+});
+
+test('estado legado admin/admin não consumido migra para admin/123456', async () => {
+  const store = createMemoryAdminStore(); const timestamp = new Date().toISOString();
+  await store.createCredentials({ schema_version: 1, username: 'admin', password_hash: legacyPasswordHash('admin'), bootstrap_required: true, bootstrap_consumed: false, credential_version: 2, updated_at: timestamp });
+  await store.createBootstrapState({ schema_version: 1, initialized: true, bootstrap_consumed: false, bootstrap_secret_version: 1, updated_at: timestamp });
+  const loaded = await loadAdminCredentials(store); assert.equal(await verifyCredentials('admin', '123456', loaded), true); assert.equal(await verifyCredentials('admin', 'admin', loaded), false);
+});
+
+test('estado legado de senha ambiental não consumido migra e permite login real', async () => {
+  const store = createMemoryAdminStore(); const timestamp = new Date().toISOString();
+  await store.createCredentials({ schema_version: 1, username: 'admin', password_hash: await hashPassword('segredo-ambiental-legado'), bootstrap_required: true, bootstrap_consumed: false, credential_version: 3, updated_at: timestamp });
+  await store.createBootstrapState({ schema_version: 1, initialized: true, bootstrap_consumed: false, bootstrap_secret_version: 1, updated_at: timestamp });
+  const login = await authenticateAdmin(store, 'admin', '123456'); assert.equal(login.valid, true); assert.equal(login.credentials.credential_version, 4);
+});
+
+test('estado parcial não consumido é reparado automaticamente', async () => {
+  const store = createMemoryAdminStore(); const timestamp = new Date().toISOString();
+  await store.createBootstrapState({ schema_version: 1, initialized: true, bootstrap_consumed: false, bootstrap_secret_version: 1, updated_at: timestamp });
+  const loaded = await loadAdminCredentials(store); assert.equal(await verifyCredentials('admin', '123456', loaded), true); assert.ok(store.snapshot().credentials); assert.equal(store.snapshot().state.bootstrap_consumed, false);
+});
+
+test('credencial definitiva sem marcador preserva login e recupera estado consumido', async () => {
+  const store = createMemoryAdminStore(); const timestamp = new Date().toISOString(); const passwordHash = await hashPassword('senha-definitiva-preservada');
+  await store.createCredentials({ schema_version: 1, username: 'dono', password_hash: passwordHash, bootstrap_required: false, bootstrap_consumed: true, credential_version: 8, updated_at: timestamp });
+  const loaded = await loadAdminCredentials(store); assert.equal(await verifyCredentials('dono', 'senha-definitiva-preservada', loaded), true); assert.equal(store.snapshot().state.bootstrap_consumed, true); assert.equal(store.snapshot().credentials.password_hash, passwordHash);
+});
+
+test('marcador consumido sem credencial falha fechado e nunca recria bootstrap', async () => {
+  const store = createMemoryAdminStore(); const timestamp = new Date().toISOString();
+  await store.createBootstrapState({ schema_version: 1, initialized: true, bootstrap_consumed: true, updated_at: timestamp });
+  await assert.rejects(() => loadAdminCredentials(store), (error) => error instanceof AdminStorageError && error.code === 'INCOMPLETE_CONSUMED_STATE'); assert.equal(store.snapshot().credentials, null); assert.equal(store.snapshot().state.bootstrap_consumed, true);
+});
+test('logging administrativo registra somente diagnóstico permitido', () => {
+  const entries = []; const original = console.info; console.info = (value) => entries.push(value);
+  try { logAdminAuth('legacy_migration', { operation: 'read', repair: 'reset_unconsumed_bootstrap', password: 'nao-registrar', password_hash: 'hash-nao-registrar', secret: 'segredo-nao-registrar' }); } finally { console.info = original; }
+  const serialized = entries.join('\n'); assert.match(serialized, /legacy_migration|reset_unconsumed_bootstrap/); assert.doesNotMatch(serialized, /nao-registrar|segredo-nao-registrar|password_hash/);
 });
