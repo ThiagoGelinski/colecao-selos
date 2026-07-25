@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import process from 'node:process';
 import { ASSET_DIR, ID_MANIFEST, TEMPLATE } from './paths.mjs';
-import { exists, readJson, writeJsonAtomic, readMutableManifest, updateMutableManifestAtomic, writeJsonExclusive } from './io.mjs';
+import { exists, readJson, writeJsonAtomic, readMutableManifest, updateMutableManifestAtomic, writeJsonExclusive, isServerlessEngine } from './io.mjs';
 import { fileIdentity, readSnapshotAt, removeVerifiedFile, sameFileIdentity, withIdLock } from './lock.mjs';
 import { assertManifestValid } from './manifest.mjs';
 import { assertGlobalRecordIntegrity, dataPath, loadRecords, normalizeSlug } from './records.mjs';
@@ -19,7 +19,7 @@ async function writeJsonExclusiveAtomic(target, value) { await mkdir(path.dirnam
 async function removeVerifiedEmptyDirectory(target, identity, tokenHint) { const currentIdentity = fileIdentity(await stat(target).catch(() => null)); if (!sameFileIdentity(currentIdentity, identity)) return false; const quarantine = `${target}.removal-${process.pid}-${tokenHint}-${randomUUID()}`; try { await rename(target, quarantine); } catch (error) { if (error.code === 'ENOENT') return false; throw error; } const movedIdentity = fileIdentity(await stat(quarantine).catch(() => null)); if (!sameFileIdentity(movedIdentity, identity)) { await rename(quarantine, target).catch(() => { }); return false; } try { await rmdir(quarantine); return true; } catch (error) { await rename(quarantine, target).catch(() => { }); if (['ENOTEMPTY', 'EEXIST'].includes(error.code)) return false; throw error; } }
 
 export async function createStampTransaction({ slug, title }) {
-  const isServerless = process.env.NETLIFY === 'true' || globalThis.__MOCK_NETLIFY_ENV;
+  const isServerless = isServerlessEngine();
 
   const initialRecords = await loadRecords(); assertGlobalRecordIntegrity(initialRecords); assertSlugAvailable(initialRecords, slug);
   if (!isServerless) assertManifestValid(await readJson(ID_MANIFEST), initialRecords);
@@ -27,6 +27,7 @@ export async function createStampTransaction({ slug, title }) {
   const executeDomainTransaction = async (id, serverlessMode, localManifestDraft) => {
     const filePath = dataPath(id); const assetDirectory = path.join(ASSET_DIR, id);
     let createdJsonSnapshot = null; let createdAssetIdentity = null;
+    let jsonBlobCreated = false;
 
     const setStatus = async (status, errMessage = null) => {
       if (serverlessMode) {
@@ -63,6 +64,7 @@ export async function createStampTransaction({ slug, title }) {
 
       if (serverlessMode) {
         await writeJsonExclusive(filePath, record);
+        jsonBlobCreated = true;
         await updateMutableManifestAtomic(ID_MANIFEST, (draft) => {
           const res = draft.reserved.find((r) => r.id === id);
           if (res) res.created_at = now();
@@ -88,6 +90,8 @@ export async function createStampTransaction({ slug, title }) {
       if (!serverlessMode) {
         if (createdAssetIdentity) { try { const removed = await removeVerifiedEmptyDirectory(assetDirectory, createdAssetIdentity, id); if (!removed && await exists(assetDirectory)) cleanupErrors.push('pasta de assets não removida por divergência de identidade ou conteúdo'); } catch (cleanupError) { cleanupErrors.push(`pasta: ${cleanupError.message}`); } }
         if (createdJsonSnapshot) { try { const removed = await removeVerifiedFile(filePath, createdJsonSnapshot, () => true, id); if (!removed && await exists(filePath)) cleanupErrors.push('JSON não removido por divergência de identidade'); } catch (cleanupError) { cleanupErrors.push(`JSON: ${cleanupError.message}`); } }
+      } else {
+        if (jsonBlobCreated) cleanupErrors.push('Possível JSON órfão persistido remotamente no Blob Store sem atualização correspondente do status de criação no manifesto.');
       }
       let errMessage = cleanupErrors.length ? `${error.message} Compensação: ${cleanupErrors.join('; ')}.` : error.message;
 
@@ -102,6 +106,8 @@ export async function createStampTransaction({ slug, title }) {
     await updateMutableManifestAtomic(ID_MANIFEST, (draft) => {
       sequence = draft.next_sequence; id = `SEL-${String(sequence).padStart(6, '0')}`;
       if (draft.reserved.some((item) => item.id === id || item.sequence === sequence)) throw new TransactionError(`ID ou sequence já consumido: ${id}.`);
+      if (draft.reserved.some((item) => normalizeSlug(item.slug) === slug && item.status !== 'falha_na_criacao' && item.status !== 'cancelado_sem_reuso')) throw new TransactionError(`Slug duplicado: ${slug}.`);
+
       draft.reserved.push({ id, sequence, reserved_at: now(), source: 'selo:novo', status: 'reservado', slug, created_at: null, completed_at: null, failed_at: null, failure_reason: null, cancelado_em: null, cancellation_reason: null });
       draft.next_sequence = sequence + 1;
       return draft;

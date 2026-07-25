@@ -5,7 +5,11 @@ import process from 'node:process';
 import { randomUUID } from 'node:crypto';
 import { getStore } from '@netlify/blobs';
 
-const IS_NETLIFY = process.env.NETLIFY === 'true';
+export const isServerlessEngine = () => {
+    if (globalThis.__MOCK_NETLIFY_ENV) return true;
+    if (typeof process !== 'undefined' && process.env && (process.env.NETLIFY === 'true' || process.env.SITE_ID)) return true;
+    return false;
+};
 
 let _blobStore = null;
 const getBlobStore = () => {
@@ -57,9 +61,14 @@ export const readJson = async (target) => {
         baselineError = err;
     }
 
-    if (!IS_NETLIFY && !globalThis.__MOCK_NETLIFY_ENV) {
+    if (!isServerlessEngine()) {
         if (baselineError) throw baselineError;
         return baselineData;
+    }
+
+    // Fail-Closed: only ENOENT is a valid baseline absence. EACCES, SyntaxError, etc must fail the operation immediately.
+    if (baselineError && baselineError.code !== 'ENOENT') {
+        throw baselineError;
     }
 
     const blobKey = getBlobKey(target);
@@ -96,11 +105,11 @@ export const listJsonNames = async (dir) => {
             .filter((dirent) => dirent.isFile() && dirent.name.endsWith('.json'))
             .map((dirent) => dirent.name);
     } catch (err) {
-        if (!IS_NETLIFY && !globalThis.__MOCK_NETLIFY_ENV) throw err;
+        if (!isServerlessEngine()) throw err;
         if (err.code !== 'ENOENT') throw err;
     }
 
-    if (!IS_NETLIFY && !globalThis.__MOCK_NETLIFY_ENV) return fsNames.sort();
+    if (!isServerlessEngine()) return fsNames.sort();
 
     const parts = dir.split(/[\\/]data[\\/]selos/);
     if (parts.length !== 2) return fsNames.sort();
@@ -119,7 +128,7 @@ export const listJsonNames = async (dir) => {
 };
 
 export async function writeJsonExclusive(target, value) {
-    if (!IS_NETLIFY && !globalThis.__MOCK_NETLIFY_ENV) {
+    if (!isServerlessEngine()) {
         await mkdir(path.dirname(target), { recursive: true });
         const temporary = `${target}.${process.pid}.${randomUUID()}.tmp`;
         try {
@@ -163,7 +172,7 @@ export async function writeJsonExclusive(target, value) {
 }
 
 export const readMutableManifest = async (target) => {
-    if (!IS_NETLIFY && !globalThis.__MOCK_NETLIFY_ENV) {
+    if (!isServerlessEngine()) {
         // Regra FS estrita local - usando a leitura primitiva local
         const fsRaw = await readFile(target, 'utf8');
         return JSON.parse(fsRaw);
@@ -204,7 +213,7 @@ export const readMutableManifest = async (target) => {
 };
 
 export const updateMutableManifestAtomic = async (target, modifier) => {
-    if (!IS_NETLIFY && !globalThis.__MOCK_NETLIFY_ENV) {
+    if (!isServerlessEngine()) {
         const fsRaw = await readFile(target, 'utf8');
         const nextData = modifier(JSON.parse(fsRaw));
         await writeJsonAtomic(target, nextData);

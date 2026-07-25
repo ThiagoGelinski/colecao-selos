@@ -215,6 +215,21 @@ test('io.mjs Additive Extensions', async (t) => {
             );
         });
 
+        await suite.test('Baseline JSON inválido + Blob válido => operação deve falhar (Fail-Closed)', async () => {
+            globalThis.__MOCK_NETLIFY_ENV = true;
+            globalThis.__MOCK_BLOB_STORE = {
+                get: async () => '{"valid": true}'
+            };
+            const fakePath = path.join(TEST_DIR, 'data', 'selos', 'corrupt.json');
+            await mkdir(path.dirname(fakePath), { recursive: true });
+            await writeFile(fakePath, '{ JSON INVALIDO }', 'utf8');
+
+            await assert.rejects(
+                () => readJson(fakePath),
+                SyntaxError
+            );
+        });
+
         await suite.test('União de listagem sem duplicatas', async () => {
             globalThis.__MOCK_NETLIFY_ENV = true;
             globalThis.__MOCK_BLOB_STORE = {
