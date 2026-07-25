@@ -66,6 +66,21 @@ export const POST: APIRoute = async ({ request, locals }) => {
     return jsonResponse(apiPayload({ id: result.id, slug: result.slug }), 201);
   } catch (error) {
     if (error && typeof error === 'object') {
+      const e = error as { name?: string; message?: string; code?: string; stack?: string };
+      console.error('--- DIAGNÓSTICO NETLIFY DEPLOY PREVIEW ---');
+      console.error('Etapa: POST /api/admin/selos -> catch loop (Falha no pipeline)');
+      console.error(`Error.name: ${e.name || 'N/A'}`);
+      console.error(`Error.message: ${e.message || 'N/A'}`);
+      if (e.code) console.error(`Error.code: ${e.code}`);
+      if (e.stack) console.error(`Error.stack:\n${e.stack}`);
+      console.error('--------------------------------------------');
+    } else {
+      console.error('--- DIAGNÓSTICO NETLIFY DEPLOY PREVIEW ---');
+      console.error('Erro primitivo:', error);
+      console.error('--------------------------------------------');
+    }
+
+    if (error && typeof error === 'object') {
       const err = error as { name?: string; message?: string };
       if (err.name === 'TransactionError' || err.name === 'ManifestError' || err.name === 'IntegrityError') {
         // Extrair mensagem segura sem expor caminhos de sistema
