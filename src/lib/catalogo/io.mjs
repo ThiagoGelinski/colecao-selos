@@ -36,6 +36,16 @@ const getBlobKey = (target) => {
     return null;
 };
 
+const getAssetBlobKey = (target) => {
+    if (typeof target !== 'string') return null;
+    const normalized = target.replace(/\\/g, '/');
+    const assetMatch = normalized.match(/\/assets\/selos\/(SEL-[0-9]{6})\/(\1-(?:frente|verso|card|thumb)\.(?:webp|png|jpg|jpeg))$/);
+    if (assetMatch) {
+        return assetMatch[0].startsWith('/') ? assetMatch[0].slice(1) : assetMatch[0];
+    }
+    return null;
+};
+
 const isDeepEqual = (a, b) => {
     if (a === b) return true;
     if (typeof a !== 'object' || a === null || typeof b !== 'object' || b === null) return false;
@@ -255,4 +265,56 @@ export const updateMutableManifestAtomic = async (target, modifier) => {
 
         return nextData;
     }
+};
+
+export const existsAssetBinary = async (target) => {
+    if (!isServerlessEngine()) {
+        return access(target, constants.F_OK).then(() => true).catch(() => false);
+    }
+    const blobKey = getAssetBlobKey(target);
+    if (!blobKey) throw new Error(`Alvo inválido para checagem de asset em nuvem: ${target}`);
+    const blobStore = getBlobStore();
+    const meta = await blobStore.getMetadata(blobKey);
+    return meta !== null && meta.etag !== undefined;
+};
+
+export const readAssetBinary = async (target) => {
+    if (!isServerlessEngine()) {
+        return readFile(target);
+    }
+    const blobKey = getAssetBlobKey(target);
+    if (!blobKey) throw new Error(`Alvo inválido para leitura de asset em nuvem: ${target}`);
+    const blobStore = getBlobStore();
+    const arr = await blobStore.get(blobKey, { type: 'arrayBuffer' });
+    if (!arr) {
+        const err = new Error('ENOENT');
+        err.code = 'ENOENT';
+        throw err;
+    }
+    return Buffer.from(arr);
+};
+
+export const writeAssetBinary = async (target, buffer, mimeType = null) => {
+    const blobKey = getAssetBlobKey(target);
+    if (!blobKey) throw new Error(`Alvo inválido para escrita de asset: ${target}`);
+
+    if (!isServerlessEngine()) {
+        await mkdir(path.dirname(target), { recursive: true });
+        const temporary = `${target}.${process.pid}.${randomUUID()}.tmp`;
+        try {
+            await writeFile(temporary, buffer);
+            await rename(temporary, target);
+        } catch (err) {
+            await unlink(temporary).catch(() => { });
+            throw err;
+        }
+        return;
+    }
+
+    const blobStore = getBlobStore();
+    const options = {};
+    if (mimeType) {
+        options.metadata = { 'content-type': mimeType };
+    }
+    await blobStore.set(blobKey, buffer, options);
 };
