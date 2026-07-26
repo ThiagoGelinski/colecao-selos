@@ -68,7 +68,7 @@ test('Microbloco 2A.1.11 - Integração Serverless transaction', async (t) => {
             list: async () => ({ blobs: Object.keys(blobData).map(k => ({ key: k })) })
         };
 
-        // This should throw because of the duplicate slug - 'brasil-campos-salles-20-centavos-1967' is in the REAL records and we are hitting the REAL filesystem for loadRecords() now, so 'meu-selo' works, but we need an error BEFORE json creation. 
+        // This should throw because of the duplicate slug - 'brasil-campos-salles-20-centavos-1967' is in the REAL records and we are hitting the REAL filesystem for loadRecords() now, so 'meu-selo' works, but we need an error BEFORE json creation.
         // We can just omit "slug" or send an invalid param to fail structural validatio
 
         await assert.rejects(
@@ -160,12 +160,12 @@ test('Microbloco 2A.1.11 - Integração Serverless transaction', async (t) => {
 
             // Garantir que O manifest local na raiz (manifests/ids.json) NÃO foi modificado,
             // validando que withIdLock/Caminho local foi devidamente by-passado.
-            const { readJson } = await import('../src/lib/catalogo/io.mjs');
+
             // Como globalThis.__MOCK_NETLIFY_ENV é false, o require nativo direto fs fs vai falhar se readJson nao passar para blob?
             // Test13 testou a transaction bypass.
         } finally {
             delete process.env.SITE_ID;
-            globalThis.__MOCK_NETLIFY_ENV = true; // restaurar base original do t.test 
+            globalThis.__MOCK_NETLIFY_ENV = true; // restaurar base original do t.test
         }
     });
     await t.test('14. Regression: Same slug concurrent creation enforces atomic reservation check', async () => {

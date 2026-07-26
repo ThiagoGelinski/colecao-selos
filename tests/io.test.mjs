@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdir, rm, writeFile, stat, readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { listJsonNames, writeJsonExclusive, readJson } from '../src/lib/catalogo/io.mjs';
+import { listJsonNames, readJson } from '../src/lib/catalogo/io.mjs';
 
 const TEST_DIR = path.join(process.cwd(), 'tests', 'fixtures', `io-test-${randomUUID()}`);
 
@@ -293,7 +293,7 @@ test('io.mjs Additive Extensions', async (t) => {
             let blobRaw = null;
             globalThis.__MOCK_BLOB_STORE = {
                 get: async () => blobRaw,
-                setJSON: async (key, val, opts) => {
+                setJSON: async (_key, val, opts) => {
                     setOpts = opts;
                     blobRaw = JSON.stringify(val);
                 }
@@ -344,7 +344,7 @@ test('io.mjs Additive Extensions', async (t) => {
             let writeCount = 0;
             globalThis.__MOCK_BLOB_STORE = {
                 get: async () => storedData,
-                setJSON: async (key, val, opts) => {
+                setJSON: async (_key, val, opts) => {
                     if (opts?.onlyIfNew && storedData) {
                         return { modified: false };
                     }
@@ -387,7 +387,7 @@ test('io.mjs Additive Extensions', async (t) => {
 
             globalThis.__MOCK_BLOB_STORE = {
                 getWithMetadata: async () => ({ data: storedData, etag: currentEtag, metadata: {} }),
-                setJSON: async (key, val, opts) => {
+                setJSON: async (_key, val, opts) => {
                     if (opts?.onlyIfMatch !== currentEtag) return { modified: false };
                     storedData = val;
                     currentEtag = 'etag-hash-2';
@@ -413,7 +413,7 @@ test('io.mjs Additive Extensions', async (t) => {
 
             globalThis.__MOCK_BLOB_STORE = {
                 getWithMetadata: async () => ({ data: JSON.parse(JSON.stringify(storedData)), etag: currentEtag, metadata: {} }),
-                setJSON: async (key, val, opts) => {
+                setJSON: async (_key, val, opts) => {
                     if (opts?.onlyIfMatch !== currentEtag) {
                         return { modified: false };
                     }
@@ -466,7 +466,7 @@ test('io.mjs Additive Extensions', async (t) => {
 
             const localFile = path.join(TEST_DIR, 'data', 'selos', 'manifests', 'update.json');
             await mkdir(path.dirname(localFile), { recursive: true });
-            const { writeJsonExclusive, readJson } = await import('../src/lib/catalogo/io.mjs');
+            const { readJson } = await import('../src/lib/catalogo/io.mjs');
             // Write basic base JSON via writes since fs is accessible
             await (await import('../src/lib/catalogo/io.mjs')).writeJsonAtomic(localFile, { next_sequence: 99 });
 
@@ -494,7 +494,7 @@ test('io.mjs Additive Extensions', async (t) => {
             let blobData = null;
             let setOpts = null;
             globalThis.__MOCK_BLOB_STORE = {
-                setJSON: async (key, val, opts) => {
+                setJSON: async (_key, val, opts) => {
                     setOpts = opts;
                     blobData = val;
                     return { modified: true };
