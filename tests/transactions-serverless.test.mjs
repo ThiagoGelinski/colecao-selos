@@ -217,7 +217,7 @@ test('Microbloco 2A.1.11 - Integração Serverless transaction', async (t) => {
         };
         let setCallCount = 0;
         globalThis.__MOCK_BLOB_STORE.setJSON = async (k, v, o) => {
-            if (k === 'manifests/ids.json' && ++setCallCount === 2) {
+            if (k === 'manifests/ids.json' && ++setCallCount === 3) {
                 throw new Error('Simulated Blob Store Exception on Manifest ETag Save');
             }
             if (k === 'manifests/ids.json') {

@@ -168,7 +168,7 @@ test('Microbloco 2A.1.13 - POST Administrativo (Integração Serverless Blobs)',
         const pay1 = await parseJsonResponse(res1);
         const pay2 = await parseJsonResponse(res2);
         assert.notEqual(pay1.data.id, pay2.data.id);
-        
+
 
         const manifest = blobData[ID_MANIFEST];
         assert.equal(manifest.reserved.length, 2);
