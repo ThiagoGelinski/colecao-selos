@@ -19,6 +19,9 @@ globalThis.__MOCK_BLOB_STORE = {
     get: async (key, opts) => {
         if (!blobData[key]) return null;
         if (opts && opts.type === 'arrayBuffer') {
+            if (Buffer.isBuffer(blobData[key])) {
+                return new Uint8Array(blobData[key]).buffer;
+            }
             return blobData[key];
         }
         return blobData[key];
