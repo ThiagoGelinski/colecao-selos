@@ -267,6 +267,52 @@ export const updateMutableManifestAtomic = async (target, modifier) => {
     }
 };
 
+export const updateRecordAtomic = async (target, modifier) => {
+    if (!isServerlessEngine()) {
+        const fsRaw = await readFile(target, 'utf8');
+        const nextData = modifier(JSON.parse(fsRaw));
+        await writeJsonAtomic(target, nextData);
+        return nextData;
+    }
+
+    const parts = target.split(/[\\/]data[\\/]selos[\\/]/);
+    if (parts.length !== 2 || !/^SEL-[a-zA-Z0-9_-]+\.json$/.test(parts[1]) || parts[1].includes('/')) {
+        throw new Error('Alvo inválido para updateRecordAtomic: ' + target);
+    }
+    const blobKey = parts[1];
+
+    const blobStore = getBlobStore();
+    const MAX_RETRIES = 5;
+
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        const payload = await blobStore.getWithMetadata(blobKey, { type: 'json' });
+
+        if (!payload || !payload.data) {
+            throw new Error(`Registro inexistente no Blob Storage para atualização atômica: ${target}`);
+        }
+
+        const currentEtag = payload.etag;
+        const currentData = payload.data;
+
+        if (!currentEtag) {
+            throw new Error(`ETag indisponível para atualização atômica de ${target}`);
+        }
+
+        const nextData = modifier(currentData);
+
+        const result = await blobStore.setJSON(blobKey, nextData, { onlyIfMatch: currentEtag });
+
+        if (result && result.modified === false) {
+            if (attempt === MAX_RETRIES) {
+                throw new Error(`Concorrência intensa no Blob Store (Record): max retries atingido para ${target}`);
+            }
+            continue;
+        }
+
+        return nextData;
+    }
+};
+
 export const existsAssetBinary = async (target) => {
     if (!isServerlessEngine()) {
         return access(target, constants.F_OK).then(() => true).catch(() => false);

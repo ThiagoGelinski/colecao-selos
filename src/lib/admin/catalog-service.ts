@@ -10,10 +10,15 @@ async function getRecords(): Promise<Selo[]> {
 }
 
 export async function getAdminStamp(id: string) {
-  const records = await getRecords();
-  const record = records.find((item) => item.id === id);
-  if (!record) return null;
-  const validation = await validateRecordOperational(record, dataPath(record.id));
+  let record: Selo | null = null;
+  try {
+    const { readJson } = await import('../catalogo/io.mjs');
+    record = await readJson(dataPath(id)) as Selo;
+  } catch (e: any) {
+    if (e.code === 'ENOENT') return null;
+    throw e;
+  }
+  const validation = await validateRecordOperational(record, dataPath(id));
   return { resumo: toAdminRecord(record, validation), registro: record, historico: record.historico_editorial ?? [], validacao: validation };
 }
 
