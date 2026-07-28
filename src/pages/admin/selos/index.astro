@@ -3,7 +3,7 @@ export const prerender = false;
 import AdminLayout from '../../../layouts/AdminLayout.astro';
 ---
 <AdminLayout title="Selos">
-  <header class="page-head"><div><p class="eyebrow">Catálogo administrativo</p><h1>Selos</h1><p class="muted">Leitura dos registros oficiais; edição ficará disponível em um próximo bloco.</p></div></header>
+  <header class="page-head"><div><p class="eyebrow">Catálogo administrativo</p><h1>Selos</h1><p class="muted">Leitura dos registros oficiais; edição ficará disponível em um próximo bloco.</p></div><a class="button" href="/admin/selos/novo">Novo selo</a></header>
   <form class="panel filters" data-filters><label>Buscar por ID ou título<input type="search" name="q" maxlength="100" autocomplete="off" placeholder="SEL-000001 ou Campos Salles"/></label><label>Status<select name="status"><option value="">Todos</option></select></label><label>Ordenar<select name="sort"><option value="id">ID</option><option value="titulo">Título</option><option value="pais">País</option><option value="ano">Ano</option><option value="status">Status</option><option value="atualizado_em">Atualização</option></select></label><button class="button" type="reset">Limpar</button></form>
   <section class="panel" data-results><div class="loading">Carregando registros…</div></section>
   <nav class="panel pager" data-pager hidden aria-label="Paginação"><button type="button" data-prev>Anterior</button><span data-page></span><button type="button" data-next>Próxima</button></nav>

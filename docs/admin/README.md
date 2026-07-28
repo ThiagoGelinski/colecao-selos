@@ -1,6 +1,6 @@
 # Fundação do painel administrativo
 
-O Bloco 1 adiciona uma área administrativa server-side, separada do catálogo público. As páginas públicas continuam pré-renderizadas; `/admin/**` e `/api/admin/**` usam renderização sob demanda pelo adaptador oficial `@astrojs/netlify`.
+A área administrativa server-side permanece separada do catálogo público. Além da consulta, ela oferece cadastro e gestão controlada de assets sem alterar a política pública de publicação. As páginas públicas continuam pré-renderizadas; `/admin/**` e `/api/admin/**` usam renderização sob demanda pelo adaptador oficial `@astrojs/netlify`.
 
 ## Rotas
 
@@ -9,7 +9,7 @@ O Bloco 1 adiciona uma área administrativa server-side, separada do catálogo p
 - `/admin/alterar-senha`: troca posterior da senha, com confirmação da senha atual;
 - `/admin`: indicadores e atividade;
 - `/admin/selos`: busca, filtros e paginação;
-- `/admin/selos/:id`: consulta somente leitura;
+- `/admin/selos/:id`: consulta do registro, upload inicial e retificação controlada de assets;
 - `/admin/configuracoes`: diagnóstico não sensível.
 
 ## Primeiro acesso
@@ -82,7 +82,7 @@ Não coloque segredos em `netlify.toml`. O store site-wide é compartilhado pelo
 - `src/pages/api/admin`: backend JSON padronizado;
 - `src/lib/admin/catalog-service.ts`: leitura e validação operacional do catálogo.
 
-Nenhum endpoint altera JSON filatélico, aprova ou publica selos.
+Os endpoints de cadastro e assets podem persistir registros e referências de mídia com concorrência otimista. Eles não concedem aprovação humana, não publicam selos e não alteram a política do catálogo público. Assets substituíveis usam cache curto com revalidação para que uma retificação na mesma URL seja observável.
 
 ## Verificação
 

@@ -1,14 +1,13 @@
-import { readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { DATA_DIR, ID_PATTERN, ROOT } from './paths.mjs';
-import { readJson } from './io.mjs';
+import { readJson, listJsonNames } from './io.mjs';
 import { IntegrityError, RecordNotFoundError, UsageError } from './errors.mjs';
 
 export function dataPath(id) { return path.join(DATA_DIR, `${id}.json`); }
 export function normalizeSlug(value) { if (typeof value !== 'string') return ''; return value.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[\s_]+/g, '-').replace(/[^a-z0-9-]/g, '').replace(/-+/g, '-').replace(/^-|-$/g, ''); }
 export function sequenceFromId(id) { return ID_PATTERN.test(id ?? '') ? Number.parseInt(id.slice(4), 10) : null; }
 export async function inspectRecordFiles() {
-  const names = (await readdir(DATA_DIR)).filter((name) => name.endsWith('.json')).sort();
+  const names = (await listJsonNames(DATA_DIR)).sort();
   return Promise.all(names.map(async (name) => { const filePath = path.join(DATA_DIR, name); try { return { name, path: filePath, record: await readJson(filePath), parse_error: null }; } catch (error) { return { name, path: filePath, record: null, parse_error: error.message }; } }));
 }
 export async function loadRecords() {
