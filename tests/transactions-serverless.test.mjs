@@ -3,15 +3,33 @@ import assert from 'node:assert/strict';
 
 import { createStampTransaction } from '../src/lib/catalogo/transactions.mjs';
 
+const CONCURRENT_START = 900000;
+const NETLIFY_EDGE_START = 910000;
+const SAME_SLUG_START = 920000;
+const ORPHAN_START = 930000;
+
 test('Microbloco 2A.1.11 - Integração Serverless transaction', async (t) => {
+    let originalMockNetlifyEnv;
+    let originalMockBlobStore;
+    let originalNetlify;
+    let originalSiteId;
+
     t.beforeEach(async () => {
+        originalMockNetlifyEnv = globalThis.__MOCK_NETLIFY_ENV;
+        originalMockBlobStore = globalThis.__MOCK_BLOB_STORE;
+        originalNetlify = process.env.NETLIFY;
+        originalSiteId = process.env.SITE_ID;
         globalThis.__MOCK_NETLIFY_ENV = true;
         globalThis.__MOCK_BLOB_STORE = null;
     });
 
     t.afterEach(async () => {
-        globalThis.__MOCK_NETLIFY_ENV = false;
-        globalThis.__MOCK_BLOB_STORE = null;
+        globalThis.__MOCK_NETLIFY_ENV = originalMockNetlifyEnv;
+        globalThis.__MOCK_BLOB_STORE = originalMockBlobStore;
+        if (originalNetlify === undefined) delete process.env.NETLIFY;
+        else process.env.NETLIFY = originalNetlify;
+        if (originalSiteId === undefined) delete process.env.SITE_ID;
+        else process.env.SITE_ID = originalSiteId;
     });
 
     await t.test('2, 3, 4, 7, 11. Reserva ID, avança next_sequence e falha pendência ASSETS', async () => {
@@ -85,7 +103,7 @@ test('Microbloco 2A.1.11 - Integração Serverless transaction', async (t) => {
     await t.test('5, 6, 8, 9, 10. Duas reservas concorrentes geram APIs limpas sem lost update', async () => {
         let blobData = {
             'manifests/ids.json': {
-                schema_version: '2.0.0', prefix: 'SEL', digits: 6, next_sequence: 2, reserved: []
+                schema_version: '2.0.0', prefix: 'SEL', digits: 6, next_sequence: CONCURRENT_START, reserved: []
             }
         };
         let currentEtag = 'etag-hash-A';
@@ -117,18 +135,18 @@ test('Microbloco 2A.1.11 - Integração Serverless transaction', async (t) => {
 
         settled.forEach(s => {
             assert.equal(s.status, 'fulfilled');
-            assert.ok(s.value.id.startsWith('SEL-00000'));
+            assert.match(s.value.id, /^SEL-\d{6}$/);
         });
 
         const manifest = blobData['manifests/ids.json'];
-        assert.equal(manifest.next_sequence, 4);
+        assert.equal(manifest.next_sequence, CONCURRENT_START + 2);
         assert.equal(manifest.reserved.length, 2);
 
         const reservations = manifest.reserved.map(r => r.id).sort();
-        assert.deepEqual(reservations, ['SEL-000002', 'SEL-000003']);
+        assert.deepEqual(reservations, ['SEL-900000', 'SEL-900001']);
 
-        const s2 = blobData['manifests/SEL-000002.json'];
-        const s3 = blobData['manifests/SEL-000003.json'];
+        const s2 = blobData['manifests/SEL-900000.json'];
+        const s3 = blobData['manifests/SEL-900001.json'];
         assert.ok(s2 && s3);
     });
 
@@ -139,7 +157,7 @@ test('Microbloco 2A.1.11 - Integração Serverless transaction', async (t) => {
         // Simular sinal de runtime Netlify via AWS Lambda context (SITE_ID)
         process.env.SITE_ID = 'test-deploy-preview-id';
 
-        let blobData = { 'manifests/ids.json': { schema_version: '2.0.0', prefix: 'SEL', digits: 6, next_sequence: 2, reserved: [] } };
+        let blobData = { 'manifests/ids.json': { schema_version: '2.0.0', prefix: 'SEL', digits: 6, next_sequence: NETLIFY_EDGE_START, reserved: [] } };
         let blobWritten = false;
 
         globalThis.__MOCK_BLOB_STORE = {
@@ -170,7 +188,7 @@ test('Microbloco 2A.1.11 - Integração Serverless transaction', async (t) => {
     });
     await t.test('14. Regression: Same slug concurrent creation enforces atomic reservation check', async () => {
         globalThis.__MOCK_NETLIFY_ENV = true;
-        let blobData = { 'manifests/ids.json': { schema_version: '2.0.0', prefix: 'SEL', digits: 6, next_sequence: 2, reserved: [] } };
+        let blobData = { 'manifests/ids.json': { schema_version: '2.0.0', prefix: 'SEL', digits: 6, next_sequence: SAME_SLUG_START, reserved: [] } };
         let currentEtag = 'etag-hash-A';
         globalThis.__MOCK_BLOB_STORE = {
             getWithMetadata: async (key) => ({ data: blobData[key] ? JSON.parse(JSON.stringify(blobData[key])) : null, etag: currentEtag }),
@@ -208,7 +226,7 @@ test('Microbloco 2A.1.11 - Integração Serverless transaction', async (t) => {
 
     await t.test('15. Regression: Creation catches orphan after writeJson fails manifest update, without deleting remote', async () => {
         globalThis.__MOCK_NETLIFY_ENV = true;
-        let blobData = { 'manifests/ids.json': { schema_version: '2.0.0', prefix: 'SEL', digits: 6, next_sequence: 2, reserved: [] } };
+        let blobData = { 'manifests/ids.json': { schema_version: '2.0.0', prefix: 'SEL', digits: 6, next_sequence: ORPHAN_START, reserved: [] } };
         let currentEtag = 'etag-hash-A';
         globalThis.__MOCK_BLOB_STORE = {
             getWithMetadata: async (key) => ({ data: blobData[key] ? JSON.parse(JSON.stringify(blobData[key])) : null, etag: currentEtag }),
