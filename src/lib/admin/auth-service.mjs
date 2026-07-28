@@ -4,6 +4,7 @@ export async function authenticateAdmin(store, username, password, loadOptions) 
 export async function completeFirstAccess(store, username, newPassword, confirmation, loadOptions) {
   const current = await loadAdminCredentials(store, loadOptions); if (!current.bootstrap_required || current.bootstrap_consumed) return { ok: false, code: 'BOOTSTRAP_CONSUMED', message: 'O primeiro acesso já foi concluído.', status: 409 };
   const normalizedUsername = normalizeAdminUsername(username); if (!normalizedUsername) return { ok: false, code: 'INVALID_USERNAME', message: 'Use de 4 a 64 caracteres: letras, números, ponto, hífen ou underscore.', status: 400 };
+  if (await verifyCredentials(current.username, newPassword, current)) return { ok: false, code: 'PASSWORD_NOT_ALLOWED', message: 'Escolha uma senha diferente do segredo de ativação.', status: 400 };
   const validation = validateNewPassword(newPassword, confirmation, normalizedUsername); if (!validation.valid) return { ok: false, ...validation, status: 400 };
   const passwordHash = await hashPassword(newPassword); const credentials = await persistDefinitiveAdmin(store, current, normalizedUsername, passwordHash); return { ok: true, credentials };
 }
