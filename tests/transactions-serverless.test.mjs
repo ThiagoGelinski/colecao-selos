@@ -46,7 +46,7 @@ test('Microbloco 2A.1.11 - Integração Serverless transaction', async (t) => {
         assert.equal(manifest.reserved[0].status, 'criado'); // Successfully transitioned
         assert.ok(manifest.reserved[0].created_at, 'created_at should be fully populated in memory');
 
-        const stampBlob = blobData['SEL-000099.json'];
+        const stampBlob = blobData['manifests/SEL-000099.json'];
         assert.ok(stampBlob);
         assert.equal(stampBlob.id, 'SEL-000099');
         assert.equal(stampBlob.slug, 'meu-selo');
@@ -127,8 +127,8 @@ test('Microbloco 2A.1.11 - Integração Serverless transaction', async (t) => {
         const reservations = manifest.reserved.map(r => r.id).sort();
         assert.deepEqual(reservations, ['SEL-000002', 'SEL-000003']);
 
-        const s2 = blobData['SEL-000002.json'];
-        const s3 = blobData['SEL-000003.json'];
+        const s2 = blobData['manifests/SEL-000002.json'];
+        const s3 = blobData['manifests/SEL-000003.json'];
         assert.ok(s2 && s3);
     });
 

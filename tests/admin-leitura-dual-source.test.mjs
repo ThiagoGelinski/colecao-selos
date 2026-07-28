@@ -1,15 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
 import path from 'node:path';
-import { writeFile, rm } from 'node:fs/promises';
 
 test('Microbloco 2A.1.16 - Leitura Admin Dual-Source', async (t) => {
     t.afterEach(async () => {
         globalThis.__MOCK_NETLIFY_ENV = false;
         globalThis.__MOCK_BLOB_STORE = null;
-        try {
-            await rm(path.join(process.cwd(), 'src/data/selos/SEL-999400.json'), { force: true });
-        } catch { }
     });
 
     await t.test('A. Registro somente no baseline aparece', async () => {
@@ -23,8 +19,8 @@ test('Microbloco 2A.1.16 - Leitura Admin Dual-Source', async (t) => {
         globalThis.__MOCK_NETLIFY_ENV = true;
         const blobStamp = { id: 'SEL-999200', slug: 'cloud-only', publicacao: { status: 'ativo' }, origin: 'blob' };
         globalThis.__MOCK_BLOB_STORE = {
-            list: async () => ({ blobs: [{ key: 'SEL-999200.json' }] }),
-            get: async (key) => key === 'SEL-999200.json' ? JSON.stringify(blobStamp) : null
+            list: async () => ({ blobs: [{ key: 'manifests/SEL-999200.json' }] }),
+            get: async (key) => key === 'manifests/SEL-999200.json' ? JSON.stringify(blobStamp) : null
         };
         const { getAdminStamps, getAdminStamp, getAdminDashboard } = await import('../src/lib/admin/catalog-service.ts');
 
@@ -44,8 +40,8 @@ test('Microbloco 2A.1.16 - Leitura Admin Dual-Source', async (t) => {
         const { readFile } = await import('node:fs/promises');
         const exactRawSeloData = await readFile(path.join(process.cwd(), 'src/data/selos/SEL-000001.json'), 'utf8');
         globalThis.__MOCK_BLOB_STORE = {
-            list: async () => ({ blobs: [{ key: 'SEL-000001.json' }] }),
-            get: async (key) => key === 'SEL-000001.json' ? exactRawSeloData : null
+            list: async () => ({ blobs: [{ key: 'manifests/SEL-000001.json' }] }),
+            get: async (key) => key === 'manifests/SEL-000001.json' ? exactRawSeloData : null
         };
 
         const { getAdminStamps } = await import('../src/lib/admin/catalog-service.ts');
@@ -56,11 +52,10 @@ test('Microbloco 2A.1.16 - Leitura Admin Dual-Source', async (t) => {
 
     await t.test('D. Conflito entre baseline corrupto e Blob segue fail-closed', async () => {
         globalThis.__MOCK_NETLIFY_ENV = true;
-        await writeFile(path.join(process.cwd(), 'src/data/selos/SEL-999400.json'), '{ invalid_JSON');
-        const blobStamp = { id: 'SEL-999400', slug: 'valid-cloud' };
+        const blobStamp = '{ invalid_JSON';
         globalThis.__MOCK_BLOB_STORE = {
-            list: async () => ({ blobs: [{ key: 'SEL-999400.json' }] }),
-            get: async (key) => key === 'SEL-999400.json' ? JSON.stringify(blobStamp) : null
+            list: async () => ({ blobs: [{ key: 'manifests/SEL-999400.json' }] }),
+            get: async (key) => key === 'manifests/SEL-999400.json' ? blobStamp : null
         };
 
         const { getAdminStamps } = await import('../src/lib/admin/catalog-service.ts');

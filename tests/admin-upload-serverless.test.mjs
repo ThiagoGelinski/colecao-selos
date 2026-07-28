@@ -1,12 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { rm, stat, readFile } from 'node:fs/promises';
+import { mkdtemp, rm, stat, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { tmpdir } from 'node:os';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const ROOT = path.join(__dirname, '..');
+const ORIGINAL_CWD = process.cwd();
+const ROOT = await mkdtemp(path.join(tmpdir(), 'selos-2a2-'));
+process.chdir(ROOT);
 
 // Setup Blob Store Mocks
 const blobData = {};
@@ -78,6 +81,7 @@ const createInvalidMagicFile = () => {
 };
 
 test('Microbloco 2A.2.4 - Upload Serverless Seguro de Assets', async (t) => {
+    t.after(async () => { process.chdir(ORIGINAL_CWD); await rm(ROOT, { recursive: true, force: true }); });
     const { POST } = await import('../src/pages/api/admin/selos/[id]/assets.ts');
     const { writeJsonExclusive, readJson } = await import('../src/lib/catalogo/io.mjs');
 
@@ -247,7 +251,7 @@ test('Microbloco 2A.2.4 - Upload Serverless Seguro de Assets', async (t) => {
         const localFs = path.join(process.cwd(), 'public', expectedPath);
         await assert.rejects(stat(localFs), { code: 'ENOENT' }, 'Isolamento Blob vazou escrita para FS Nativo!');
 
-        const blobKeyRecord = `SEL-999999.json`;
+        const blobKeyRecord = `manifests/SEL-999999.json`;
         const blobKeyAsset = `assets/selos/SEL-999999/SEL-999999-thumb.webp`;
 
         assert.ok(blobData[blobKeyAsset], 'Asset missing nos blobs');
@@ -269,7 +273,7 @@ test('Microbloco 2A.2.4 - Upload Serverless Seguro de Assets', async (t) => {
         // Simulating JSON Write Fail AFTER Asset is successfully uploaded!
         const originalSetJSON = globalThis.__MOCK_BLOB_STORE.setJSON;
         globalThis.__MOCK_BLOB_STORE.setJSON = async (key) => {
-            if (key === 'SEL-999999.json') throw new Error('Falhas no banco de blobs via rate limit!!');
+            if (key === 'manifests/SEL-999999.json') throw new Error('Falhas no banco de blobs via rate limit!!');
             return originalSetJSON(...arguments);
         };
 
@@ -281,7 +285,7 @@ test('Microbloco 2A.2.4 - Upload Serverless Seguro de Assets', async (t) => {
         // 14/20. The JSON wasn't mutated at all in the process. Wait, it crashed so it threw instantly!
         globalThis.__MOCK_BLOB_STORE.setJSON = originalSetJSON; // Restore
 
-        const jsonRAW = blobData['SEL-999999.json'];
+        const jsonRAW = blobData['manifests/SEL-999999.json'];
         const json = JSON.parse(jsonRAW);
         assert.equal(json.imagens?.card, undefined, 'Atomic Violation: JSON modificado mesmo existindo erro persistência');
     });

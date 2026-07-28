@@ -1,4 +1,4 @@
-import { access, mkdir, readFile, rename, writeFile, readdir, link, unlink } from 'node:fs/promises';
+import { access, mkdir, readFile, rename, writeFile, readdir, link, unlink, stat } from 'node:fs/promises';
 import { constants } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
@@ -30,7 +30,7 @@ const getBlobKey = (target) => {
 
     const seloMatch = normalized.match(/\/data\/selos\/(SEL-[a-zA-Z0-9_-]+\.json)$/);
     if (seloMatch && !seloMatch[1].includes('/')) {
-        return seloMatch[1];
+        return 'manifests/' + seloMatch[1];
     }
 
     return null;
@@ -87,7 +87,7 @@ export const readJson = async (target) => {
         return baselineData;
     }
 
-    const blobStore = getBlobStore();
+    const blobStore = await getBlobStore();
     const blobRaw = await blobStore.get(blobKey);
 
     if (blobRaw === null || blobRaw === undefined) {
@@ -131,8 +131,8 @@ export const listJsonNames = async (dir) => {
     const { blobs } = await blobStore.list();
 
     const blobNames = (blobs || [])
-        .filter(b => b.key && b.key.endsWith('.json') && !b.key.includes('/'))
-        .map(b => b.key);
+        .map((blob) => /^manifests\/(SEL-[0-9]{6}\.json)$/.exec(blob?.key ?? '')?.[1] ?? null)
+        .filter(Boolean);
 
     return [...new Set([...fsNames, ...blobNames])].sort();
 };
@@ -156,7 +156,7 @@ export async function writeJsonExclusive(target, value) {
         throw new Error(`Alvo inválido para gravação exclusiva de json final no Netlify: ${target}`);
     }
 
-    const blobKey = parts[1];
+    const blobKey = 'manifests/' + parts[1];
 
     let baselineExists = false;
     try {
@@ -279,7 +279,7 @@ export const updateRecordAtomic = async (target, modifier) => {
     if (parts.length !== 2 || !/^SEL-[a-zA-Z0-9_-]+\.json$/.test(parts[1]) || parts[1].includes('/')) {
         throw new Error('Alvo inválido para updateRecordAtomic: ' + target);
     }
-    const blobKey = parts[1];
+    const blobKey = 'manifests/' + parts[1];
 
     const blobStore = getBlobStore();
     const MAX_RETRIES = 5;
@@ -363,4 +363,98 @@ export const writeAssetBinary = async (target, buffer, mimeType = null) => {
         options.metadata = { 'content-type': mimeType };
     }
     await blobStore.set(blobKey, buffer, options);
+};
+const conflictError = (message, code) => Object.assign(new Error(message), { code });
+const sameFile = (left, right) => left.dev === right.dev && left.ino === right.ino;
+
+export const updateRecordExpected = async (target, expectedUpdatedAt, modifier) => {
+    if (!isServerlessEngine()) {
+        const snapshot = await stat(target, { bigint: true });
+        const current = JSON.parse(await readFile(target, 'utf8'));
+        if (current.auditoria?.ultima_revisao !== expectedUpdatedAt) throw conflictError('O registro mudou desde que foi aberto.', 'RECORD_CONFLICT');
+        const next = modifier(structuredClone(current));
+        const temporary = `${target}.${process.pid}.${randomUUID()}.tmp`;
+        const backup = `${target}.${process.pid}.${randomUUID()}.backup`;
+        await writeFile(temporary, `${JSON.stringify(next, null, 2)}\n`, 'utf8');
+        try {
+            await rename(target, backup);
+            if (!sameFile(snapshot, await stat(backup, { bigint: true }))) {
+                await rename(backup, target);
+                throw conflictError('O registro mudou durante a retificação.', 'RECORD_CONFLICT');
+            }
+            await link(temporary, target);
+            await unlink(temporary);
+            await unlink(backup);
+            return next;
+        } catch (error) {
+            await unlink(temporary).catch(() => {});
+            if (!(await access(target).then(() => true).catch(() => false)) && await access(backup).then(() => true).catch(() => false)) await rename(backup, target);
+            throw error;
+        }
+    }
+    const blobKey = getBlobKey(target);
+    if (!blobKey || !/^manifests\/SEL-[0-9]{6}\.json$/.test(blobKey)) throw new Error(`Alvo inválido para atualização condicional: ${target}`);
+    const store = getBlobStore();
+    const payload = await store.getWithMetadata(blobKey, { type: 'json', consistency: 'strong' });
+    if (!payload?.data || !payload.etag) throw new Error(`Registro ou ETag indisponível: ${target}`);
+    if (payload.data.auditoria?.ultima_revisao !== expectedUpdatedAt) throw conflictError('O registro mudou desde que foi aberto.', 'RECORD_CONFLICT');
+    const next = modifier(structuredClone(payload.data));
+    const result = await store.setJSON(blobKey, next, { onlyIfMatch: payload.etag });
+    if (!result || result.modified === false) throw conflictError('O registro mudou durante a retificação.', 'RECORD_CONFLICT');
+    return next;
+};
+
+/**
+ * @param {string} target
+ * @param {Buffer|Uint8Array} replacement
+ * @param {string|null} mimeType
+ */
+export const beginAssetReplacement = async (target, replacement, mimeType = null) => {
+    const blobKey = getAssetBlobKey(target);
+    if (!blobKey) throw new Error(`Alvo inválido para substituição de asset: ${target}`);
+    if (!isServerlessEngine()) {
+        const snapshot = await stat(target, { bigint: true });
+        const backup = `${target}.${process.pid}.${randomUUID()}.backup`;
+        const temporary = `${target}.${process.pid}.${randomUUID()}.tmp`;
+        await writeFile(temporary, replacement);
+        try {
+            await rename(target, backup);
+            if (!sameFile(snapshot, await stat(backup, { bigint: true }))) {
+                await rename(backup, target);
+                throw conflictError('O asset mudou durante a retificação.', 'ASSET_CONFLICT');
+            }
+            await link(temporary, target);
+            await unlink(temporary);
+        } catch (error) {
+            await unlink(temporary).catch(() => {});
+            if (!(await access(target).then(() => true).catch(() => false)) && await access(backup).then(() => true).catch(() => false)) await rename(backup, target);
+            throw error;
+        }
+        const replacementSnapshot = await stat(target, { bigint: true });
+        return {
+            commit: async () => { await unlink(backup); },
+            rollback: async () => {
+                const quarantine = `${target}.${process.pid}.${randomUUID()}.rollback`;
+                await rename(target, quarantine);
+                if (!sameFile(replacementSnapshot, await stat(quarantine, { bigint: true }))) {
+                    await rename(quarantine, target);
+                    throw conflictError('O asset foi alterado por outro processo; rollback recusado.', 'ASSET_CONFLICT');
+                }
+                await rename(backup, target);
+                await unlink(quarantine);
+            }
+        };
+    }
+    const store = getBlobStore();
+    const snapshot = await store.getWithMetadata(blobKey, { type: 'arrayBuffer', consistency: 'strong' });
+    if (!snapshot?.data || !snapshot.etag) throw Object.assign(new Error('Asset inexistente.'), { code: 'ENOENT' });
+    const replaced = await store.set(blobKey, replacement, { onlyIfMatch: snapshot.etag, ...(mimeType ? { metadata: { 'content-type': mimeType } } : {}) });
+    if (!replaced || replaced.modified === false || !replaced.etag) throw conflictError('O asset mudou durante a retificação.', 'ASSET_CONFLICT');
+    return {
+        commit: async () => {},
+        rollback: async () => {
+            const restored = await store.set(blobKey, Buffer.from(snapshot.data), { onlyIfMatch: replaced.etag, ...(mimeType ? { metadata: { 'content-type': mimeType } } : {}) });
+            if (!restored || restored.modified === false) throw conflictError('O asset foi alterado por outro processo; rollback recusado.', 'ASSET_CONFLICT');
+        }
+    };
 };

@@ -1,12 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { rm, stat } from 'node:fs/promises';
+import { mkdtemp, rm, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { tmpdir } from 'node:os';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const ROOT = path.join(__dirname, '..');
+const ORIGINAL_CWD = process.cwd();
+const ROOT = await mkdtemp(path.join(tmpdir(), 'selos-2a2-'));
+process.chdir(ROOT);
 
 const SETUP_MODE = (serverless) => {
     globalThis.__MOCK_NETLIFY_ENV = serverless;
@@ -38,6 +41,7 @@ globalThis.__MOCK_BLOB_STORE = {
 };
 
 test('Microbloco 2A.2.2 - Contrato e Adapter Binário de Assets', async (t) => {
+    t.after(async () => { process.chdir(ORIGINAL_CWD); await rm(ROOT, { recursive: true, force: true }); });
     const { writeAssetBinary, readAssetBinary, existsAssetBinary } = await import('../src/lib/catalogo/io.mjs');
     const assetPath = path.join(ROOT, 'public', 'assets', 'selos', 'SEL-999901', 'SEL-999901-frente.webp');
     const assetDir = path.dirname(assetPath);

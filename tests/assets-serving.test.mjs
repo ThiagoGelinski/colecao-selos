@@ -1,12 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { rm, stat } from 'node:fs/promises';
+import { mkdtemp, rm, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { tmpdir } from 'node:os';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const ROOT = path.join(__dirname, '..');
+const ORIGINAL_CWD = process.cwd();
+const ROOT = await mkdtemp(path.join(tmpdir(), 'selos-2a2-'));
+process.chdir(ROOT);
 
 // Setup Blob Store Mocks
 const blobData = {};
@@ -46,6 +49,7 @@ const runGET = async (id, filename) => {
 };
 
 test('Microbloco 2A.2.3 - HTTP Serving Proxy', async (t) => {
+    t.after(async () => { process.chdir(ORIGINAL_CWD); await rm(ROOT, { recursive: true, force: true }); });
     const { writeAssetBinary } = await import('../src/lib/catalogo/io.mjs');
 
     t.afterEach(async () => {

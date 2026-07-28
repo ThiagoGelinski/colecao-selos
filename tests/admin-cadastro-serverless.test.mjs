@@ -77,7 +77,7 @@ test('Microbloco 2A.1.13 - POST Administrativo (Integração Serverless Blobs)',
         assert.ok(manifest);
         assert.equal(manifest.reserved.length, 1);
         assert.equal(manifest.reserved[0].status, 'criado');
-        assert.ok(blobData[`${payload.data.id}.json`]);
+        assert.ok(blobData[`manifests/${payload.data.id}.json`]);
     });
 
     await t.test('2. Autenticação/Autorização (401 se ausente)', async () => {
@@ -137,19 +137,18 @@ test('Microbloco 2A.1.13 - POST Administrativo (Integração Serverless Blobs)',
 
         // Concurrency Strict Mock Handler exactly as transactions-serverless
         globalThis.__MOCK_BLOB_STORE.setJSON = async (key, val, opts) => {
-            if (key === ID_MANIFEST && opts?.condition?.ifMatch) {
+            if (key === ID_MANIFEST && opts?.onlyIfMatch) {
                 globalETagValidationCount++;
-                if (opts.condition.ifMatch === `mock-etag-${etagState}`) {
+                if (opts.onlyIfMatch === `mock-etag-${etagState}`) {
                     etagState++;
                     blobData[key] = structuredClone(val);
-                    return;
+                    return { modified: true, etag: `mock-etag-${etagState}` };
                 }
-                const mismatch = new Error('ETag mismatch mock');
-                mismatch.name = 'PreconditionFailedError';
-                throw mismatch;
+                return { modified: false };
             }
             blobData[key] = structuredClone(val);
             etagState++;
+            return { modified: true };
         };
 
         globalThis.__MOCK_BLOB_STORE.getWithMetadata = async (key) => {
@@ -175,12 +174,17 @@ test('Microbloco 2A.1.13 - POST Administrativo (Integração Serverless Blobs)',
     });
 
     await t.test('9. Falha Pré-Criação: Simulando falha pós-Id para validar Manifest Fallback', async () => {
+        // Limpeza preventiva: evita contaminação cruzada com admin-leitura-dual-source (test D) em modo paralelo
+        const { rm: rmFs } = await import('node:fs/promises');
+        const { default: pathMod } = await import('node:path');
+        await rmFs(pathMod.join(process.cwd(), 'src/data/selos/SEL-999400.json'), { force: true }).catch(() => { });
+
         let originalSet = globalThis.__MOCK_BLOB_STORE.setJSON;
         let called = false;
 
         globalThis.__MOCK_BLOB_STORE.setJSON = async (key, val, opts) => {
             // Force error when creating the individual stamp JSON
-            if (key.startsWith('SEL-') && key.endsWith('.json')) {
+            if (key.startsWith('manifests/SEL-') && key.endsWith('.json') && key !== 'manifests/ids.json') {
                 called = true;
                 const fakeErr = new Error('Simulated JSON storage failure');
                 fakeErr.name = 'TransactionError';

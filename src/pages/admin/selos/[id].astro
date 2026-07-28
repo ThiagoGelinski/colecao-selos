@@ -4,7 +4,7 @@ import AdminLayout from '../../../layouts/AdminLayout.astro';
 const id = Astro.params.id ?? '';
 ---
 <AdminLayout title={`Registro ${id}`}>
-  <header class="page-head"><div><p class="eyebrow">Consulta somente leitura</p><h1>{id}</h1></div><a class="button" href="/admin/selos">Voltar à lista</a></header>
+  <header class="page-head"><div><p class="eyebrow">Consulta e gestão de assets</p><h1>{id}</h1></div><a class="button" href="/admin/selos">Voltar à lista</a></header>
   <section data-detail data-record-id={id}><div class="panel loading">Carregando registro…</div></section>
   <script>
     const target = document.querySelector<HTMLElement>('[data-detail]')!; const id = target.dataset.recordId ?? '';
@@ -22,10 +22,25 @@ const id = Astro.params.id ?? '';
         let visual = '';
         if (estado.valido) {
             const path = payload.data.registro.imagens?.[kind];
-            visual = `<div class="asset-preview"><img src="${escape(path)}" alt="Preview ${escape(kind)}" style="max-width:200px; display:block; margin: 10px 0; border: 1px solid #ddd;" /><p class="muted">Path: <code>${escape(path)}</code></p><span class="badge ok">Processado</span></div>`;
+            visual = `
+                <div class="asset-preview" style="margin-bottom:12px;">
+                    <img src="${escape(path)}" alt="Preview ${escape(kind)}" style="max-width:200px; display:block; margin: 10px 0; border: 1px solid #ddd;" />
+                    <p class="muted">Path: <code>${escape(path)}</code></p>
+                    <span class="badge ok">Processado</span>
+                </div>
+                <form class="asset-upload-form" data-kind="${escape(kind)}" data-id="${escape(id)}" data-method="PUT">
+                    <input type="hidden" name="expected_updated_at" value="${escape(payload.data.registro.auditoria?.ultima_revisao)}" />
+                    <div style="margin-bottom: 8px; border-top: 1px dashed #eee; padding-top: 8px;">
+                        <label for="replace-file-${escape(kind)}" style="display:block; font-weight:bold; margin-bottom: 4px;">Substituir imagem (.webp)</label>
+                        <input type="file" id="replace-file-${escape(kind)}" accept="image/webp" required />
+                    </div>
+                    <div class="feedback-msg" style="margin-bottom: 8px; color: #cc0000;"></div>
+                    <button type="submit" class="button">Substituir</button>
+                </form>
+            `;
         } else {
             visual = `
-                <form class="asset-upload-form" data-kind="${escape(kind)}" data-id="${escape(id)}">
+                <form class="asset-upload-form" data-kind="${escape(kind)}" data-id="${escape(id)}" data-method="POST">
                     <div style="margin-bottom: 8px;">
                         <label for="file-${escape(kind)}" style="display:block; font-weight:bold; margin-bottom: 4px;">Arquivo (.webp)</label>
                         <input type="file" id="file-${escape(kind)}" accept="image/webp" required ${isRequired ? 'aria-required="true"' : ''} />
@@ -45,6 +60,7 @@ const id = Astro.params.id ?? '';
               e.preventDefault();
               const f = e.target as HTMLFormElement;
               const kind = f.dataset.kind!;
+              const httpMethod = f.dataset.method || 'POST';
               const btn = f.querySelector('button') as HTMLButtonElement;
               const msg = f.querySelector('.feedback-msg') as HTMLElement;
               const input = f.querySelector('input[type="file"]') as HTMLInputElement;
@@ -60,30 +76,35 @@ const id = Astro.params.id ?? '';
               formData.append('papel', kind);
               formData.append('file', input.files[0]);
 
+              if (httpMethod === 'PUT') {
+                  const expectedField = f.querySelector('input[name="expected_updated_at"]') as HTMLInputElement;
+                  if (expectedField) formData.append('expected_updated_at', expectedField.value);
+              }
+
               try {
                   const res = await fetch(`/api/admin/selos/${encodeURIComponent(f.dataset.id!)}/assets`, {
-                      method: 'POST',
+                      method: httpMethod,
                       body: formData
                   });
                   const json = await res.json();
 
                   if (res.ok) {
                       msg.style.color = 'green';
-                      msg.textContent = 'Upload concluído com sucesso. Recarregando...';
+                      msg.textContent = httpMethod === 'PUT' ? 'Retificação concluída com sucesso. Recarregando...' : 'Upload concluído com sucesso. Recarregando...';
                       setTimeout(() => window.location.reload(), 1000);
                   } else {
                       let text = json.error?.message || 'Falha no servidor';
                       if (res.status === 400) text = `Requisição inválida: ${text}`;
                       if (res.status === 401) { text = 'Sessão expirada'; window.dispatchEvent(new Event('admin:session-expired')); }
-                      if (res.status === 404) text = 'Selo não encontrado';
-                      if (res.status === 409) text = 'Asset já existe';
+                      if (res.status === 404) text = 'Selo/Asset não encontrado';
+                      if (res.status === 409) text = httpMethod === 'PUT' ? 'Bloqueio otimista: estado do registro divergiu (mid-air collision).' : 'Asset já existe';
                       if (res.status === 413) text = 'Arquivo excede limite permitido (5MB)';
                       if (res.status === 415) text = `Formato inválido: ${text}`;
                       if (res.status === 422) text = `Dados inválidos: ${text}`;
                       if (res.status === 500) text = 'Falha interna no servidor';
                       msg.textContent = text;
                       btn.disabled = false;
-                      btn.textContent = 'Fazer Upload';
+                      btn.textContent = httpMethod === 'PUT' ? 'Substituir' : 'Fazer Upload';
                       input.value = ''; // clean field
                   }
               } catch (err: any) {

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdir, rm, writeFile, stat, readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { listJsonNames, readJson } from '../src/lib/catalogo/io.mjs';
+import { listJsonNames, readJson, writeJsonExclusive } from '../src/lib/catalogo/io.mjs';
 
 const TEST_DIR = path.join(process.cwd(), 'tests', 'fixtures', `io-test-${randomUUID()}`);
 
@@ -166,11 +166,11 @@ test('io.mjs Additive Extensions', async (t) => {
         await suite.test('Netlify + somente Blob', async () => {
             globalThis.__MOCK_NETLIFY_ENV = true;
             globalThis.__MOCK_BLOB_STORE = {
-                get: async (key) => key === 'SEL-blobonly.json' ? '{"test":2}' : null,
-                list: async () => ({ blobs: [{ key: 'SEL-blobonly.json' }] })
+                get: async (key) => key === 'manifests/SEL-999201.json' ? '{"test":2}' : null,
+                list: async () => ({ blobs: [{ key: 'manifests/SEL-999201.json' }] })
             };
 
-            const fakePath = path.join(TEST_DIR, 'data', 'selos', 'SEL-blobonly.json');
+            const fakePath = path.join(TEST_DIR, 'data', 'selos', 'SEL-999201.json');
             const data = await readJson(fakePath);
             assert.equal(data.test, 2);
         });
@@ -191,9 +191,9 @@ test('io.mjs Additive Extensions', async (t) => {
         await suite.test('Netlify + JSON divergente -> FAIL CLOSED', async () => {
             globalThis.__MOCK_NETLIFY_ENV = true;
             globalThis.__MOCK_BLOB_STORE = {
-                get: async (key) => key === 'SEL-conflict.json' ? '{"test":4}' : null
+                get: async (key) => key === 'manifests/SEL-999202.json' ? '{"test":4}' : null
             };
-            const fakePath = path.join(TEST_DIR, 'data', 'selos', 'SEL-conflict.json');
+            const fakePath = path.join(TEST_DIR, 'data', 'selos', 'SEL-999202.json');
             await mkdir(path.dirname(fakePath), { recursive: true });
             await (await import('../src/lib/catalogo/io.mjs')).writeJsonAtomic(fakePath, { test: 99 });
 
@@ -233,18 +233,18 @@ test('io.mjs Additive Extensions', async (t) => {
         await suite.test('União de listagem sem duplicatas', async () => {
             globalThis.__MOCK_NETLIFY_ENV = true;
             globalThis.__MOCK_BLOB_STORE = {
-                list: async () => ({ blobs: [{ key: 'SEL-shared.json' }, { key: 'SEL-blobonly.json' }, { key: 'manifests/ignored.json' }] })
+                list: async () => ({ blobs: [{ key: 'manifests/SEL-999203.json' }, { key: 'manifests/SEL-999204.json' }, { key: 'manifests/ignored.json' }, { key: 'arbitrary.json' }] })
             };
             const dirPath = path.join(TEST_DIR, 'data', 'selos');
             await mkdir(dirPath, { recursive: true });
 
-            await (await import('../src/lib/catalogo/io.mjs')).writeJsonAtomic(path.join(dirPath, 'SEL-shared.json'), { fs: 1 });
+            await (await import('../src/lib/catalogo/io.mjs')).writeJsonAtomic(path.join(dirPath, 'SEL-999203.json'), { fs: 1 });
             await (await import('../src/lib/catalogo/io.mjs')).writeJsonAtomic(path.join(dirPath, 'fs-only.json'), { fs: 1 });
 
             await mkdir(path.join(dirPath, 'fake-dir.json'), { recursive: true });
 
             const names = await listJsonNames(dirPath);
-            assert.deepEqual(names, ['SEL-blobonly.json', 'SEL-shared.json', 'fs-only.json'].sort());
+            assert.deepEqual(names, ['SEL-999203.json', 'SEL-999204.json', 'fs-only.json'].sort());
         });
     });
 

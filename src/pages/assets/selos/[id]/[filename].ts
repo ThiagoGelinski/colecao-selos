@@ -12,7 +12,7 @@ function getContentTypeForExtension(filename: string): string | null {
     return null;
 }
 
-export const GET: APIRoute = async ({ params, request }) => {
+export const GET: APIRoute = async ({ params }) => {
     const { id, filename } = params;
 
     if (!id || !filename) {
@@ -58,7 +58,7 @@ export const GET: APIRoute = async ({ params, request }) => {
             status: 200,
             headers: {
                 'Content-Type': contentType,
-                'Cache-Control': 'public, max-age=31536000, immutable'
+                'Cache-Control': 'public, max-age=300, must-revalidate'
             }
         });
     } catch (error: any) {
