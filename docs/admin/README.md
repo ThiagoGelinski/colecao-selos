@@ -14,17 +14,17 @@ A área administrativa server-side permanece separada do catálogo público. Al�
 
 ## Primeiro acesso
 
-Em um store administrativo vazio, o sistema cria uma única credencial inicial:
+Em um store administrativo vazio, o sistema só cria a credencial inicial quando a ativação está explicitamente habilitada em um contexto autorizado:
 
 - usuário: `admin`;
-- senha: `123456`.
+- senha: valor server-side de `ADMIN_BOOTSTRAP_SECRET`, com ao menos 32 caracteres;
+- ativação: `ADMIN_BOOTSTRAP_ENABLED=true`.
 
-Essa credencial serve exclusivamente para iniciar o cadastro definitivo. Após o login, o middleware permite apenas sessão, logout e `/admin/primeiro-acesso`; dashboard, selos, configurações, troca posterior de senha e APIs normais permanecem bloqueados.
+O segredo serve exclusivamente para iniciar o cadastro definitivo e somente seu hash scrypt é persistido. Após o login, o middleware permite apenas sessão, logout e `/admin/primeiro-acesso`; dashboard, selos, configurações, troca posterior de senha e APIs normais permanecem bloqueados.
 
-A tela **Configure seu acesso administrativo** solicita um novo login, uma nova senha e a confirmação. O login é normalizado para minúsculas, deve ter de 4 a 64 caracteres e aceita letras, números, ponto, hífen e underscore. A senha deve ter ao menos 12 caracteres, não pode ser `123456`, não pode coincidir com o login e deve ser confirmada.
+A tela **Configure seu acesso administrativo** solicita um novo login, uma nova senha e a confirmação. O login é normalizado para minúsculas, deve ter de 4 a 64 caracteres e aceita letras, números, ponto, hífen e underscore. A senha deve ter ao menos 12 caracteres, não pode coincidir com o login nem com o segredo de ativação e deve ser confirmada.
 
-Ao concluir, o sistema persiste somente o novo hash scrypt, marca `bootstrap_required=false` e `bootstrap_consumed=true`, incrementa `credential_version` e emite uma sessão nova. A sessão de bootstrap anterior deixa de ser válida.
-
+Ao concluir, o sistema persiste somente o novo hash scrypt, marca `bootstrap_required=false` e `bootstrap_consumed=true`, incrementa `credential_version` e emite uma sessão nova. A sessão de bootstrap anterior deixa de ser válida. Remova `ADMIN_BOOTSTRAP_SECRET` e desative `ADMIN_BOOTSTRAP_ENABLED` após confirmar o acesso definitivo.
 ## Persistência e irreversibilidade
 
 As credenciais ficam em um store site-wide do **Netlify Blobs**, com consistência forte e atualizações condicionais por ETag. São persistidos:
@@ -37,7 +37,7 @@ As credenciais ficam em um store site-wide do **Netlify Blobs**, com consistênc
 - `updated_at`;
 - versão interna do modo de bootstrap.
 
-`bootstrap_consumed=true` e uma credencial definitiva têm precedência absoluta. Carregamentos futuros, reinícios e novos deploys apenas reutilizam esse estado; nunca recriam ou reativam a credencial inicial. Um bootstrap experimental anterior ainda não consumido é migrado uma vez para o modo atual. Estados parciais não consumidos são reparados automaticamente e convergem para `admin` / `123456`. Uma credencial definitiva sem o marcador separado recupera o marcador como consumido sem alterar login ou hash.
+`bootstrap_consumed=true` e uma credencial definitiva têm precedência absoluta. Carregamentos futuros, reinícios e novos deploys apenas reutilizam esse estado; nunca recriam ou reativam a credencial inicial. Um bootstrap experimental anterior ainda não consumido só é migrado quando a ativação atual está explicitamente configurada; estados parciais não consumidos seguem a mesma regra e convergem para o hash do segredo configurado. Deploy Previews e branch deploys não podem criar nem migrar bootstrap. Uma credencial definitiva sem o marcador separado recupera o marcador como consumido sem alterar login ou hash.
 
 Se o marcador persistido disser `bootstrap_consumed=true`, mas a credencial estiver ausente ou ainda for de bootstrap, o sistema falha fechado e registra somente um código seguro no log server-side. Esse caso exige inspeção manual: o marcador nunca é apagado e a credencial definitiva nunca é sobrescrita automaticamente.
 
@@ -53,25 +53,25 @@ Depois do cadastro, `/admin/alterar-senha` exige sessão administrativa, senha a
 
 ## Variáveis de ambiente
 
-- `ADMIN_SESSION_SECRET`: único segredo administrativo de ambiente, aleatório e com pelo menos 32 caracteres;
+- `ADMIN_SESSION_SECRET`: segredo de assinatura das sessões, aleatório e com pelo menos 32 caracteres;
+- `ADMIN_BOOTSTRAP_ENABLED`: use `true` somente durante a ativação inicial em produção ou ambiente local autorizado;
+- `ADMIN_BOOTSTRAP_SECRET`: segredo temporário de ativação, aleatório e com pelo menos 32 caracteres, lido somente no servidor;
 - `ADMIN_ROLE`: perfil inicial, padrão `administrador`;
 - `ADMIN_SESSION_TTL_SECONDS`: duração entre 300 e 86400 segundos, padrão 28800;
 - `SITE_URL`: origem pública do site;
 - `PUBLICATION_MODE`: política pública já existente.
 
-Nenhuma senha de bootstrap, username ou hash administrativo é configurado por variável de ambiente.
-
+O segredo de bootstrap nunca deve ser colocado em `netlify.toml`, código, documentação, logs ou bundle cliente. Se o store estiver vazio e a configuração estiver ausente, desabilitada, curta ou em contexto proibido, a inicialização falha fechada e não grava estado parcial. Depois de `bootstrap_consumed=true`, as variáveis de bootstrap são ignoradas e não podem reabrir o fluxo.
 ## Deploy no Netlify
 
-1. Em **Project configuration → Environment variables**, configure `ADMIN_SESSION_SECRET` com escopo de Functions e pelo menos 32 caracteres aleatórios.
-2. Se necessário, configure `ADMIN_ROLE` e `ADMIN_SESSION_TTL_SECONDS`.
-3. Faça o deploy e acesse `/admin/login`.
-4. Use a credencial inicial somente uma vez e conclua imediatamente `/admin/primeiro-acesso`.
-5. Guarde o login e a senha definitivos em um gerenciador de senhas.
-6. Verifique o diagnóstico não sensível em `/admin/configuracoes`.
+1. Em **Project configuration → Environment variables**, configure `ADMIN_SESSION_SECRET` com escopo server-side e pelo menos 32 caracteres aleatórios.
+2. Para a ativação inicial em produção, configure temporariamente `ADMIN_BOOTSTRAP_ENABLED=true` e `ADMIN_BOOTSTRAP_SECRET` com outro valor aleatório de pelo menos 32 caracteres. Não disponibilize essas variáveis ao cliente.
+3. Faça o deploy, acesse `/admin/login` e autentique com o usuário `admin` e o segredo temporário.
+4. Conclua imediatamente `/admin/primeiro-acesso` com login e senha definitivos diferentes do segredo de ativação.
+5. Confirme o acesso definitivo; em seguida remova `ADMIN_BOOTSTRAP_SECRET` e defina `ADMIN_BOOTSTRAP_ENABLED=false`.
+6. Guarde o login e a senha definitivos em um gerenciador de senhas e verifique o diagnóstico não sensível em `/admin/configuracoes`.
 
-Não coloque segredos em `netlify.toml`. O store site-wide é compartilhado pelos deploys do mesmo projeto Netlify.
-
+Não configure bootstrap em Deploy Preview ou branch deploy. Não coloque segredos em `netlify.toml`. O store site-wide é compartilhado pelos deploys do mesmo projeto Netlify, e um estado consumido nunca é reativado automaticamente.
 ## Arquitetura
 
 - `src/lib/admin/credential-store.mjs`: Netlify Blobs, consistência forte, ETag, migração e irreversibilidade;
