@@ -1,0 +1,185 @@
+{
+  "schema_version": "1.0.0",
+  "id": "SEL-000005",
+  "slug": "brasil-anita-garibaldi-5-centavos-1967",
+  "titulo": "Brasil — Anita Garibaldi — 5 centavos",
+  "descricao_curta": "Selo definitivo brasileiro de 5 centavos com retrato de Anita Garibaldi.",
+  "identificacao": {
+    "pais": "Brasil",
+    "continente": "América do Sul",
+    "administracao_postal": "Correio do Brasil",
+    "tipo": "Selo postal",
+    "categoria": "Definitivo / regular",
+    "serie": "Mulheres Célebres do Brasil",
+    "tema": [
+      "Personalidades",
+      "Mulheres na história",
+      "Revolução Farroupilha"
+    ],
+    "personagem": {
+      "nome": "Ana Maria de Jesus Ribeiro — Anita Garibaldi",
+      "nascimento": "1821-08-30",
+      "falecimento": "1849-08-04",
+      "funcao": "Revolucionária brasileira, Heroína de Dois Mundos",
+      "mandato": null
+    },
+    "valor_facial": {
+      "valor": 5,
+      "unidade": "centavos",
+      "inscricao": "5 CTS."
+    },
+    "cor": "preto sobre amarelo",
+    "orientacao": "vertical"
+  },
+  "emissao": {
+    "ano": 1967,
+    "data_oficial": "1967-04-14",
+    "data_status": "confirmada por referências filatélicas independentes",
+    "finalidade": "uso postal regular",
+    "tiragem": null,
+    "tiragem_status": "não confirmada nas fontes consultadas"
+  },
+  "tecnica": {
+    "impressao": "fotogravura",
+    "papel": "papel postal da emissão regular",
+    "goma_original_da_emissao": "goma ativada por água",
+    "filigrana": "Brasil * Correio (5 mm)",
+    "denteacao": "pente 11 x 11½",
+    "dimensoes_mm": {
+      "largura": 22,
+      "altura": 27
+    },
+    "impressor": "Casa da Moeda do Brasil",
+    "impressor_status": "confirmado em referência filatélica",
+    "desenhista": "Waldemiro Puntar"
+  },
+  "catalogos": {
+    "RHM": {
+      "numero": "529",
+      "confianca": "confirmado por referências filatélicas brasileiras independentes"
+    },
+    "Scott": {
+      "numero": "1039",
+      "confianca": "confirmado por referências filatélicas internacionais independentes"
+    },
+    "Michel": {
+      "numero": "1131",
+      "confianca": "confirmado por duas referências filatélicas independentes"
+    },
+    "Yvert_et_Tellier": {
+      "numero": "818",
+      "confianca": "confirmado por duas referências filatélicas independentes"
+    },
+    "Stanley_Gibbons": {
+      "numero": "1165",
+      "confianca": "confirmado por duas referências filatélicas independentes"
+    }
+  },
+  "exemplar": {
+    "uso_postal": "sem indício visual de circulação",
+    "carimbo_frontal": "não visível",
+    "goma": "não determinada pelas fotografias",
+    "charneira": "não determinada pela fotografia",
+    "papel": "íntegro, com tonalidade amarelada e marcas discretas no verso",
+    "serrilha": "presente nos quatro lados; pequenas irregularidades periféricas",
+    "centragem": "boa",
+    "rasgos": "não observados nas fotografias",
+    "dobras": "não observadas nas fotografias",
+    "classificacao_visual": "bom estado visual",
+    "observacao": "A classificação é baseada somente nas fotografias e não substitui exame físico da goma, da charneira, da filigrana, do papel e da denteação."
+  },
+  "imagens": {
+    "frente": "/assets/selos/SEL-000005/SEL-000005-frente.webp",
+    "verso": "/assets/selos/SEL-000005/SEL-000005-verso.webp",
+    "card": "/assets/selos/SEL-000005/SEL-000005-card.webp",
+    "thumb": null,
+    "alt": "Selo brasileiro amarelo e preto de 5 centavos com retrato de Anita Garibaldi."
+  },
+  "historico": {
+    "resumo": "Ana Maria de Jesus Ribeiro, conhecida como Anita Garibaldi, participou da Revolução Farroupilha no Brasil e das lutas pela unificação italiana, tornando-se conhecida como Heroína de Dois Mundos.",
+    "nota": "Anita Garibaldi foi inscrita no Livro dos Heróis e Heroínas da Pátria pela Lei nº 12.615, de 2012."
+  },
+  "historico_editorial": [
+    {
+      "tipo": "aprovacao",
+      "ocorrido_em": "2026-07-29T11:35:22.153Z",
+      "responsavel": "Thiago Gelinski",
+      "motivo": "Publicação autorizada expressamente pelo proprietário no fluxo permanente desta conversa",
+      "hash": "0d492d55ff2da4a77b8812556052db062b53855cfc2c24e6986fda80618395cd",
+      "versao": "1.0.0-pesquisa"
+    },
+    {
+      "tipo": "publicacao",
+      "ocorrido_em": "2026-07-29T11:35:23.899Z",
+      "responsavel": "Thiago Gelinski",
+      "motivo": "registro homologado e aprovado para publicação",
+      "hash": "0d492d55ff2da4a77b8812556052db062b53855cfc2c24e6986fda80618395cd",
+      "versao": "1.0.0-pesquisa"
+    }
+  ],
+  "fontes": [
+    {
+      "titulo": "Acervo de Selos — Anita Garibaldi",
+      "url": "https://www.acervodeselos.com.br/2017/12/anita-garibaldi.html",
+      "uso": "série, valor facial, data de emissão, RHM, desenhista, cor, filigrana e denteação"
+    },
+    {
+      "titulo": "Allnumis — 5 Centavos Anita Garibaldi",
+      "url": "https://www.allnumis.com/stamps-catalog/brasil/personalities/5-centavos-anita-garibaldi-50854",
+      "uso": "data, série, impressão, impressor, dimensões e correlação RHM–Scott–Michel–Yvert–Stanley Gibbons"
+    },
+    {
+      "titulo": "LastDodo — Anita Garibaldi 1967",
+      "url": "https://www.lastdodo.com/en/items/1511937-anita-garibaldi",
+      "uso": "data, valor facial, cor, impressão, goma, filigrana, denteação e correlação de catálogos"
+    },
+    {
+      "titulo": "O Selo — Anita Garibaldi RHM 529b",
+      "url": "https://www.oselo.com.br/produto/1967-5-cts-sem-filigrana-em-papel-gessado-rhm-n-529-b-s48560/",
+      "uso": "RHM, valor facial e documentação de variedade sem filigrana distinta do tipo básico"
+    },
+    {
+      "titulo": "Museu Histórico Nacional — Ana Maria de Jesus Ribeiro: Anita Garibaldi",
+      "url": "https://mhn.museus.gov.br/ana-maria-de-jesus-ribeiro-anita-garibaldi/",
+      "uso": "nome, trajetória histórica, participação na Guerra dos Farrapos e atuação na Itália"
+    },
+    {
+      "titulo": "Prefeitura de Laguna — Há 197 anos nascia Anita Garibaldi",
+      "url": "https://laguna.sc.gov.br/noticia-510424/",
+      "uso": "nome, nascimento, falecimento e trajetória"
+    },
+    {
+      "titulo": "Senado Federal — Heróis e heroínas do Brasil",
+      "url": "https://www12.senado.leg.br/noticias/infomaterias/2023/03/quem-sao-os-herois-e-as-heroinas-do-brasil",
+      "uso": "título Heroína de Dois Mundos e inscrição no Livro dos Heróis e Heroínas da Pátria"
+    }
+  ],
+  "seo": {
+    "title": "Anita Garibaldi — 5 centavos (1967) | Coleção Selos",
+    "meta_description": "Ficha do selo brasileiro de Anita Garibaldi, RHM 529, emitido em 1967: imagens, dados técnicos, catálogos e contexto histórico.",
+    "canonical_path": "/selos/brasil-anita-garibaldi-5-centavos-1967",
+    "open_graph_title": "Anita Garibaldi — 5 centavos — Brasil, 1967",
+    "open_graph_description": "Conheça o selo brasileiro RHM 529 da série Mulheres Célebres do Brasil."
+  },
+  "aprovacao_humana": {
+    "status": "aprovado",
+    "decisao": "aprovado",
+    "aprovado_por": "Thiago Gelinski",
+    "aprovado_em": "2026-07-29T11:35:22.151Z",
+    "hash_do_registro_aprovado": "0d492d55ff2da4a77b8812556052db062b53855cfc2c24e6986fda80618395cd",
+    "versao_aprovada": "1.0.0-pesquisa",
+    "escopo": "publicacao_catalogo",
+    "observacao": "Publicação autorizada expressamente pelo proprietário no fluxo permanente desta conversa"
+  },
+  "publicacao": {
+    "status": "publicado",
+    "apto_para_preview": true,
+    "apto_para_publicacao": true,
+    "motivo": "registro homologado e aprovado para publicação"
+  },
+  "auditoria": {
+    "criado_em": "2026-07-29",
+    "ultima_revisao": "2026-07-29",
+    "versao": "1.0.0-pesquisa"
+  }
+}
