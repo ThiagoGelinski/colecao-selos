@@ -26,8 +26,10 @@ globalThis.__MOCK_BLOB_STORE = {
         return blobData[key];
     },
     set: async (key, val, opts) => {
+        if (opts?.onlyIfNew && key in blobData) return { modified: false };
+        if (opts?.onlyIfMatch && blobMeta[key]?.etag !== opts.onlyIfMatch) return { modified: false };
         blobData[key] = val;
-        let etag = 'mock-etag-' + Date.now();
+        const etag = 'mock-etag-' + Date.now() + '-' + Math.random();
         blobMeta[key] = { etag, metadata: opts?.metadata || {} };
         return { modified: true, etag };
     },
@@ -54,6 +56,7 @@ globalThis.__MOCK_BLOB_STORE = {
         return { modified: true, etag: newEtag };
     },
     getMetadata: async (key) => blobMeta[key] || null,
+    delete: async (key) => { delete blobData[key]; delete blobMeta[key]; },
     list: async () => ({ blobs: Object.keys(blobData).map(k => ({ key: k })) })
 };
 
@@ -109,6 +112,7 @@ test('Microbloco 2A.2.4 - Upload Serverless Seguro de Assets', async (t) => {
     const runPOST = async (id, formData, isAuthenticated = true) => {
         const req = new Request(`http://localhost/api/admin/selos/${id}/assets`, {
             method: 'POST',
+            headers: { origin: 'http://localhost' },
             body: formData,
         });
         const ctx = {
@@ -288,6 +292,7 @@ test('Microbloco 2A.2.4 - Upload Serverless Seguro de Assets', async (t) => {
         const jsonRAW = blobData['manifests/SEL-999999.json'];
         const json = JSON.parse(jsonRAW);
         assert.equal(json.imagens?.card, undefined, 'Atomic Violation: JSON modificado mesmo existindo erro persistência');
+        assert.equal(blobData['assets/selos/SEL-999999/SEL-999999-card.webp'], undefined, 'Rollback deve remover somente o asset criado pela operação');
     });
 
 });

@@ -11,6 +11,16 @@ export function revokeApproval(record, { reviewer, reason, type = 'revogacao', c
   appendEditorialEvent(candidate, { tipo: type, responsavel: reviewer, motivo: reason, hash: currentHash, versao: candidate.auditoria?.versao ?? null, ocorrido_em: occurredAt });
   return candidate;
 }
+export function applyAssetMutation(record, { reviewer, kind, operation, occurredAt = new Date().toISOString() }) {
+  const reason = `${operation === 'retificacao' ? 'retificação' : 'upload inicial'} administrativo do asset ${kind}`;
+  let candidate = structuredClone(record);
+  if (candidate.aprovacao_humana?.status === 'aprovado') candidate = revokeApproval(candidate, { reviewer, reason, type: 'invalidacao', occurredAt });
+  else appendEditorialEvent(candidate, { tipo: 'rejeicao', responsavel: reviewer, motivo: reason, hash: null, versao: candidate.auditoria?.versao ?? null, ocorrido_em: occurredAt });
+  candidate.auditoria = candidate.auditoria ?? {};
+  candidate.auditoria.ultima_revisao = occurredAt.slice(0, 10);
+  candidate.auditoria.versao = `${record.auditoria?.versao ?? '1.0.0'}+${operation}.${Date.parse(occurredAt)}`;
+  return candidate;
+}
 export function inspectEditorialHistory(record) {
   const errors = []; const warnings = []; const informational = []; const history = record.historico_editorial;
   if (history === undefined) { informational.push(`${record.id}: registro legado sem historico_editorial.`); return { errors, warnings, informational }; }

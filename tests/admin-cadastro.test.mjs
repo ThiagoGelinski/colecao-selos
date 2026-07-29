@@ -1,52 +1,45 @@
 /**
- * BLOCO 2A — Cadastro Manual de Selos
- * Testes obrigatórios (21 itens) conforme especificação.
- *
- * Usa path.resolve() (cwd = raiz do projeto) e spawnSync/spawn para
- * os testes que precisam criar selos, seguindo o padrão dos testes existentes.
- * Testes que apenas importam módulos usam import direto.
+ * BLOCO 2A — Cadastro Manual de Selos.
+ * Toda persistência usa um workspace temporário isolado via SELO_ROOT.
  */
-import test from 'node:test';
+import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
-import { readFile, writeFile, rm } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { tmpdir } from 'node:os';
+import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 
-// ──────────────────────────────────────────────────────────────────────────────
-// Caminhos (process.cwd() é a raiz do projeto quando npm test é executado)
-// ──────────────────────────────────────────────────────────────────────────────
-const TOOL = path.resolve('tools/catalogo.mjs');
-const DATA_DIR = path.resolve('src/data/selos');
-const ASSET_DIR = path.resolve('public/assets/selos');
-const ID_MANIFEST = path.resolve('manifests/ids.json');
+const PROJECT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const ORIGINAL_SELO_ROOT = process.env.SELO_ROOT;
+const ROOT = await mkdtemp(path.join(tmpdir(), 'selos-admin-cadastro-'));
+process.env.SELO_ROOT = ROOT;
+const TOOL = path.join(PROJECT_ROOT, 'tools', 'catalogo.mjs');
+const DATA_DIR = path.join(ROOT, 'src', 'data', 'selos');
+const ASSET_DIR = path.join(ROOT, 'public', 'assets', 'selos');
+const ID_MANIFEST = path.join(ROOT, 'manifests', 'ids.json');
+await mkdir(path.dirname(ID_MANIFEST), { recursive: true });
+await mkdir(path.join(ROOT, 'templates'), { recursive: true });
+await cp(path.join(PROJECT_ROOT, 'src', 'data', 'selos'), DATA_DIR, { recursive: true });
+await cp(path.join(PROJECT_ROOT, 'public', 'assets', 'selos'), ASSET_DIR, { recursive: true });
+await cp(path.join(PROJECT_ROOT, 'manifests', 'ids.json'), ID_MANIFEST);
+await cp(path.join(PROJECT_ROOT, 'templates', 'selo.template.json'), path.join(ROOT, 'templates', 'selo.template.json'));
+after(async () => { if (ORIGINAL_SELO_ROOT === undefined) delete process.env.SELO_ROOT; else process.env.SELO_ROOT = ORIGINAL_SELO_ROOT; await rm(ROOT, { recursive: true, force: true }); });
 
-// Helpers
 function run(command, args = [], env = {}) {
-    return spawnSync(process.execPath, [TOOL, command, ...args], {
-        cwd: process.cwd(), encoding: 'utf8', env: { ...process.env, ...env },
-    });
+  return spawnSync(process.execPath, [TOOL, command, ...args], { cwd: ROOT, encoding: 'utf8', env: { ...process.env, SELO_ROOT: ROOT, ...env } });
 }
-async function snapshotManifest() {
-    return JSON.parse(await readFile(ID_MANIFEST, 'utf8'));
-}
-async function restoreManifest(snapshot) {
-    await writeFile(ID_MANIFEST, `${JSON.stringify(snapshot, null, 2)}\n`, 'utf8');
-}
-async function removeIfExists(p) {
-    await rm(p, { recursive: true, force: true });
-}
+async function snapshotManifest() { return JSON.parse(await readFile(ID_MANIFEST, 'utf8')); }
+async function restoreManifest(snapshot) { await writeFile(ID_MANIFEST, `${JSON.stringify(snapshot, null, 2)}\n`, 'utf8'); }
+async function removeIfExists(target) { await rm(target, { recursive: true, force: true }); }
 
-// ──────────────────────────────────────────────────────────────────────────────
-// Importações dos módulos do projeto
-// ──────────────────────────────────────────────────────────────────────────────
-import { accessDecision } from '../src/lib/admin/access.mjs';
-import { normalizeSlug, dataPath, loadRecords, resolveRecord } from '../src/lib/catalogo/records.mjs';
-import { assertManifestValid } from '../src/lib/catalogo/manifest.mjs';
-import { validateRecord } from '../src/lib/catalogo/audit.mjs';
-import { safeApiFailure } from '../src/lib/admin/api.mjs';
-import { readJson } from '../src/lib/catalogo/io.mjs';
-
+const { accessDecision } = await import('../src/lib/admin/access.mjs');
+const { normalizeSlug, dataPath, loadRecords, resolveRecord } = await import('../src/lib/catalogo/records.mjs');
+const { assertManifestValid } = await import('../src/lib/catalogo/manifest.mjs');
+const { validateRecord } = await import('../src/lib/catalogo/audit.mjs');
+const { safeApiFailure } = await import('../src/lib/admin/api.mjs');
+const { readJson } = await import('../src/lib/catalogo/io.mjs');
 // ──────────────────────────────────────────────────────────────────────────────
 // TESTE 1 — /admin/selos/novo exige autenticação
 // ──────────────────────────────────────────────────────────────────────────────
@@ -59,7 +52,7 @@ test('1 — rota /admin/selos/novo exige autenticação quando não há sessão'
 // TESTE 2 — Arquivo novo.astro existe
 // ──────────────────────────────────────────────────────────────────────────────
 test('2 — src/pages/admin/selos/novo.astro existe', () => {
-    const filePath = path.resolve('src/pages/admin/selos/novo.astro');
+    const filePath = path.join(PROJECT_ROOT, 'src', 'pages', 'admin', 'selos', 'novo.astro');
     assert.ok(existsSync(filePath), `Arquivo não encontrado: ${filePath}`);
 });
 

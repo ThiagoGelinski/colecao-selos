@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import { apiError, apiPayload, jsonResponse, safeApiFailure } from '../../../../lib/admin/api.mjs';
 import { normalizeSlug } from '../../../../lib/catalogo/records.mjs';
+import { invalidOriginResponse, validateAdminMutationOrigin } from '../../../../lib/admin/request-security.mjs';
 import { createStampTransaction } from '../../../../lib/catalogo/transactions.mjs';
 export const prerender = false;
 
@@ -19,6 +20,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
   if (!locals.adminUser) {
     return jsonResponse(apiError('UNAUTHORIZED', 'Autenticação necessária.'), 401);
   }
+  if (!validateAdminMutationOrigin(request)) return invalidOriginResponse();
 
   // Validação de Content-Type
   const contentType = request.headers.get('content-type') ?? '';

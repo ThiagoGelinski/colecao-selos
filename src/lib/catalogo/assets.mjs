@@ -1,11 +1,9 @@
-import { access } from 'node:fs/promises';
-import { constants } from 'node:fs';
 import path from 'node:path';
 import { ASSET_DIR } from './paths.mjs';
+import { existsAssetBinary } from './io.mjs';
 
 export const ASSET_KINDS = ['frente', 'verso', 'card', 'thumb'];
 export const REQUIRED_ASSETS = new Set(['frente', 'card']);
-const exists = async (target) => access(target, constants.F_OK).then(() => true).catch(() => false);
 export function validateAssetPath(id, kind, publicPath) {
   if (typeof publicPath !== 'string' || !publicPath) return { valid: false, error: `${kind}: caminho ausente.` };
   if (publicPath.includes('..') || publicPath.includes('\\') || publicPath.includes('%')) return { valid: false, error: `${kind}: caminho inseguro ou path traversal.` };
@@ -19,7 +17,7 @@ export async function validateAssets(record) {
     const publicPath = record.imagens?.[kind];
     if (!publicPath && !REQUIRED_ASSETS.has(kind)) continue;
     const checked = validateAssetPath(record.id, kind, publicPath);
-    results.push({ kind, path: publicPath ?? null, path_valid: checked.valid, exists: checked.valid ? await exists(checked.absolute) : false, error: checked.error ?? null });
+    results.push({ kind, path: publicPath ?? null, path_valid: checked.valid, exists: checked.valid ? await existsAssetBinary(checked.absolute) : false, error: checked.error ?? null });
   }
   return results;
 }

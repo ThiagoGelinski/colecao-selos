@@ -1,14 +1,15 @@
 import type { APIRoute } from 'astro';
 import { apiError, apiPayload, jsonResponse, safeApiFailure } from '../../../../lib/admin/api.mjs';
+import { invalidOriginResponse, validateAdminMutationOrigin } from '../../../../lib/admin/request-security.mjs';
 import { changeAdminPassword } from '../../../../lib/admin/auth-service.mjs';
 import { loadAuthConfig } from '../../../../lib/admin/config.mjs';
 import { createNetlifyAdminStore } from '../../../../lib/admin/credential-store.mjs';
 import { createSession, sessionCookieOptions, SESSION_COOKIE } from '../../../../lib/admin/session.mjs';
 import { consumeRateLimit } from '../../../../lib/admin/rate-limit.mjs';
 export const prerender = false;
-export const POST: APIRoute = async ({ request, cookies, url, locals }) => {
+export const POST: APIRoute = async ({ request, cookies, locals }) => {
   try {
-    const origin = request.headers.get('origin'); if (!origin || origin !== url.origin) return jsonResponse(apiError('INVALID_ORIGIN', 'Origem da requisição inválida.'), 403);
+    if (!validateAdminMutationOrigin(request)) return invalidOriginResponse();
     const length = Number(request.headers.get('content-length') || 0); if (length > 4096) return jsonResponse(apiError('PAYLOAD_TOO_LARGE', 'Requisição excede o limite permitido.'), 413);
     const client = request.headers.get('x-nf-client-connection-ip') || request.headers.get('x-forwarded-for')?.split(',')[0] || 'local'; const rate = consumeRateLimit(`change-password:${client}:${locals.adminUser?.username ?? 'unknown'}`, { limit: 5, windowMs: 60_000 });
     if (!rate.allowed) return jsonResponse(apiError('RATE_LIMITED', 'Muitas tentativas. Aguarde antes de tentar novamente.'), 429, { 'Retry-After': String(Math.ceil((rate.resetAt - Date.now()) / 1000)) });

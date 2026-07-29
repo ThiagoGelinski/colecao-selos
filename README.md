@@ -20,7 +20,7 @@ Catálogo filatélico digital público, estático e orientado a dados. A primeir
 
 ## Instalação e execução
 
-Requer Node.js 22 ou versão LTS compatível.
+Requer Node.js 24.x, alinhado entre desenvolvimento local, Netlify e GitHub Actions. Use `nvm use` para carregar a versão indicada em `.nvmrc`.
 
 ```bash
 npm install

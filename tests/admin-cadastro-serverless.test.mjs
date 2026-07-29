@@ -11,11 +11,13 @@ const createContext = (bodyObj, isAuthenticated = true) => {
     const bodyStr = bodyObj ? JSON.stringify(bodyObj) : '';
     const reqHeaders = new Headers({
         'content-type': 'application/json',
+        origin: 'http://localhost',
         'content-length': String(bodyStr.length)
     });
 
     return {
         request: {
+            url: 'http://localhost/api/admin/selos',
             headers: reqHeaders,
             text: async () => bodyStr
         },

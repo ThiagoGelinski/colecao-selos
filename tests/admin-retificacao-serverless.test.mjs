@@ -63,7 +63,7 @@ function scenario({ assetExists = true, recordConflict = false, recordFailure = 
 async function callPUT(formData, options) {
   const state = scenario(options);
   const { PUT } = await import('../src/pages/api/admin/selos/[id]/assets.ts');
-  const response = await PUT({ params: { id: ID }, locals: { adminUser: { username: 'admin-tester-x' } }, request: { formData: async () => formData } });
+  const response = await PUT({ params: { id: ID }, locals: { adminUser: { username: 'admin-tester-x' } }, request: { url: `http://localhost/api/admin/selos/${ID}/assets`, headers: new Headers({ origin: 'http://localhost' }), formData: async () => formData } });
   return { response, state };
 }
 

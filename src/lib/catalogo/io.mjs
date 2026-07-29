@@ -2,7 +2,7 @@ import { access, mkdir, readFile, rename, writeFile, readdir, link, unlink, stat
 import { constants } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { getStore } from '@netlify/blobs';
 
 export const isServerlessEngine = () => {
@@ -46,6 +46,8 @@ const getAssetBlobKey = (target) => {
     return null;
 };
 
+const baselineHash = (value) => createHash('sha256').update(JSON.stringify(value)).digest('hex');
+
 const isDeepEqual = (a, b) => {
     if (a === b) return true;
     if (typeof a !== 'object' || a === null || typeof b !== 'object' || b === null) return false;
@@ -88,21 +90,17 @@ export const readJson = async (target) => {
     }
 
     const blobStore = await getBlobStore();
-    const blobRaw = await blobStore.get(blobKey);
-
-    if (blobRaw === null || blobRaw === undefined) {
-        if (baselineError) throw baselineError;
-        return baselineData;
-    }
-
-    const blobData = JSON.parse(blobRaw);
-
+    const payload = typeof blobStore.getWithMetadata === 'function'
+        ? await blobStore.getWithMetadata(blobKey, { type: 'json', consistency: 'strong' })
+        : await blobStore.get(blobKey).then((raw) => raw == null ? null : ({ data: typeof raw === 'string' ? JSON.parse(raw) : raw, metadata: {} }));
+    if (!payload?.data) { if (baselineError) throw baselineError; return baselineData; }
+    const blobData = payload.data;
     if (!baselineError) {
-        if (!isDeepEqual(blobData, baselineData)) {
-            throw new Error(`Inconsistência Crítica (Dual-Source): Divergência de dados inaceitável no alvo ${target}`);
-        }
+        const materializedHash = payload.metadata?.baseline_hash;
+        if (materializedHash) {
+            if (materializedHash !== baselineHash(baselineData)) throw new Error(`Inconsistência Crítica (Dual-Source): baseline alterado após materialização em ${target}`);
+        } else if (!isDeepEqual(blobData, baselineData)) throw new Error(`Inconsistência Crítica (Dual-Source): Divergência de dados inaceitável no alvo ${target}`);
     }
-
     return blobData;
 };
 
@@ -239,7 +237,7 @@ export const updateMutableManifestAtomic = async (target, modifier) => {
     const MAX_RETRIES = 5;
 
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-        const payload = await blobStore.getWithMetadata(blobKey, { type: 'json' });
+        const payload = await blobStore.getWithMetadata(blobKey, { type: 'json', consistency: 'strong' });
 
         if (!payload || !payload.data) {
             throw new Error(`Manifest inexistente no Blob Storage para atualização atômica: ${target}`);
@@ -254,7 +252,7 @@ export const updateMutableManifestAtomic = async (target, modifier) => {
 
         const nextData = modifier(currentData);
 
-        const result = await blobStore.setJSON(blobKey, nextData, { onlyIfMatch: currentEtag });
+        const result = await blobStore.setJSON(blobKey, nextData, { onlyIfMatch: currentEtag, ...(payload.metadata ? { metadata: payload.metadata } : {}) });
 
         if (result && result.modified === false) {
             if (attempt === MAX_RETRIES) {
@@ -267,6 +265,22 @@ export const updateMutableManifestAtomic = async (target, modifier) => {
     }
 };
 
+const mutableRecordPayload = async (target) => {
+    const blobKey = getBlobKey(target);
+    if (!blobKey || !/^manifests\/SEL-[0-9]{6}\.json$/.test(blobKey)) throw new Error(`Alvo inválido para materialização: ${target}`);
+    const store = getBlobStore();
+    let payload = await store.getWithMetadata(blobKey, { type: 'json', consistency: 'strong' });
+    if (payload?.data && payload.etag) return { store, blobKey, payload };
+    const baseline = JSON.parse(await readFile(target, 'utf8'));
+    const digest = baselineHash(baseline);
+    const created = await store.setJSON(blobKey, baseline, { onlyIfNew: true, metadata: { baseline_hash: digest } });
+    payload = await store.getWithMetadata(blobKey, { type: 'json', consistency: 'strong' });
+    if (!payload?.data || !payload.etag) throw new Error(`Registro indisponível após materialização: ${target}`);
+    const recordedHash = payload.metadata?.baseline_hash;
+    if (!isDeepEqual(payload.data, baseline) && recordedHash !== digest) throw conflictError('Divergência durante materialização do baseline.', 'RECORD_CONFLICT');
+    if (created?.modified === false && recordedHash && recordedHash !== digest) throw conflictError('Baseline divergiu durante materialização.', 'RECORD_CONFLICT');
+    return { store, blobKey, payload };
+};
 export const updateRecordAtomic = async (target, modifier) => {
     if (!isServerlessEngine()) {
         const fsRaw = await readFile(target, 'utf8');
@@ -281,11 +295,11 @@ export const updateRecordAtomic = async (target, modifier) => {
     }
     const blobKey = 'manifests/' + parts[1];
 
-    const blobStore = getBlobStore();
+    const { store: blobStore } = await mutableRecordPayload(target);
     const MAX_RETRIES = 5;
 
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-        const payload = await blobStore.getWithMetadata(blobKey, { type: 'json' });
+        const payload = await blobStore.getWithMetadata(blobKey, { type: 'json', consistency: 'strong' });
 
         if (!payload || !payload.data) {
             throw new Error(`Registro inexistente no Blob Storage para atualização atômica: ${target}`);
@@ -300,7 +314,7 @@ export const updateRecordAtomic = async (target, modifier) => {
 
         const nextData = modifier(currentData);
 
-        const result = await blobStore.setJSON(blobKey, nextData, { onlyIfMatch: currentEtag });
+        const result = await blobStore.setJSON(blobKey, nextData, { onlyIfMatch: currentEtag, ...(payload.metadata ? { metadata: payload.metadata } : {}) });
 
         if (result && result.modified === false) {
             if (attempt === MAX_RETRIES) {
@@ -320,8 +334,8 @@ export const existsAssetBinary = async (target) => {
     const blobKey = getAssetBlobKey(target);
     if (!blobKey) throw new Error(`Alvo inválido para checagem de asset em nuvem: ${target}`);
     const blobStore = getBlobStore();
-    const meta = await blobStore.getMetadata(blobKey);
-    return meta !== null && meta.etag !== undefined;
+    if (typeof blobStore.getMetadata === 'function') { const meta = await blobStore.getMetadata(blobKey); return meta !== null && meta.etag !== undefined; }
+    return (await blobStore.get(blobKey)) != null;
 };
 
 export const readAssetBinary = async (target) => {
@@ -364,6 +378,34 @@ export const writeAssetBinary = async (target, buffer, mimeType = null) => {
     }
     await blobStore.set(blobKey, buffer, options);
 };
+/** @param {string} target @param {Buffer|Uint8Array} buffer @param {string|null} mimeType */
+export const beginAssetCreation = async (target, buffer, mimeType = null) => {
+    const blobKey = getAssetBlobKey(target);
+    if (!blobKey) throw new Error(`Alvo inválido para criação de asset: ${target}`);
+    if (!isServerlessEngine()) {
+        await mkdir(path.dirname(target), { recursive: true });
+        try { await writeFile(target, buffer, { flag: 'wx' }); }
+        catch (error) { if (error?.code === 'EEXIST') throw conflictError('Asset já existe.', 'ASSET_CONFLICT'); throw error; }
+        const snapshot = await stat(target, { bigint: true });
+        return { commit: async () => {}, rollback: async () => {
+            const quarantine = `${target}.${process.pid}.${randomUUID()}.rollback`;
+            await rename(target, quarantine);
+            if (!sameFile(snapshot, await stat(quarantine, { bigint: true }))) { await rename(quarantine, target); throw conflictError('Asset mudou; rollback recusado.', 'ASSET_CONFLICT'); }
+            await unlink(quarantine);
+        } };
+    }
+    const store = getBlobStore();
+    const created = await store.set(blobKey, buffer, { onlyIfNew: true, ...(mimeType ? { metadata: { 'content-type': mimeType } } : {}) });
+    if (!created || created.modified === false || !created.etag) throw conflictError('Asset já existe.', 'ASSET_CONFLICT');
+    return { commit: async () => {}, rollback: async () => {
+        const tombstone = Buffer.from(`rollback:${randomUUID()}`);
+        const claimed = await store.set(blobKey, tombstone, { onlyIfMatch: created.etag, metadata: { transaction_state: 'rollback' } });
+        if (!claimed || claimed.modified === false || !claimed.etag) throw conflictError('Asset mudou; rollback recusado.', 'ASSET_CONFLICT');
+        const current = await store.getMetadata(blobKey, { consistency: 'strong' });
+        if (!current || current.etag !== claimed.etag) throw conflictError('Asset mudou após compensação; remoção recusada.', 'ASSET_CONFLICT');
+        await store.delete(blobKey);
+    } };
+};
 const conflictError = (message, code) => Object.assign(new Error(message), { code });
 const sameFile = (left, right) => left.dev === right.dev && left.ino === right.ino;
 
@@ -394,12 +436,11 @@ export const updateRecordExpected = async (target, expectedUpdatedAt, modifier) 
     }
     const blobKey = getBlobKey(target);
     if (!blobKey || !/^manifests\/SEL-[0-9]{6}\.json$/.test(blobKey)) throw new Error(`Alvo inválido para atualização condicional: ${target}`);
-    const store = getBlobStore();
-    const payload = await store.getWithMetadata(blobKey, { type: 'json', consistency: 'strong' });
+    const { store, payload } = await mutableRecordPayload(target);
     if (!payload?.data || !payload.etag) throw new Error(`Registro ou ETag indisponível: ${target}`);
     if (payload.data.auditoria?.ultima_revisao !== expectedUpdatedAt) throw conflictError('O registro mudou desde que foi aberto.', 'RECORD_CONFLICT');
     const next = modifier(structuredClone(payload.data));
-    const result = await store.setJSON(blobKey, next, { onlyIfMatch: payload.etag });
+    const result = await store.setJSON(blobKey, next, { onlyIfMatch: payload.etag, ...(payload.metadata ? { metadata: payload.metadata } : {}) });
     if (!result || result.modified === false) throw conflictError('O registro mudou durante a retificação.', 'RECORD_CONFLICT');
     return next;
 };
