@@ -27,15 +27,16 @@ const id = Astro.params.id ?? '';
                     <img src="${escape(path)}" alt="Preview ${escape(kind)}" style="max-width:200px; display:block; margin: 10px 0; border: 1px solid #ddd;" />
                     <p class="muted">Path: <code>${escape(path)}</code></p>
                     <span class="badge ok">Processado</span>
+                    <p><a class="button" href="${escape(path)}" target="_blank" rel="noopener">Abrir imagem em tamanho maior</a></p>
                 </div>
                 <form class="asset-upload-form" data-kind="${escape(kind)}" data-id="${escape(id)}" data-method="PUT">
                     <input type="hidden" name="expected_updated_at" value="${escape(payload.data.registro.auditoria?.ultima_revisao)}" />
                     <div style="margin-bottom: 8px; border-top: 1px dashed #eee; padding-top: 8px;">
-                        <label for="replace-file-${escape(kind)}" style="display:block; font-weight:bold; margin-bottom: 4px;">Substituir imagem (.webp)</label>
+                        <label for="replace-file-${escape(kind)}" style="display:block; font-weight:bold; margin-bottom: 4px;">Retificar imagem (.webp)</label>
                         <input type="file" id="replace-file-${escape(kind)}" accept="image/webp" required />
                     </div>
                     <div class="feedback-msg" style="margin-bottom: 8px; color: #cc0000;"></div>
-                    <button type="submit" class="button">Substituir</button>
+                    <button type="submit" class="button">Substituir imagem</button>
                 </form>
             `;
         } else {
@@ -82,8 +83,11 @@ const id = Astro.params.id ?? '';
               }
 
               try {
-                  const res = await fetch(`/api/admin/selos/${encodeURIComponent(f.dataset.id!)}/assets`, {
-                      method: httpMethod,
+                  const endpoint = httpMethod === 'PUT'
+                      ? `/api/admin/selos/${encodeURIComponent(f.dataset.id!)}/assets/retificar`
+                      : `/api/admin/selos/${encodeURIComponent(f.dataset.id!)}/assets`;
+                  const res = await fetch(endpoint, {
+                      method: 'POST',
                       body: formData
                   });
                   const json = await res.json();

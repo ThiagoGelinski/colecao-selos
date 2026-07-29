@@ -15,7 +15,7 @@ let _blobStore = null;
 const getBlobStore = () => {
     if (globalThis.__MOCK_BLOB_STORE) return globalThis.__MOCK_BLOB_STORE;
     if (!_blobStore) {
-        _blobStore = getStore('colecao-selos-catalogo');
+        _blobStore = getStore({ name: 'colecao-selos-catalogo', consistency: 'strong' });
     }
     return _blobStore;
 };
@@ -44,6 +44,33 @@ const getAssetBlobKey = (target) => {
         return assetMatch[0].startsWith('/') ? assetMatch[0].slice(1) : assetMatch[0];
     }
     return null;
+};
+
+const assetFilesystemCandidates = (target, blobKey) => {
+    const candidates = [target];
+    if (process.env.LAMBDA_TASK_ROOT) candidates.push(path.join(process.env.LAMBDA_TASK_ROOT, 'public', ...blobKey.split('/')));
+    return [...new Set(candidates)];
+};
+
+const readAssetFromFilesystem = async (target, blobKey) => {
+    let lastError = null;
+    for (const candidate of assetFilesystemCandidates(target, blobKey)) {
+        try { return await readFile(candidate); }
+        catch (error) { if (error?.code !== 'ENOENT') throw error; lastError = error; }
+    }
+    throw lastError ?? Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+};
+
+const readBlobWithEtag = async (store, key, type) => {
+    const payload = await store.getWithMetadata(key, { type, consistency: 'strong' });
+    if (!payload?.data || payload.etag) return payload;
+    const descriptor = typeof store.getMetadata === 'function' ? await store.getMetadata(key, { consistency: 'strong' }) : null;
+    let etag = descriptor?.etag;
+    if (!etag && typeof store.list === 'function') {
+        const listing = await store.list({ prefix: key });
+        etag = listing?.blobs?.find((entry) => entry.key === key)?.etag;
+    }
+    return { ...payload, etag, metadata: payload.metadata ?? descriptor?.metadata ?? {} };
 };
 
 const baselineHash = (value) => createHash('sha256').update(JSON.stringify(value)).digest('hex');
@@ -91,7 +118,7 @@ export const readJson = async (target) => {
 
     const blobStore = await getBlobStore();
     const payload = typeof blobStore.getWithMetadata === 'function'
-        ? await blobStore.getWithMetadata(blobKey, { type: 'json', consistency: 'strong' })
+        ? await readBlobWithEtag(blobStore, blobKey, 'json')
         : await blobStore.get(blobKey).then((raw) => raw == null ? null : ({ data: typeof raw === 'string' ? JSON.parse(raw) : raw, metadata: {} }));
     if (!payload?.data) { if (baselineError) throw baselineError; return baselineData; }
     const blobData = payload.data;
@@ -237,7 +264,7 @@ export const updateMutableManifestAtomic = async (target, modifier) => {
     const MAX_RETRIES = 5;
 
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-        const payload = await blobStore.getWithMetadata(blobKey, { type: 'json', consistency: 'strong' });
+        const payload = await readBlobWithEtag(blobStore, blobKey, 'json');
 
         if (!payload || !payload.data) {
             throw new Error(`Manifest inexistente no Blob Storage para atualização atômica: ${target}`);
@@ -269,12 +296,12 @@ const mutableRecordPayload = async (target) => {
     const blobKey = getBlobKey(target);
     if (!blobKey || !/^manifests\/SEL-[0-9]{6}\.json$/.test(blobKey)) throw new Error(`Alvo inválido para materialização: ${target}`);
     const store = getBlobStore();
-    let payload = await store.getWithMetadata(blobKey, { type: 'json', consistency: 'strong' });
+    let payload = await readBlobWithEtag(store, blobKey, 'json');
     if (payload?.data && payload.etag) return { store, blobKey, payload };
     const baseline = JSON.parse(await readFile(target, 'utf8'));
     const digest = baselineHash(baseline);
     const created = await store.setJSON(blobKey, baseline, { onlyIfNew: true, metadata: { baseline_hash: digest } });
-    payload = await store.getWithMetadata(blobKey, { type: 'json', consistency: 'strong' });
+    payload = await readBlobWithEtag(store, blobKey, 'json');
     if (!payload?.data || !payload.etag) throw new Error(`Registro indisponível após materialização: ${target}`);
     const recordedHash = payload.metadata?.baseline_hash;
     if (!isDeepEqual(payload.data, baseline) && recordedHash !== digest) throw conflictError('Divergência durante materialização do baseline.', 'RECORD_CONFLICT');
@@ -299,7 +326,7 @@ export const updateRecordAtomic = async (target, modifier) => {
     const MAX_RETRIES = 5;
 
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-        const payload = await blobStore.getWithMetadata(blobKey, { type: 'json', consistency: 'strong' });
+        const payload = await readBlobWithEtag(blobStore, blobKey, 'json');
 
         if (!payload || !payload.data) {
             throw new Error(`Registro inexistente no Blob Storage para atualização atômica: ${target}`);
@@ -334,8 +361,15 @@ export const existsAssetBinary = async (target) => {
     const blobKey = getAssetBlobKey(target);
     if (!blobKey) throw new Error(`Alvo inválido para checagem de asset em nuvem: ${target}`);
     const blobStore = getBlobStore();
-    if (typeof blobStore.getMetadata === 'function') { const meta = await blobStore.getMetadata(blobKey); return meta !== null && meta.etag !== undefined; }
-    return (await blobStore.get(blobKey)) != null;
+    if (typeof blobStore.getMetadata === 'function') {
+        const meta = await blobStore.getMetadata(blobKey, { consistency: 'strong' });
+        if (meta !== null && meta.etag !== undefined) return true;
+    }
+    if ((await blobStore.get(blobKey, { type: 'arrayBuffer', consistency: 'strong' })) != null) return true;
+    for (const candidate of assetFilesystemCandidates(target, blobKey)) {
+        if (await access(candidate, constants.F_OK).then(() => true).catch(() => false)) return true;
+    }
+    return false;
 };
 
 export const readAssetBinary = async (target) => {
@@ -345,13 +379,9 @@ export const readAssetBinary = async (target) => {
     const blobKey = getAssetBlobKey(target);
     if (!blobKey) throw new Error(`Alvo inválido para leitura de asset em nuvem: ${target}`);
     const blobStore = getBlobStore();
-    const arr = await blobStore.get(blobKey, { type: 'arrayBuffer' });
-    if (!arr) {
-        const err = new Error('ENOENT');
-        err.code = 'ENOENT';
-        throw err;
-    }
-    return Buffer.from(arr);
+    const arr = await blobStore.get(blobKey, { type: 'arrayBuffer', consistency: 'strong' });
+    if (arr) return Buffer.from(arr);
+    return readAssetFromFilesystem(target, blobKey);
 };
 
 export const writeAssetBinary = async (target, buffer, mimeType = null) => {
@@ -487,7 +517,7 @@ export const beginAssetReplacement = async (target, replacement, mimeType = null
         };
     }
     const store = getBlobStore();
-    const snapshot = await store.getWithMetadata(blobKey, { type: 'arrayBuffer', consistency: 'strong' });
+    const snapshot = await readBlobWithEtag(store, blobKey, 'arrayBuffer');
     if (!snapshot?.data || !snapshot.etag) throw Object.assign(new Error('Asset inexistente.'), { code: 'ENOENT' });
     const replaced = await store.set(blobKey, replacement, { onlyIfMatch: snapshot.etag, ...(mimeType ? { metadata: { 'content-type': mimeType } } : {}) });
     if (!replaced || replaced.modified === false || !replaced.etag) throw conflictError('O asset mudou durante a retificação.', 'ASSET_CONFLICT');

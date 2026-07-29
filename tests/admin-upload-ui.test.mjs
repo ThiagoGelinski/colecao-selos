@@ -60,7 +60,8 @@ test('Microbloco 2A.2.5 - Interface Administrativa de Upload de Assets (15 Cená
             const formData = new FormData(); formData.append('papel', kind); formData.append('file', { fake: 'file' });
             if (httpMethod === 'PUT') formData.append('expected_updated_at', '2025-01-01T00:00:00.000Z');
             try {
-                const res = await globalThis.fetch(`/api/admin/selos/${encodeURIComponent(id)}/assets`, { method: httpMethod, body: formData });
+                const endpoint = httpMethod === 'PUT' ? `/api/admin/selos/${encodeURIComponent(id)}/assets/retificar` : `/api/admin/selos/${encodeURIComponent(id)}/assets`;
+                const res = await globalThis.fetch(endpoint, { method: 'POST', body: formData });
                 const json = await res.json();
                 if (res.ok) { msgColor = 'green'; msg = httpMethod === 'PUT' ? 'Retificação concluída com sucesso. Recarregando...' : 'Upload concluído com sucesso. Recarregando...'; reloads++; }
                 else {
@@ -109,10 +110,10 @@ test('Microbloco 2A.2.5 - Interface Administrativa de Upload de Assets (15 Cená
         assert.equal(getNetwork().sentFormData.get('papel'), 'card');
     });
 
-    await t.test('8. Retificação usa exatamente: PUT /api/admin/selos/{ID}/assets', async () => {
+    await t.test('8. Retificação usa POST dedicado sem perder o intent de substituição', async () => {
         const { submitSimulation, getNetwork } = await runSimulatedDispatcher(200, {});
         await submitSimulation('frente', 'SEL-999999');
-        assert.equal(getNetwork().fetchTarget, '/api/admin/selos/SEL-999999/assets');
+        assert.equal(getNetwork().fetchTarget, '/api/admin/selos/SEL-999999/assets/retificar');
     });
 
     await t.test('9. Sucesso provoca atualização/reload do estado oficial', async () => {

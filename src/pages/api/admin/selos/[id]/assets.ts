@@ -39,14 +39,15 @@ export const POST: APIRoute = async (context) => {
     const parsed = await parseUpload(request); if ('response' in parsed && parsed.response) return parsed.response;
     const { papel, buffer } = parsed;
     const canonicalVirtualPath = `/assets/selos/${id}/${id}-${papel}.webp`;
-    if (stamp.resumo.imagens?.[papel as keyof typeof stamp.resumo.imagens]?.informado) return jsonResponse(apiError('CONFLICT', 'Registro já contempla uma mídia atrelada a este papel.'), 409);
     const target = path.join(process.cwd(), 'public', 'assets', 'selos', id, `${id}-${papel}.webp`);
+    if (await existsAssetBinary(target)) return jsonResponse(apiError('CONFLICT', 'Já existe um asset para este papel.'), 409);
     let creation;
     try { creation = await beginAssetCreation(target, buffer, 'image/webp'); }
     catch (error: any) { if (error?.code === 'ASSET_CONFLICT') return jsonResponse(apiError('CONFLICT', 'Já existe um asset para este papel.'), 409); throw error; }
     try {
       await updateRecordAtomic(dataPath(id), (draft: any) => {
-        if (draft.imagens?.[papel]) throw Object.assign(new Error('Papel já preenchido.'), { code: 'RECORD_CONFLICT' });
+        const currentPath = draft.imagens?.[papel];
+        if (currentPath && currentPath !== canonicalVirtualPath) throw Object.assign(new Error('Papel já preenchido com caminho divergente.'), { code: 'RECORD_CONFLICT' });
         const candidate = applyAssetMutation(draft, { reviewer: adminUsername, kind: papel, operation: 'upload' });
         candidate.imagens = candidate.imagens ?? {}; candidate.imagens[papel] = canonicalVirtualPath; return candidate;
       });

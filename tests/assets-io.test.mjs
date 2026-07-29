@@ -111,7 +111,7 @@ test('Microbloco 2A.2.2 - Contrato e Adapter Binário de Assets', async (t) => {
 
         // Serverless existence
         SETUP_MODE(true);
-        assert.equal(await existsAssetBinary(assetPath), false, 'Blob deve estar vazio para asset diferente');
+        assert.equal(await existsAssetBinary(assetPath), true, 'Modo serverless deve preservar o asset baseline do filesystem');
         await writeAssetBinary(assetPath, dummyBytes);
         assert.equal(await existsAssetBinary(assetPath), true);
     });

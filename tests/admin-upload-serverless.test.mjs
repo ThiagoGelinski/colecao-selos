@@ -194,15 +194,18 @@ test('Microbloco 2A.2.4 - Upload Serverless Seguro de Assets', async (t) => {
         assert.equal(res.status, 413);
     });
 
-    await t.test('21. Impedir Overwrite estrito -> 409', async () => {
-        // Prepare with existing 'frente'
+    await t.test('21. Impedir overwrite estrito somente quando o binário já existe -> 409', async () => {
         await PREPARE_STAMP('SEL-888888', true, { frente: '/assets/selos/SEL-888888/SEL-888888-frente.webp' });
-        const formData = new FormData();
-        formData.append('papel', 'frente');
-        formData.append('file', new File([createValidWebP()], 'test.webp', { type: 'image/webp' }));
+        await globalThis.__MOCK_BLOB_STORE.set('assets/selos/SEL-888888/SEL-888888-frente.webp', createValidWebP(), { onlyIfNew: true });
+        const formData = new FormData(); formData.append('papel', 'frente'); formData.append('file', new File([createValidWebP()], 'test.webp', { type: 'image/webp' }));
+        assert.equal((await runPOST('SEL-888888', formData)).status, 409);
+    });
 
-        const res = await runPOST('SEL-888888', formData);
-        assert.equal(res.status, 409);
+    await t.test('22. Placeholder canônico sem binário permite o primeiro upload', async () => {
+        await PREPARE_STAMP('SEL-888888', true, { frente: '/assets/selos/SEL-888888/SEL-888888-frente.webp' });
+        const formData = new FormData(); formData.append('papel', 'frente'); formData.append('file', new File([createValidWebP()], 'test.webp', { type: 'image/webp' }));
+        const response = await runPOST('SEL-888888', formData); assert.equal(response.status, 200, await response.text());
+        assert.ok(blobData['assets/selos/SEL-888888/SEL-888888-frente.webp']);
     });
 
     await t.test('5, 7, 8, 9, 17. Path feliz LOCAL (Sem Blobs, Escrita Física e Update JSON)', async () => {

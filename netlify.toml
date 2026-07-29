@@ -14,6 +14,11 @@
 [context.branch-deploy.environment]
   PUBLICATION_MODE = "preview"
 
+[[redirects]]
+  from = "/assets/selos/:id/:filename"
+  to = "/api/assets/selos/:id/:filename"
+  status = 200
+
 [[headers]]
   for = "/*"
   [headers.values]

@@ -25,10 +25,12 @@ const originalServerless = globalThis.__MOCK_NETLIFY_ENV;
 const originalStore = globalThis.__MOCK_BLOB_STORE;
 test.afterEach(() => { globalThis.__MOCK_NETLIFY_ENV = originalServerless; globalThis.__MOCK_BLOB_STORE = originalStore; });
 
-test('Origin administrativo aceita mesma origem e recusa ausência ou divergência', () => {
+test('Origin administrativo aceita origem direta e proxy Netlify sem aceitar origem arbitrária', () => {
   assert.equal(validateAdminMutationOrigin(new Request('https://example.test/api', { headers: { origin: 'https://example.test' } })), true);
+  assert.equal(validateAdminMutationOrigin(new Request('http://internal:4321/api', { headers: { origin: 'https://deploy-preview-3--colecao.netlify.app', 'x-forwarded-host': 'deploy-preview-3--colecao.netlify.app', 'x-forwarded-proto': 'https' } })), true);
+  assert.equal(validateAdminMutationOrigin(new Request('http://internal:4321/api', { headers: { origin: 'https://evil.test', 'x-forwarded-host': 'deploy-preview-3--colecao.netlify.app', 'x-forwarded-proto': 'https' } })), false);
+  assert.equal(validateAdminMutationOrigin(new Request('http://internal:4321/api', { headers: { origin: 'https://evil.test', 'x-forwarded-host': 'evil.test,deploy-preview-3--colecao.netlify.app', 'x-forwarded-proto': 'https' } })), false);
   assert.equal(validateAdminMutationOrigin(new Request('https://example.test/api')), false);
-  assert.equal(validateAdminMutationOrigin(new Request('https://example.test/api', { headers: { origin: 'https://evil.test' } })), false);
 });
 
 test('todas as mutações administrativas usam o helper central de Origin', async () => {
@@ -103,4 +105,12 @@ test('limite Content-Length é avaliado antes de request.formData e file.size pe
   const source = await readSource('src/pages/api/admin/selos/[id]/assets.ts', 'utf8');
   assert.ok(source.indexOf('contentLengthExceeds(request') < source.indexOf('request.formData()'));
   assert.match(source, /file\.size > MAX_UPLOAD_SIZE/);
+});
+test('assets baseline continuam disponíveis no modo serverless dual-source', async () => {
+  globalThis.__MOCK_NETLIFY_ENV = true; const store = memoryStore(); globalThis.__MOCK_BLOB_STORE = store;
+  const root = await mkdtemp(path.join(tmpdir(), 'asset-baseline-')); const target = path.join(root, 'public/assets/selos/SEL-900006/SEL-900006-frente.webp');
+  const bytes = Buffer.from('RIFFbaselineWEBP');
+  const { existsAssetBinary, readAssetBinary } = await import('../src/lib/catalogo/io.mjs');
+  try { await mkdir(path.dirname(target), { recursive: true }); await writeFile(target, bytes); assert.equal(await existsAssetBinary(target), true); assert.deepEqual(await readAssetBinary(target), bytes); assert.equal(store.data.size, 0); }
+  finally { await rm(root, { recursive: true, force: true }); }
 });
