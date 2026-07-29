@@ -1,0 +1,180 @@
+{
+  "schema_version": "1.0.0",
+  "id": "SEL-000004",
+  "slug": "brasil-severino-neiva-8-cruzeiros-1963",
+  "titulo": "Brasil — Severino Neiva — 8 cruzeiros",
+  "descricao_curta": "Selo definitivo brasileiro de 8 cruzeiros com retrato de Severino Henrique de Lucena Neiva.",
+  "identificacao": {
+    "pais": "Brasil",
+    "continente": "América do Sul",
+    "administracao_postal": "Correios do Brasil",
+    "tipo": "Selo postal",
+    "categoria": "Definitivo / regular",
+    "serie": "Vultos Célebres",
+    "tema": [
+      "Personalidades",
+      "História postal",
+      "Correios"
+    ],
+    "personagem": {
+      "nome": "Severino Henrique de Lucena Neiva",
+      "nascimento": null,
+      "falecimento": null,
+      "funcao": "Engenheiro e diretor-geral dos Correios do Brasil",
+      "mandato": null
+    },
+    "valor_facial": {
+      "valor": 8,
+      "unidade": "cruzeiros",
+      "inscricao": "8 CRUZEIROS"
+    },
+    "cor": "violeta sobre amarelo",
+    "orientacao": "vertical"
+  },
+  "emissao": {
+    "ano": 1963,
+    "data_oficial": "1963-01-31",
+    "data_status": "fontes consultadas divergem entre 25 e 31 de janeiro de 1963; adotada a data corroborada por referências filatélicas internacionais",
+    "finalidade": "uso postal regular",
+    "tiragem": null,
+    "tiragem_status": "não confirmada nas fontes consultadas"
+  },
+  "tecnica": {
+    "impressao": null,
+    "papel": null,
+    "goma_original_da_emissao": null,
+    "filigrana": null,
+    "denteacao": "pente 11 x 11½",
+    "dimensoes_mm": {
+      "largura": 22,
+      "altura": 27
+    },
+    "impressor": null,
+    "impressor_status": "não confirmado nas fontes consultadas"
+  },
+  "catalogos": {
+    "RHM": {
+      "numero": "519",
+      "confianca": "confirmado por duas referências filatélicas brasileiras independentes"
+    },
+    "Scott": {
+      "numero": "952",
+      "confianca": "confirmado por referências comerciais internacionais independentes"
+    },
+    "Michel": {
+      "numero": "1030",
+      "confianca": "confirmado por referência comercial e listagem filatélica internacional"
+    },
+    "Stanley_Gibbons": {
+      "numero": "1073",
+      "confianca": "confirmado em listagem filatélica internacional"
+    }
+  },
+  "exemplar": {
+    "uso_postal": "sem indício visual de circulação",
+    "carimbo_frontal": "não visível",
+    "goma": "não determinada pelas fotografias",
+    "charneira": "possíveis vestígios e linhas de aderência no verso; confirmação física necessária",
+    "papel": "íntegro, com forte tonalidade amarelada, pontos e marcas visíveis no verso",
+    "serrilha": "presente nos quatro lados; irregularidades e desgastes periféricos",
+    "centragem": "boa",
+    "rasgos": "não observados nas fotografias",
+    "dobras": "linhas e vincos aparentes no verso, especialmente na região superior e central",
+    "classificacao_visual": "estado regular a bom",
+    "observacao": "A classificação é baseada somente nas fotografias e não substitui exame físico da goma, da charneira, da filigrana, dos vincos e da denteação."
+  },
+  "imagens": {
+    "frente": "/assets/selos/SEL-000004/SEL-000004-frente.webp",
+    "verso": "/assets/selos/SEL-000004/SEL-000004-verso.webp",
+    "card": "/assets/selos/SEL-000004/SEL-000004-card.webp",
+    "thumb": null,
+    "alt": "Selo brasileiro amarelo e violeta de 8 cruzeiros com retrato de Severino Neiva."
+  },
+  "historico": {
+    "resumo": "Severino Henrique de Lucena Neiva foi engenheiro e diretor-geral dos Correios do Brasil. O selo integra a série definitiva Vultos Célebres, iniciada em 1963.",
+    "nota": "Durante sua administração postal, na década de 1920, foram introduzidos carimbos mecânicos com mensagens de divulgação de produtos, paisagens e eventos brasileiros."
+  },
+  "historico_editorial": [
+    {
+      "tipo": "aprovacao",
+      "ocorrido_em": "2026-07-29T04:08:33.066Z",
+      "responsavel": "Thiago Gelinski",
+      "motivo": "Publicação autorizada expressamente pelo proprietário no fluxo permanente desta conversa",
+      "hash": "51b2f48fcb4f1712a89141a754e53b9e2e27d612e3fa9e4a30b7366397e8d765",
+      "versao": "1.0.0-pesquisa"
+    },
+    {
+      "tipo": "publicacao",
+      "ocorrido_em": "2026-07-29T04:08:35.562Z",
+      "responsavel": "Thiago Gelinski",
+      "motivo": "registro homologado e aprovado para publicação",
+      "hash": "51b2f48fcb4f1712a89141a754e53b9e2e27d612e3fa9e4a30b7366397e8d765",
+      "versao": "1.0.0-pesquisa"
+    }
+  ],
+  "fontes": [
+    {
+      "titulo": "Filatélica Vitória Régia — RHM 519 Severino Neiva",
+      "url": "https://filatelicavitoriaregia.com.br/produto/br-selo-1963-re-519-rhm-n-vultos-celebres-severino-neiva-novos-desenhos",
+      "uso": "ano, série, personagem, número RHM, valor facial, denteação e referência alternativa da data de emissão"
+    },
+    {
+      "titulo": "O Selo — Severino Neiva RHM 519",
+      "url": "https://www.oselo.com.br/produto/1963-severino-neiva-cr-800-rhm519/",
+      "uso": "ano, valor facial, personagem e número RHM"
+    },
+    {
+      "titulo": "eCRATER — Brazil Scott 952 Severino Neiva",
+      "url": "https://www.ecrater.com/p/38816925/brazil-postage-stamp-1963-scott-br-9522-8",
+      "uso": "Scott, valor facial, cor, categoria, denteação, dimensões e data de emissão"
+    },
+    {
+      "titulo": "James Juracek — Brazil 952 Severino Neiva Issue",
+      "url": "https://www.juracek.com/plxbb.htm",
+      "uso": "corroboração do número Scott 952 e do ano"
+    },
+    {
+      "titulo": "Sutherland Philatelics — Brazil catalogue list",
+      "url": "https://www.sutherlandphilatelics.com.au/lists/brazil.pdf",
+      "uso": "correlação Michel 1030 e Stanley Gibbons 1073"
+    },
+    {
+      "titulo": "UNESP — Representações de heróis nacionais na cultura material",
+      "url": "https://repositorio.unesp.br/bitstreams/1b3aae05-b549-4466-a437-4e59957f6157/download",
+      "uso": "nome completo, profissão, atuação nos Correios e contexto da série Vultos Célebres"
+    },
+    {
+      "titulo": "Rio Grande Filatélico — Carimbos mecânicos propagandísticos",
+      "url": "https://robertoaniche.com.br/wp-content/uploads/2018/11/carimbos-mecanicos-propagandisticos-do-rgs.pdf",
+      "uso": "atuação de Severino Neiva como diretor-geral e introdução de carimbos mecânicos de propaganda"
+    }
+  ],
+  "seo": {
+    "title": "Severino Neiva — 8 cruzeiros (1963) | Coleção Selos",
+    "meta_description": "Ficha do selo brasileiro de Severino Neiva, RHM 519, emitido em 1963: imagens, dados técnicos, catálogos e contexto histórico.",
+    "canonical_path": "/selos/brasil-severino-neiva-8-cruzeiros-1963",
+    "open_graph_title": "Severino Neiva — 8 cruzeiros — Brasil, 1963",
+    "open_graph_description": "Conheça o selo brasileiro RHM 519 da série Vultos Célebres."
+  },
+  "aprovacao_humana": {
+    "status": "aprovado",
+    "decisao": "aprovado",
+    "aprovado_por": "Thiago Gelinski",
+    "aprovado_em": "2026-07-29T04:08:33.057Z",
+    "hash_do_registro_aprovado": "51b2f48fcb4f1712a89141a754e53b9e2e27d612e3fa9e4a30b7366397e8d765",
+    "versao_aprovada": "1.0.0-pesquisa",
+    "escopo": "publicacao_catalogo",
+    "observacao": "Publicação autorizada expressamente pelo proprietário no fluxo permanente desta conversa"
+  },
+  "publicacao": {
+    "status": "publicado",
+    "apto_para_preview": true,
+    "apto_para_publicacao": true,
+    "motivo": "registro homologado e aprovado para publicação"
+  },
+  "auditoria": {
+    "criado_em": "2026-07-29",
+    "ultima_revisao": "2026-07-29",
+    "versao": "1.0.0-pesquisa"
+  }
+}
