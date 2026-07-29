@@ -1,0 +1,185 @@
+{
+  "schema_version": "1.0.0",
+  "id": "SEL-000006",
+  "slug": "brasil-wenceslau-braz-50-centavos-1968",
+  "titulo": "Brasil — Wenceslau Braz — 50 centavos",
+  "descricao_curta": "Selo definitivo brasileiro de 50 centavos com retrato de Wenceslau Braz Pereira Gomes.",
+  "identificacao": {
+    "pais": "Brasil",
+    "continente": "América do Sul",
+    "administracao_postal": "Correio do Brasil",
+    "tipo": "Selo postal",
+    "categoria": "Definitivo / regular",
+    "serie": "Antigos Presidentes da República",
+    "tema": [
+      "Personalidades",
+      "Presidentes do Brasil",
+      "História política"
+    ],
+    "personagem": {
+      "nome": "Wenceslau Braz Pereira Gomes",
+      "nascimento": "1868-02-26",
+      "falecimento": "1966-05-15",
+      "funcao": "Presidente da República do Brasil",
+      "mandato": "1914–1918"
+    },
+    "valor_facial": {
+      "valor": 50,
+      "unidade": "centavos",
+      "inscricao": "50 CTS."
+    },
+    "cor": "preto sobre amarelo",
+    "orientacao": "vertical"
+  },
+  "emissao": {
+    "ano": 1968,
+    "data_oficial": "1968-03-19",
+    "data_status": "confirmada em referência filatélica especializada",
+    "finalidade": "uso postal regular",
+    "tiragem": null,
+    "tiragem_status": "não confirmada nas fontes consultadas"
+  },
+  "tecnica": {
+    "impressao": "talho-doce / calcografia",
+    "papel": "papel postal da emissão regular",
+    "goma_original_da_emissao": null,
+    "filigrana": "Correio Brasil e estrela, tipo 1",
+    "denteacao": "pente 11",
+    "dimensoes_mm": {
+      "largura": 22,
+      "altura": 27
+    },
+    "impressor": "Casa da Moeda do Brasil",
+    "impressor_status": "confirmado em referência filatélica",
+    "desenhista": "Waldemiro Puntar"
+  },
+  "catalogos": {
+    "RHM": {
+      "numero": "534",
+      "confianca": "confirmado por referências filatélicas brasileiras independentes"
+    },
+    "Scott": {
+      "numero": "1065",
+      "confianca": "confirmado por referências filatélicas internacionais independentes"
+    },
+    "Michel": {
+      "numero": "1166",
+      "confianca": "confirmado por referências filatélicas internacionais independentes"
+    },
+    "Yvert_et_Tellier": {
+      "numero": "844",
+      "confianca": "confirmado por referências filatélicas internacionais independentes"
+    },
+    "Stanley_Gibbons": {
+      "numero": "1195",
+      "confianca": "confirmado em referência filatélica internacional"
+    }
+  },
+  "exemplar": {
+    "uso_postal": "sem indício visual de circulação",
+    "carimbo_frontal": "não visível",
+    "goma": "não determinada pelas fotografias",
+    "charneira": "não determinada pela fotografia",
+    "papel": "íntegro, com tonalidade amarelada e marcas visíveis no verso",
+    "serrilha": "presente nos quatro lados; pequenas irregularidades e desgastes periféricos",
+    "centragem": "boa",
+    "rasgos": "não observados nas fotografias",
+    "dobras": "não observadas nas fotografias",
+    "classificacao_visual": "bom estado visual",
+    "observacao": "A classificação é baseada somente nas fotografias e não substitui exame físico da goma, da charneira, da filigrana, do papel e da denteação."
+  },
+  "imagens": {
+    "frente": "/assets/selos/SEL-000006/SEL-000006-frente.webp",
+    "verso": "/assets/selos/SEL-000006/SEL-000006-verso.webp",
+    "card": "/assets/selos/SEL-000006/SEL-000006-card.webp",
+    "thumb": null,
+    "alt": "Selo brasileiro amarelo e preto de 50 centavos com retrato de Wenceslau Braz."
+  },
+  "historico": {
+    "resumo": "Wenceslau Braz Pereira Gomes presidiu o Brasil de 15 de novembro de 1914 a 15 de novembro de 1918. A emissão integra a série definitiva dedicada a antigos presidentes da República.",
+    "nota": "Seu governo atravessou a Primeira Guerra Mundial, a Guerra do Contestado e a greve geral de 1917, além de ter promulgado o primeiro Código Civil brasileiro."
+  },
+  "historico_editorial": [
+    {
+      "tipo": "aprovacao",
+      "ocorrido_em": "2026-07-29T11:53:02.972Z",
+      "responsavel": "Thiago Gelinski",
+      "motivo": "Publicação autorizada expressamente pelo proprietário no fluxo permanente desta conversa",
+      "hash": "e34c3b6c63c068eeba163a6d76572e81783d1e899010b997b8fae667d8dfbf86",
+      "versao": "1.0.0-pesquisa"
+    },
+    {
+      "tipo": "publicacao",
+      "ocorrido_em": "2026-07-29T11:53:04.824Z",
+      "responsavel": "Thiago Gelinski",
+      "motivo": "registro homologado e aprovado para publicação",
+      "hash": "e34c3b6c63c068eeba163a6d76572e81783d1e899010b997b8fae667d8dfbf86",
+      "versao": "1.0.0-pesquisa"
+    }
+  ],
+  "fontes": [
+    {
+      "titulo": "Catálogo Brasileiro de Filatelia Temática — História",
+      "url": "https://filabras.org/images/articles/561.pdf",
+      "uso": "personagem, série, valor facial, período da emissão e número RHM"
+    },
+    {
+      "titulo": "Filatelia Halibunani — RHM 534 Wenceslau Braz",
+      "url": "https://filateliahalibunani.com/produto/selo-regular-rhm-534-presidentes-da-republica-wenceslau-braz-1968-dupla-circulado-2/",
+      "uso": "categoria, série, personagem, ano e número RHM"
+    },
+    {
+      "titulo": "Muuseo — Wenceslau Bráz Pereira Gomes",
+      "url": "https://muuseo.com/buntakun8080/items/1857",
+      "uso": "data, valor facial, cor, impressão, filigrana, dimensões, desenhista, impressor e correlação de catálogos"
+    },
+    {
+      "titulo": "Delcampe — Wenceslau Braz Yvert 844 / Michel 1166",
+      "url": "https://www.delcampe.net/en_US/collectibles/stamps/brazil/used-stamps-4/search",
+      "uso": "corroboração dos números Yvert 844 e Michel 1166"
+    },
+    {
+      "titulo": "Portal MG — Wenceslau Brás Pereira Gomes",
+      "url": "https://www.mg.gov.br/governador/wenceslau-bras-pereira-gomes",
+      "uso": "nome, nascimento, falecimento, formação e trajetória política"
+    },
+    {
+      "titulo": "Museu Histórico Nacional — Coleção Wenceslau Brás",
+      "url": "https://atom-museuhistorico.museus.gov.br/index.php/wenceslau-bras",
+      "uso": "biografia, período presidencial e atuação profissional"
+    },
+    {
+      "titulo": "Biblioteca da Presidência da República — Wenceslau Brás",
+      "url": "https://www.biblioteca.presidencia.gov.br/presidencia/ex-presidentes/wenceslau-braz/biografia",
+      "uso": "contexto histórico do governo"
+    }
+  ],
+  "seo": {
+    "title": "Wenceslau Braz — 50 centavos (1968) | Coleção Selos",
+    "meta_description": "Ficha do selo brasileiro de Wenceslau Braz, RHM 534, emitido em 1968: imagens, dados técnicos, catálogos e contexto histórico.",
+    "canonical_path": "/selos/brasil-wenceslau-braz-50-centavos-1968",
+    "open_graph_title": "Wenceslau Braz — 50 centavos — Brasil, 1968",
+    "open_graph_description": "Conheça o selo brasileiro RHM 534 da série Antigos Presidentes da República."
+  },
+  "aprovacao_humana": {
+    "status": "aprovado",
+    "decisao": "aprovado",
+    "aprovado_por": "Thiago Gelinski",
+    "aprovado_em": "2026-07-29T11:53:02.966Z",
+    "hash_do_registro_aprovado": "e34c3b6c63c068eeba163a6d76572e81783d1e899010b997b8fae667d8dfbf86",
+    "versao_aprovada": "1.0.0-pesquisa",
+    "escopo": "publicacao_catalogo",
+    "observacao": "Publicação autorizada expressamente pelo proprietário no fluxo permanente desta conversa"
+  },
+  "publicacao": {
+    "status": "publicado",
+    "apto_para_preview": true,
+    "apto_para_publicacao": true,
+    "motivo": "registro homologado e aprovado para publicação"
+  },
+  "auditoria": {
+    "criado_em": "2026-07-29",
+    "ultima_revisao": "2026-07-29",
+    "versao": "1.0.0-pesquisa"
+  }
+}

@@ -2,7 +2,7 @@
   "schema_version": "2.0.0",
   "prefix": "SEL",
   "digits": 6,
-  "next_sequence": 6,
+  "next_sequence": 7,
   "reserved": [
     {
       "id": "SEL-000001",
@@ -69,6 +69,20 @@
       "slug": "brasil-anita-garibaldi-5-centavos-1967",
       "created_at": "2026-07-29T11:33:20.978Z",
       "completed_at": "2026-07-29T11:33:20.979Z",
+      "failed_at": null,
+      "failure_reason": null,
+      "cancelado_em": null,
+      "cancellation_reason": null
+    },
+    {
+      "id": "SEL-000006",
+      "sequence": 6,
+      "reserved_at": "2026-07-29T11:50:21.481Z",
+      "source": "selo:novo",
+      "status": "criado",
+      "slug": "brasil-wenceslau-braz-50-centavos-1968",
+      "created_at": "2026-07-29T11:50:21.501Z",
+      "completed_at": "2026-07-29T11:50:21.503Z",
       "failed_at": null,
       "failure_reason": null,
       "cancelado_em": null,
