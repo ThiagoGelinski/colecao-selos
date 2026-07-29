@@ -1,0 +1,164 @@
+{
+  "schema_version": "1.0.0",
+  "id": "SEL-000002",
+  "slug": "brasil-washington-luiz-1-cruzeiro-novo-1968",
+  "titulo": "Brasil — Washington Luiz — 1 cruzeiro novo",
+  "descricao_curta": "Selo regular brasileiro de 1 cruzeiro novo com retrato de Washington Luís Pereira de Sousa.",
+  "identificacao": {
+    "pais": "Brasil",
+    "continente": "América do Sul",
+    "administracao_postal": "Correio do Brasil",
+    "tipo": "Selo postal",
+    "categoria": "Definitivo / regular",
+    "serie": "Antigos Presidentes da República",
+    "tema": [
+      "Personalidades",
+      "Presidentes do Brasil",
+      "História política"
+    ],
+    "personagem": {
+      "nome": "Washington Luís Pereira de Sousa",
+      "nascimento": "1869-10-26",
+      "falecimento": "1957-08-04",
+      "funcao": "Presidente da República do Brasil",
+      "mandato": "1926–1930"
+    },
+    "valor_facial": {
+      "valor": 1,
+      "unidade": "cruzeiro novo",
+      "inscricao": "1,00"
+    },
+    "cor": "vermelho-castanho sobre amarelo",
+    "orientacao": "vertical"
+  },
+  "emissao": {
+    "ano": 1968,
+    "data_oficial": "1968-03-19",
+    "data_status": "confirmada em referência filatélica especializada",
+    "finalidade": "uso postal regular",
+    "tiragem": null,
+    "tiragem_status": "não confirmada nas fontes consultadas"
+  },
+  "tecnica": {
+    "impressao": "fotogravura",
+    "papel": null,
+    "goma_original_da_emissao": null,
+    "filigrana": null,
+    "denteacao": "11 x 11½",
+    "dimensoes_mm": null,
+    "impressor": null,
+    "impressor_status": "não confirmado nas fontes consultadas"
+  },
+  "catalogos": {
+    "RHM": {
+      "numero": "535",
+      "confianca": "confirmado por referências filatélicas independentes"
+    },
+    "Scott": {
+      "numero": "1066",
+      "confianca": "corroborado por referência comercial internacional; revisão em catálogo impresso recomendada"
+    }
+  },
+  "exemplar": {
+    "uso_postal": "sem indício visual de circulação",
+    "carimbo_frontal": "não visível",
+    "goma": "aparentemente presente; confirmação física necessária",
+    "charneira": "não determinada pela fotografia",
+    "papel": "íntegro, com leve amarelamento e pequenas marcas visíveis no verso",
+    "serrilha": "presente nos quatro lados; pequenas irregularidades periféricas",
+    "centragem": "boa",
+    "rasgos": "não observados nas fotografias",
+    "dobras": "não observadas nas fotografias",
+    "classificacao_visual": "bom estado visual",
+    "observacao": "A classificação é baseada somente nas fotografias e não substitui exame físico da goma, da charneira, da filigrana e da denteação."
+  },
+  "imagens": {
+    "frente": "/assets/selos/SEL-000002/SEL-000002-frente.webp",
+    "verso": "/assets/selos/SEL-000002/SEL-000002-verso.webp",
+    "card": "/assets/selos/SEL-000002/SEL-000002-card.webp",
+    "thumb": null,
+    "alt": "Selo brasileiro amarelo e vermelho-castanho de 1 cruzeiro novo com retrato de Washington Luiz."
+  },
+  "historico": {
+    "resumo": "Washington Luís Pereira de Sousa presidiu o Brasil de 15 de novembro de 1926 a 24 de outubro de 1930. A emissão integra a série regular dedicada a antigos presidentes da República.",
+    "nota": "Seu mandato terminou com a deposição ocorrida em 24 de outubro de 1930. Após retornar do exílio, dedicou-se a estudos históricos e faleceu em São Paulo em 1957."
+  },
+  "historico_editorial": [
+    {
+      "tipo": "aprovacao",
+      "ocorrido_em": "2026-07-29T02:45:48.799Z",
+      "responsavel": "Thiago Gelinski",
+      "motivo": "Publicação autorizada expressamente pelo proprietário do acervo nesta conversa",
+      "hash": "2d707ae58d7039ab5d5bc276a745809e2311642226469789c721b0862291a6fe",
+      "versao": "1.0.0-pesquisa"
+    },
+    {
+      "tipo": "publicacao",
+      "ocorrido_em": "2026-07-29T02:45:49.993Z",
+      "responsavel": "Thiago Gelinski",
+      "motivo": "registro homologado e aprovado para publicação",
+      "hash": "2d707ae58d7039ab5d5bc276a745809e2311642226469789c721b0862291a6fe",
+      "versao": "1.0.0-pesquisa"
+    }
+  ],
+  "fontes": [
+    {
+      "titulo": "SeloMania — 1968 R 0535 Washington Luiz",
+      "url": "https://www.selomania.com.br/1968-r-0535-washington-luiz-u.",
+      "uso": "ano, série, número RHM, processo de impressão e valor facial"
+    },
+    {
+      "titulo": "Filatélica Vitória Régia — RHM 535 Washington Luiz",
+      "url": "https://filatelicavitoriaregia.com.br/produto/br-selo-1968-re-535-rhm-u-antigos-presidentes-washington-luiz",
+      "uso": "data de emissão e denteação"
+    },
+    {
+      "titulo": "Filatelia Halibunani — RHM 535 Washington Luiz",
+      "url": "https://filateliahalibunani.com/produto/selo-regular-rhm-535-presidentes-da-republica-washington-luiz-1968-circulado-1/",
+      "uso": "série, categoria, personagem, ano e número RHM"
+    },
+    {
+      "titulo": "eBay — Brazil Scott 1066 Washington Luiz",
+      "url": "https://www.ebay.com/itm/233811358210",
+      "uso": "correlação com o número Scott 1066"
+    },
+    {
+      "titulo": "Biblioteca da Presidência da República — Washington Luís",
+      "url": "https://www.biblioteca.presidencia.gov.br/presidencia/ex-presidentes/washigton-luis/nome-do-presidente",
+      "uso": "nome, nascimento, falecimento e período presidencial"
+    },
+    {
+      "titulo": "Jornal da USP — Presidentes do Brasil que estudaram na USP",
+      "url": "https://jornal.usp.br/universidade/conheca-os-presidentes-do-brasil-que-estudaram-na-usp/",
+      "uso": "formação e período de governo de Washington Luís"
+    }
+  ],
+  "seo": {
+    "title": "Washington Luiz — 1 cruzeiro novo (1968) | Coleção Selos",
+    "meta_description": "Ficha do selo brasileiro de Washington Luiz, RHM 535, emitido em 1968: imagens, dados técnicos, catálogos e contexto histórico.",
+    "canonical_path": "/selos/brasil-washington-luiz-1-cruzeiro-novo-1968",
+    "open_graph_title": "Washington Luiz — 1 cruzeiro novo — Brasil, 1968",
+    "open_graph_description": "Conheça o selo brasileiro RHM 535 da série Antigos Presidentes da República."
+  },
+  "aprovacao_humana": {
+    "status": "aprovado",
+    "decisao": "aprovado",
+    "aprovado_por": "Thiago Gelinski",
+    "aprovado_em": "2026-07-29T02:45:48.798Z",
+    "hash_do_registro_aprovado": "2d707ae58d7039ab5d5bc276a745809e2311642226469789c721b0862291a6fe",
+    "versao_aprovada": "1.0.0-pesquisa",
+    "escopo": "publicacao_catalogo",
+    "observacao": "Publicação autorizada expressamente pelo proprietário do acervo nesta conversa"
+  },
+  "publicacao": {
+    "status": "publicado",
+    "apto_para_preview": true,
+    "apto_para_publicacao": true,
+    "motivo": "registro homologado e aprovado para publicação"
+  },
+  "auditoria": {
+    "criado_em": "2026-07-29",
+    "ultima_revisao": "2026-07-29",
+    "versao": "1.0.0-pesquisa"
+  }
+}

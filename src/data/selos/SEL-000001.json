@@ -143,14 +143,42 @@
     "open_graph_description": "Conheça os dados técnicos e históricos do selo SEL-000001."
   },
   "publicacao": {
-    "status": "homologacao",
+    "status": "publicado",
     "apto_para_preview": true,
-    "apto_para_publicacao": false,
-    "motivo": "aguarda aprovação visual e revisão final de campos de alta confiança"
+    "apto_para_publicacao": true,
+    "motivo": "registro homologado e aprovado para publicação"
   },
   "auditoria": {
     "criado_em": "2026-07-22",
-    "ultima_revisao": "2026-07-22",
+    "ultima_revisao": "2026-07-29",
     "versao": "1.0.0-homologacao"
-  }
+  },
+  "aprovacao_humana": {
+    "status": "aprovado",
+    "decisao": "aprovado",
+    "aprovado_por": "Thiago Gelinski",
+    "aprovado_em": "2026-07-29T02:45:46.418Z",
+    "hash_do_registro_aprovado": "700d4610b7185d02f4b7343c4360b101f047588fd17713b6fb1f24e9f4ebb098",
+    "versao_aprovada": "1.0.0-homologacao",
+    "escopo": "publicacao_catalogo",
+    "observacao": "Publicação autorizada expressamente pelo proprietário do acervo nesta conversa"
+  },
+  "historico_editorial": [
+    {
+      "tipo": "aprovacao",
+      "ocorrido_em": "2026-07-29T02:45:46.420Z",
+      "responsavel": "Thiago Gelinski",
+      "motivo": "Publicação autorizada expressamente pelo proprietário do acervo nesta conversa",
+      "hash": "700d4610b7185d02f4b7343c4360b101f047588fd17713b6fb1f24e9f4ebb098",
+      "versao": "1.0.0-homologacao"
+    },
+    {
+      "tipo": "publicacao",
+      "ocorrido_em": "2026-07-29T02:45:47.658Z",
+      "responsavel": "Thiago Gelinski",
+      "motivo": "registro homologado e aprovado para publicação",
+      "hash": "700d4610b7185d02f4b7343c4360b101f047588fd17713b6fb1f24e9f4ebb098",
+      "versao": "1.0.0-homologacao"
+    }
+  ]
 }

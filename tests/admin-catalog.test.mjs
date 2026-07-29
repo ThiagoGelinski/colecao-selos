@@ -12,6 +12,23 @@ const clone = (value) => structuredClone(value);
 function recordWithMissingAssets() {
   const record = clone(official); record.id = 'SEL-999998';
   for (const kind of ['frente', 'verso', 'card']) record.imagens[kind] = `/assets/selos/${record.id}/${record.id}-${kind}.webp`;
+  record.historico_editorial = [];
+  record.aprovacao_humana = {
+    status: 'pendente',
+    decisao: 'pendente',
+    escopo: 'publicacao_catalogo',
+    observacao: null,
+    aprovado_por: null,
+    aprovado_em: null,
+    hash_do_registro_aprovado: null,
+    versao_aprovada: null,
+  };
+  record.publicacao = {
+    status: 'homologacao',
+    apto_para_preview: true,
+    apto_para_publicacao: false,
+    motivo: 'cenário isolado para validação operacional de assets',
+  };
   return record;
 }
 
@@ -69,7 +86,7 @@ test('listagem nunca classifica como Válido registro com asset ausente', async 
 
 test('dashboard calcula exclusivamente dados reais e atividade da auditoria', () => {
   const stats = dashboardStats([official], new Map([[official.id, validation]]));
-  assert.equal(stats.indicadores.total, 1); assert.equal(stats.indicadores.aguardando_revisao, 1); assert.equal(stats.indicadores.publicados, 0); assert.equal(stats.indicadores.com_erro, 0); assert.equal(stats.atividade_recente[0].id, official.id);
+  assert.equal(stats.indicadores.total, 1); assert.equal(stats.indicadores.aguardando_revisao, 0); assert.equal(stats.indicadores.publicados, 1); assert.equal(stats.indicadores.com_erro, 0); assert.equal(stats.atividade_recente[0].id, official.id);
 });
 
 test('dashboard representa ausência de dados sem inventar indicadores', () => {
