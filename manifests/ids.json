@@ -2,7 +2,7 @@
   "schema_version": "2.0.0",
   "prefix": "SEL",
   "digits": 6,
-  "next_sequence": 3,
+  "next_sequence": 4,
   "reserved": [
     {
       "id": "SEL-000001",
@@ -27,6 +27,20 @@
       "slug": "brasil-washington-luiz-1-cruzeiro-novo-1968",
       "created_at": "2026-07-29T02:40:59.490Z",
       "completed_at": "2026-07-29T02:40:59.490Z",
+      "failed_at": null,
+      "failure_reason": null,
+      "cancelado_em": null,
+      "cancellation_reason": null
+    },
+    {
+      "id": "SEL-000003",
+      "sequence": 3,
+      "reserved_at": "2026-07-29T03:56:45.812Z",
+      "source": "selo:novo",
+      "status": "criado",
+      "slug": "brasil-arthur-bernardes-10-centavos-1967",
+      "created_at": "2026-07-29T03:56:45.835Z",
+      "completed_at": "2026-07-29T03:56:45.837Z",
       "failed_at": null,
       "failure_reason": null,
       "cancelado_em": null,

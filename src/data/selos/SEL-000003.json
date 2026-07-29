@@ -1,0 +1,179 @@
+{
+  "schema_version": "1.0.0",
+  "id": "SEL-000003",
+  "slug": "brasil-arthur-bernardes-10-centavos-1967",
+  "titulo": "Brasil — Arthur Bernardes — 10 centavos",
+  "descricao_curta": "Selo definitivo brasileiro de 10 centavos com retrato de Arthur da Silva Bernardes.",
+  "identificacao": {
+    "pais": "Brasil",
+    "continente": "América do Sul",
+    "administracao_postal": "Correio do Brasil",
+    "tipo": "Selo postal",
+    "categoria": "Definitivo / regular",
+    "serie": "Antigos Presidentes da República",
+    "tema": [
+      "Personalidades",
+      "Presidentes do Brasil",
+      "História política"
+    ],
+    "personagem": {
+      "nome": "Arthur da Silva Bernardes",
+      "nascimento": "1875-08-08",
+      "falecimento": "1955-03-23",
+      "funcao": "Presidente da República do Brasil",
+      "mandato": "1922–1926"
+    },
+    "valor_facial": {
+      "valor": 10,
+      "unidade": "centavos",
+      "inscricao": "10 CTS."
+    },
+    "cor": "azul sobre amarelo",
+    "orientacao": "vertical"
+  },
+  "emissao": {
+    "ano": 1967,
+    "data_oficial": "1967-11-16",
+    "data_status": "confirmada em referência filatélica especializada",
+    "finalidade": "uso postal regular",
+    "tiragem": 3000000,
+    "tiragem_status": "informada em referência filatélica agregadora; revisão em catálogo impresso recomendada"
+  },
+  "tecnica": {
+    "impressao": "fotogravura",
+    "papel": "couché",
+    "goma_original_da_emissao": "arábica",
+    "filigrana": "Q — Brasil * Correio (5 mm)",
+    "denteacao": "pente 11",
+    "dimensoes_mm": {
+      "largura": 22,
+      "altura": 27
+    },
+    "impressor": "Correio do Brasil",
+    "impressor_status": "autoria postal indicada na referência da emissão; oficina específica não confirmada"
+  },
+  "catalogos": {
+    "RHM": {
+      "numero": "532",
+      "confianca": "confirmado por duas referências filatélicas independentes"
+    },
+    "Scott": {
+      "numero": "1063",
+      "confianca": "confirmado por correlação filatélica independente"
+    },
+    "Michel": {
+      "numero": "1153",
+      "confianca": "confirmado por duas referências independentes"
+    },
+    "Yvert_et_Tellier": {
+      "numero": "842",
+      "confianca": "confirmado em referência filatélica agregadora"
+    },
+    "Stanley_Gibbons": {
+      "numero": "1192",
+      "confianca": "confirmado em referência filatélica agregadora"
+    }
+  },
+  "exemplar": {
+    "uso_postal": "sem indício visual de circulação",
+    "carimbo_frontal": "não visível",
+    "goma": "aparentemente presente; confirmação física necessária",
+    "charneira": "não determinada pela fotografia",
+    "papel": "íntegro, com tonalidade amarelada e marcas discretas visíveis no verso",
+    "serrilha": "presente nos quatro lados; irregularidades e pequenos desgastes periféricos",
+    "centragem": "boa",
+    "rasgos": "não observados nas fotografias",
+    "dobras": "não observadas nas fotografias",
+    "classificacao_visual": "bom estado visual",
+    "observacao": "A classificação é baseada somente nas fotografias e não substitui exame físico da goma, da charneira, da filigrana e da denteação."
+  },
+  "imagens": {
+    "frente": "/assets/selos/SEL-000003/SEL-000003-frente.webp",
+    "verso": "/assets/selos/SEL-000003/SEL-000003-verso.webp",
+    "card": "/assets/selos/SEL-000003/SEL-000003-card.webp",
+    "thumb": null,
+    "alt": "Selo brasileiro amarelo e azul de 10 centavos com retrato de Arthur Bernardes."
+  },
+  "historico": {
+    "resumo": "Arthur da Silva Bernardes presidiu o Brasil de 15 de novembro de 1922 a 15 de novembro de 1926. A emissão integra a série definitiva dedicada a antigos presidentes da República.",
+    "nota": "Advogado e político mineiro, Bernardes também presidiu o Estado de Minas Gerais entre 1918 e 1922."
+  },
+  "historico_editorial": [
+    {
+      "tipo": "aprovacao",
+      "ocorrido_em": "2026-07-29T03:59:00.307Z",
+      "responsavel": "Thiago Gelinski",
+      "motivo": "Publicação autorizada expressamente pelo proprietário no fluxo permanente desta conversa",
+      "hash": "f6005799d82dc17e4943b1dc4cc8dc3bb9faa2fea0561d3a82997784ebe02d8c",
+      "versao": "1.0.0-pesquisa"
+    },
+    {
+      "tipo": "publicacao",
+      "ocorrido_em": "2026-07-29T03:59:02.323Z",
+      "responsavel": "Thiago Gelinski",
+      "motivo": "registro homologado e aprovado para publicação",
+      "hash": "f6005799d82dc17e4943b1dc4cc8dc3bb9faa2fea0561d3a82997784ebe02d8c",
+      "versao": "1.0.0-pesquisa"
+    }
+  ],
+  "fontes": [
+    {
+      "titulo": "Wikimedia Commons — Arthur Bernardes 1875–1955",
+      "url": "https://commons.wikimedia.org/wiki/File:Stamp_of_Brazil_-_1967_-_Colnect_152220_-_Arthur_Bernardes_1875-1955.jpeg",
+      "uso": "data, valor facial, tiragem, impressão, papel, goma, filigrana, denteação, dimensões e correlação de catálogos"
+    },
+    {
+      "titulo": "Filatélica Vitória Régia — RHM 532 Arthur Bernardes",
+      "url": "https://filatelicavitoriaregia.com.br/produto/br-selo-1967-re-532-rhm-u-antigos-presidentes-da-republica-arthur-bernardes-1875-1955",
+      "uso": "ano, série, personagem e número RHM"
+    },
+    {
+      "titulo": "Filatelia Halibunani — RHM 532 Arthur Bernardes",
+      "url": "https://filateliahalibunani.com/produto/selo-regular-rhm-532-presidentes-da-republica-arthur-bernardes-1967-dupla-variedade/",
+      "uso": "categoria, série, personagem, ano e número RHM"
+    },
+    {
+      "titulo": "eBid — Arthur Bernardes 1967",
+      "url": "https://www.ebid.net/uk/for-sale/brazil-arthur-bernardes-1875-1955-blue-1967-10c-2-198605376.htm",
+      "uso": "ano, valor facial, cor e número Michel"
+    },
+    {
+      "titulo": "Biblioteca da Presidência da República — Arthur da Silva Bernardes",
+      "url": "https://www.biblioteca.presidencia.gov.br/presidencia/ex-presidentes/arthur-bernardes/nome-do-presidente",
+      "uso": "nome, nascimento, falecimento, profissão e período presidencial"
+    },
+    {
+      "titulo": "Portal MG — Arthur da Silva Bernardes",
+      "url": "https://www.mg.gov.br/governador/arthur-da-silva-bernardes",
+      "uso": "biografia e período como presidente do Estado de Minas Gerais"
+    }
+  ],
+  "seo": {
+    "title": "Arthur Bernardes — 10 centavos (1967) | Coleção Selos",
+    "meta_description": "Ficha do selo brasileiro de Arthur Bernardes, RHM 532, emitido em 1967: imagens, dados técnicos, catálogos e contexto histórico.",
+    "canonical_path": "/selos/brasil-arthur-bernardes-10-centavos-1967",
+    "open_graph_title": "Arthur Bernardes — 10 centavos — Brasil, 1967",
+    "open_graph_description": "Conheça o selo brasileiro RHM 532 da série Antigos Presidentes da República."
+  },
+  "aprovacao_humana": {
+    "status": "aprovado",
+    "decisao": "aprovado",
+    "aprovado_por": "Thiago Gelinski",
+    "aprovado_em": "2026-07-29T03:59:00.305Z",
+    "hash_do_registro_aprovado": "f6005799d82dc17e4943b1dc4cc8dc3bb9faa2fea0561d3a82997784ebe02d8c",
+    "versao_aprovada": "1.0.0-pesquisa",
+    "escopo": "publicacao_catalogo",
+    "observacao": "Publicação autorizada expressamente pelo proprietário no fluxo permanente desta conversa"
+  },
+  "publicacao": {
+    "status": "publicado",
+    "apto_para_preview": true,
+    "apto_para_publicacao": true,
+    "motivo": "registro homologado e aprovado para publicação"
+  },
+  "auditoria": {
+    "criado_em": "2026-07-29",
+    "ultima_revisao": "2026-07-29",
+    "versao": "1.0.0-pesquisa"
+  }
+}
