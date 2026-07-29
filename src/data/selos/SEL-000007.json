@@ -1,0 +1,186 @@
+{
+  "schema_version": "1.0.0",
+  "id": "SEL-000007",
+  "slug": "brasil-marilia-de-dirceu-2-centavos-1967",
+  "titulo": "Brasil — Marília de Dirceu — 2 centavos",
+  "descricao_curta": "Selo definitivo brasileiro de 2 centavos com retrato alusivo a Marília de Dirceu.",
+  "identificacao": {
+    "pais": "Brasil",
+    "continente": "América do Sul",
+    "administracao_postal": "Correio do Brasil",
+    "tipo": "Selo postal",
+    "categoria": "Definitivo / regular",
+    "serie": "Mulheres Célebres do Brasil",
+    "tema": [
+      "Personalidades",
+      "Mulheres na história",
+      "Literatura brasileira",
+      "Inconfidência Mineira"
+    ],
+    "personagem": {
+      "nome": "Maria Doroteia Joaquina de Seixas — Marília de Dirceu",
+      "nascimento": "1767-11-08",
+      "falecimento": "1853-02-09",
+      "funcao": "Figura histórica associada à musa Marília na obra de Tomás Antônio Gonzaga",
+      "mandato": null
+    },
+    "valor_facial": {
+      "valor": 2,
+      "unidade": "centavos",
+      "inscricao": "2 CTS"
+    },
+    "cor": "marrom-alaranjado sobre amarelo",
+    "orientacao": "vertical"
+  },
+  "emissao": {
+    "ano": 1967,
+    "data_oficial": "1967-04-14",
+    "data_status": "confirmada por referências filatélicas independentes",
+    "finalidade": "uso postal regular",
+    "tiragem": null,
+    "tiragem_status": "não confirmada nas fontes consultadas"
+  },
+  "tecnica": {
+    "impressao": "fotogravura",
+    "papel": "papel postal da emissão regular",
+    "goma_original_da_emissao": "goma ativada por água",
+    "filigrana": "Brasil * Correio (5 mm)",
+    "denteacao": "pente 11 x 11½",
+    "dimensoes_mm": {
+      "largura": 22,
+      "altura": 27
+    },
+    "impressor": "Casa da Moeda do Brasil",
+    "impressor_status": "confirmado em referências da série",
+    "desenhista": "Waldemiro Puntar"
+  },
+  "catalogos": {
+    "RHM": {
+      "numero": "527",
+      "confianca": "confirmado por referência filatélica brasileira"
+    },
+    "Scott": {
+      "numero": "1037",
+      "confianca": "confirmado por referências filatélicas internacionais"
+    },
+    "Michel": {
+      "numero": "1143",
+      "confianca": "confirmado por referências filatélicas internacionais"
+    },
+    "Yvert_et_Tellier": {
+      "numero": "816",
+      "confianca": "confirmado por referência filatélica internacional"
+    },
+    "Stanley_Gibbons": {
+      "numero": "1163",
+      "confianca": "confirmado por referências filatélicas internacionais"
+    }
+  },
+  "exemplar": {
+    "uso_postal": "sem indício visual de circulação",
+    "carimbo_frontal": "não visível",
+    "goma": "não determinada pelas fotografias",
+    "charneira": "não determinada pela fotografia",
+    "papel": "íntegro, com tonalidade amarelada e marcas discretas no verso",
+    "serrilha": "presente nos quatro lados; pequenas irregularidades periféricas",
+    "centragem": "boa",
+    "rasgos": "não observados nas fotografias",
+    "dobras": "não observadas nas fotografias",
+    "classificacao_visual": "bom estado visual",
+    "observacao": "A classificação é baseada somente nas fotografias e não substitui exame físico da goma, da charneira, da filigrana, do papel e da denteação."
+  },
+  "imagens": {
+    "frente": "/assets/selos/SEL-000007/SEL-000007-frente.webp",
+    "verso": "/assets/selos/SEL-000007/SEL-000007-verso.webp",
+    "card": "/assets/selos/SEL-000007/SEL-000007-card.webp",
+    "thumb": null,
+    "alt": "Selo brasileiro amarelo e marrom-alaranjado de 2 centavos com retrato alusivo a Marília de Dirceu."
+  },
+  "historico": {
+    "resumo": "Maria Doroteia Joaquina de Seixas, nascida em Vila Rica em 1767, ficou conhecida como Marília de Dirceu por sua associação à musa da obra poética de Tomás Antônio Gonzaga.",
+    "nota": "Fontes museológicas destacam que Maria Doroteia teve atuação própria na sociedade de Vila Rica e não deve ser reduzida apenas ao papel de musa literária."
+  },
+  "historico_editorial": [
+    {
+      "tipo": "aprovacao",
+      "ocorrido_em": "2026-07-29T12:17:15.329Z",
+      "responsavel": "Thiago Gelinski",
+      "motivo": "Publicação autorizada expressamente pelo proprietário nesta conversa",
+      "hash": "3bb2a4b3e95ee2596ce58a360609c0b02bcba48761c295bcd8dcb179159842aa",
+      "versao": "1.0.0-pesquisa"
+    },
+    {
+      "tipo": "publicacao",
+      "ocorrido_em": "2026-07-29T12:17:17.175Z",
+      "responsavel": "Thiago Gelinski",
+      "motivo": "registro homologado e aprovado para publicação",
+      "hash": "3bb2a4b3e95ee2596ce58a360609c0b02bcba48761c295bcd8dcb179159842aa",
+      "versao": "1.0.0-pesquisa"
+    }
+  ],
+  "fontes": [
+    {
+      "titulo": "Filatelia Halibunani — RHM 527 Marília de Dirceu",
+      "url": "https://filateliahalibunani.com/produto-tag/marilia-de-dirceu/",
+      "uso": "RHM, série, personagem, valor facial e ano"
+    },
+    {
+      "titulo": "Wikimedia Commons / Colnect — Marília de Dirceu 1967",
+      "url": "https://commons.wikimedia.org/wiki/File:Stamp_of_Brazil_-_1967_-_Colnect_152219_-_Marilia_de_Dirceu_1767-1853.jpeg",
+      "uso": "valor facial e correlação RHM–Scott–Michel–Yvert–Stanley Gibbons"
+    },
+    {
+      "titulo": "Sutherland Philatelics — Brazil price list",
+      "url": "https://www.sutherlandphilatelics.com.au/lists/brazil.pdf",
+      "uso": "ano, série, cor e correlação Michel–Stanley Gibbons"
+    },
+    {
+      "titulo": "HipStamp — Brazil 1967 Scott 1037",
+      "url": "https://www.hipstamp.com/listing/brazil-1967-scott-1037-used-2c-marilia-de-dirceu/48549919",
+      "uso": "Scott, ano, valor facial e personagem"
+    },
+    {
+      "titulo": "Museu da Inconfidência — Conheça Marília de Dirceu",
+      "url": "https://museudainconfidencia.museus.gov.br/conheca-a-historia-de-marilia-de-dirceu/",
+      "uso": "nome, nascimento, falecimento e trajetória histórica"
+    },
+    {
+      "titulo": "Museu da Língua Portuguesa — Marília de Dirceu",
+      "url": "https://acervo.museudalinguaportuguesa.org.br/en/fund/5222/marilia-de-dirceu",
+      "uso": "relação entre Maria Doroteia, a musa Marília e a obra de Tomás Antônio Gonzaga"
+    },
+    {
+      "titulo": "Fundação Biblioteca Nacional — De Marília de Dirceu ao Romanceiro da Inconfidência",
+      "url": "https://www.gov.br/bn/pt-br/atuacao/pesquisa-e-editoracao/programa-nacional-de-apoio-a-pesquisa/pnap-2009/de-201cmarilia-de-dirceu201d-ao-201cromanceiro-da-inconfidencia201d-a-construcao-de-um-mito-na-sociedade-brasileira-a-partir-do-seculo-xviii",
+      "uso": "contexto histórico e distinção entre Maria Doroteia e a construção literária de Marília"
+    }
+  ],
+  "seo": {
+    "title": "Marília de Dirceu — 2 centavos (1967) | Coleção Selos",
+    "meta_description": "Ficha do selo brasileiro de Marília de Dirceu, RHM 527, emitido em 1967: imagens, dados técnicos, catálogos e contexto histórico.",
+    "canonical_path": "/selos/brasil-marilia-de-dirceu-2-centavos-1967",
+    "open_graph_title": "Marília de Dirceu — 2 centavos — Brasil, 1967",
+    "open_graph_description": "Conheça o selo brasileiro RHM 527 da série Mulheres Célebres do Brasil."
+  },
+  "aprovacao_humana": {
+    "status": "aprovado",
+    "decisao": "aprovado",
+    "aprovado_por": "Thiago Gelinski",
+    "aprovado_em": "2026-07-29T12:17:15.328Z",
+    "hash_do_registro_aprovado": "3bb2a4b3e95ee2596ce58a360609c0b02bcba48761c295bcd8dcb179159842aa",
+    "versao_aprovada": "1.0.0-pesquisa",
+    "escopo": "publicacao_catalogo",
+    "observacao": "Publicação autorizada expressamente pelo proprietário nesta conversa"
+  },
+  "publicacao": {
+    "status": "publicado",
+    "apto_para_preview": true,
+    "apto_para_publicacao": true,
+    "motivo": "registro homologado e aprovado para publicação"
+  },
+  "auditoria": {
+    "criado_em": "2026-07-29",
+    "ultima_revisao": "2026-07-29",
+    "versao": "1.0.0-pesquisa"
+  }
+}
