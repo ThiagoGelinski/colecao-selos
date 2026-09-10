@@ -106,3 +106,11 @@ Nenhuma execução de homologação visual foi comprovada por esta atualização
 Para cada revisão futura, registrar data, responsável, URL/ambiente, SHA do deploy, navegador e dimensões da tela, resultado e referência à evidência. O estado `publicado` do JSON e a aprovação editorial histórica não substituem esses registros. Testes, auditoria, Astro Check e build devem ter suas próprias evidências, sem marcar automaticamente os itens visuais.
 
 Fotografias originais e backups devem permanecer intactos. Novos derivados permitem somente recorte simétrico e conversão técnica para WebP, com proveniência verificável. A existência dos WebPs deste selo não demonstra, por si só, que os originais estejam arquivados.
+
+## Nota técnica da recuperação — 2026-09-10
+
+A recuperação implementa edição protegida, arquivo de fotografias originais, prévias privadas e fluxo de aprovação humana para GitHub/CI/Netlify. O JSON e os três WebPs deste selo permanecem preservados; nenhuma aprovação ou observação filatélica foi inventada.
+
+Os testes de software e de fluxo isolado não comprovam as verificações visuais acima, a localização das capturas históricas ou o deploy público efetivo. As caixas permanecem desmarcadas até registro individual de evidência humana. A nova cadeia de procedência aplica-se a uploads novos e não certifica retroativamente os WebPs históricos.
+
+A quantidade de exemplares não foi presumida. Se houver repetidos, a contagem e a escolha do exemplar de melhor conservação dependem de conferência do responsável. Originais e backups devem permanecer intactos.

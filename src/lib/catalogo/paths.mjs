@@ -1,7 +1,8 @@
 import path from 'node:path';
 import process from 'node:process';
 
-export const ROOT = process.env.SELO_ROOT ? path.resolve(process.env.SELO_ROOT) : process.cwd();
+// Netlify copies includedFiles into the Lambda bundle, whose root may differ from cwd.
+export const ROOT = path.resolve(process.env.SELO_ROOT || process.env.LAMBDA_TASK_ROOT || process.cwd());
 export const DATA_DIR = path.join(ROOT, 'src', 'data', 'selos');
 export const ASSET_DIR = path.join(ROOT, 'public', 'assets', 'selos');
 export const REPORT_DIR = path.join(ROOT, 'reports');

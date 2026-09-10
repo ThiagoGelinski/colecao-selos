@@ -24,11 +24,21 @@ jobs:
           cache: npm
       - name: Instalar dependências
         run: npm ci
+      - name: Auditar dependências
+        run: npm audit --audit-level=high
       - name: Executar testes
         run: npm test
       - name: Auditar catálogo
         run: npm run catalogo:auditoria
       - name: Verificar Astro e TypeScript
         run: npm run check
+      - name: Verificar lint
+        run: npm run lint
+      - name: Verificar tipos
+        run: npm run typecheck
+      - name: Verificar diferenças
+        run: git diff --check
       - name: Gerar build
         run: npm run build
+      - name: Verificar arquivos do runtime Netlify
+        run: node tests/netlify-bundle.check.mjs

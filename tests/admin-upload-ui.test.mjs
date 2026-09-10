@@ -1,169 +1,85 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import { buildEditorChanges, buildMediaFormData, fieldValue, privateAssetUrl } from '../src/lib/admin/editor-form.mjs';
+import { validateSeloSchema } from '../src/lib/selo-validation.mjs';
 
-test('Microbloco 2A.2.5 - Interface Administrativa de Upload de Assets (15 Cenários Funcionais)', async (t) => {
-    // Boilerplate for DOM String Testing and Mocks
-    const escape = (value) => String(value ?? '—').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char] ?? char));
+const record = JSON.parse(await readFile(new URL('../src/data/selos/SEL-000001.json', import.meta.url), 'utf8'));
+const digest = 'a'.repeat(64);
+const file = new File([new Uint8Array([1, 2, 3])], 'original.png', { type: 'image/png' });
 
-    // Core function extraction
-    const buildAssetsBlock = (item, payload) => {
-        return ['frente', 'card', 'verso', 'thumb'].map((kind) => {
-            const estado = item.imagens[kind];
-            const isRequired = kind === 'frente' || kind === 'card';
-            const labelText = isRequired ? `${escape(kind)} (Obrigatório)` : `${escape(kind)} (Opcional)`;
+test('editor preserva todo dado não exibido e não altera o registro recebido', () => {
+  const before = structuredClone(record);
+  const changes = buildEditorChanges(record, { titulo: 'Título revisado', 'identificacao.serie': record.identificacao.serie, 'identificacao.valor_facial.valor': String(record.identificacao.valor_facial.valor) }, record.fontes);
+  assert.deepEqual(changes, { titulo: 'Título revisado' });
+  assert.deepEqual(record, before);
+});
 
-            let visual = '';
-            if (estado.valido) {
-                const path = payload.data.registro.imagens?.[kind];
-                visual = `
-                <div class="asset-preview" style="margin-bottom:12px;">
-                    <img src="${escape(path)}" alt="Preview ${escape(kind)}" style="max-width:200px; display:block; margin: 10px 0; border: 1px solid #ddd;" />
-                    <p class="muted">Path: <code>${escape(path)}</code></p>
-                    <span class="badge ok">Processado</span>
-                </div>
-                <form class="asset-upload-form" data-kind="${escape(kind)}" data-id="SEL-000001" data-method="PUT">
-                    <input type="hidden" name="expected_updated_at" value="${escape(payload.data.registro.auditoria?.ultima_revisao)}" />
-                    <div style="margin-bottom: 8px; border-top: 1px dashed #eee; padding-top: 8px;">
-                        <label for="replace-file-${escape(kind)}" style="display:block; font-weight:bold; margin-bottom: 4px;">Substituir imagem (.webp)</label>
-                        <input type="file" id="replace-file-${escape(kind)}" accept="image/webp" required />
-                    </div>
-                    <div class="feedback-msg" style="margin-bottom: 8px; color: #cc0000;"></div>
-                    <button type="submit" class="button">Substituir</button>
-                </form>
-            `;
-            } else {
-                visual = `
-                <form class="asset-upload-form" data-kind="${escape(kind)}" data-id="SEL-000001" data-method="POST">
-                    <div style="margin-bottom: 8px;">
-                        <label for="file-${escape(kind)}" style="display:block; font-weight:bold; margin-bottom: 4px;">Arquivo (.webp)</label>
-                        <input type="file" id="file-${escape(kind)}" accept="image/webp" required ${isRequired ? 'aria-required="true"' : ''} />
-                    </div>
-                    <div class="feedback-msg" style="margin-bottom: 8px; color: #cc0000;"></div>
-                    <button type="submit" class="button">Fazer Upload</button>
-                </form>
-            `;
-            }
-            return `<li style="margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px dashed #eee;"><strong>${labelText}</strong><br>${visual}</li>`;
-        }).join('');
-    };
+test('editor não converte valor facial numérico inalterado em texto', () => {
+  assert.deepEqual(buildEditorChanges(record, { 'identificacao.valor_facial.valor': '20' }, record.fontes), {});
+});
 
-    const runSimulatedDispatcher = async (status, responseBody) => {
-        let sentFormData = null; let fetchTarget = null;
-        globalThis.fetch = async (url, options) => { fetchTarget = url; sentFormData = options.body; return { ok: status < 400, status, json: async () => responseBody }; };
+test('editor envia somente campo acessível alt e preserva caminhos de fotografias', () => {
+  const changes = buildEditorChanges(record, { 'imagens.alt': 'Descrição conferida', 'imagens.frente': '/outro.webp', 'publicacao.status': 'publicado', id: 'SEL-000099' }, record.fontes);
+  assert.deepEqual(changes, { imagens: { alt: 'Descrição conferida' } });
+});
 
-        let buttonState = 'Fazer Upload'; let buttonDisabled = false; let msg = ''; let msgColor = ''; let reloads = 0; let sessionExpired = false;
+test('quantidade ausente continua ausente e não é presumida como uma unidade', () => {
+  assert.deepEqual(buildEditorChanges(record, { 'exemplar.quantidade': '' }, record.fontes), {});
+  assert.equal('quantidade' in record.exemplar, false);
+});
 
-        const submitSimulation = async (kind, id) => {
-            if (buttonDisabled) return; // Prevent double clicks
-            buttonDisabled = true; buttonState = 'Enviando...'; msg = ''; msgColor = '#cc0000';
-            const httpMethod = kind === 'frente' ? 'PUT' : 'POST';
-            const formData = new FormData(); formData.append('papel', kind); formData.append('file', { fake: 'file' });
-            if (httpMethod === 'PUT') formData.append('expected_updated_at', '2025-01-01T00:00:00.000Z');
-            try {
-                const endpoint = httpMethod === 'PUT' ? `/api/admin/selos/${encodeURIComponent(id)}/assets/retificar` : `/api/admin/selos/${encodeURIComponent(id)}/assets`;
-                const res = await globalThis.fetch(endpoint, { method: 'POST', body: formData });
-                const json = await res.json();
-                if (res.ok) { msgColor = 'green'; msg = httpMethod === 'PUT' ? 'Retificação concluída com sucesso. Recarregando...' : 'Upload concluído com sucesso. Recarregando...'; reloads++; }
-                else {
-                    let text = json.error?.message || 'Falha no servidor';
-                    if (res.status === 400) text = `Requisição inválida: ${text}`;
-                    if (res.status === 401) { text = 'Sessão expirada'; sessionExpired = true; }
-                    if (res.status === 404) text = 'Selo/Asset não encontrado';
-                    if (res.status === 409) text = httpMethod === 'PUT' ? 'Bloqueio otimista: estado do registro divergiu (mid-air collision).' : 'Asset já existe';
-                    if (res.status === 413) text = 'Arquivo excede limite permitido (5MB)';
-                    if (res.status === 415) text = `Formato inválido: ${text}`;
-                    if (res.status === 422) text = `Dados inválidos: ${text}`;
-                    if (res.status === 500) text = 'Falha interna no servidor';
-                    msg = text; buttonDisabled = false; buttonState = httpMethod === 'PUT' ? 'Substituir' : 'Fazer Upload';
-                }
-            } catch (err) { msg = err.message || 'Erro de rede'; buttonDisabled = false; buttonState = 'Fazer Upload'; }
-        };
-        return { submitSimulation, getDOM: () => ({ buttonDisabled, buttonState, msg, msgColor, reloads, sessionExpired }), getNetwork: () => ({ fetchTarget, sentFormData }) };
-    };
+test('repetidos exigem contagem inteira e confirmação do exemplar de melhor conservação', () => {
+  for (const quantity of ['0', '-1', '1.5', '2e1', 'x', '9007199254740993']) assert.throws(() => buildEditorChanges(record, { 'exemplar.quantidade': quantity }, record.fontes), /quantidade/);
+  assert.throws(() => buildEditorChanges(record, { 'exemplar.quantidade': '2' }, record.fontes), /melhor conservação/);
+  assert.deepEqual(buildEditorChanges(record, { 'exemplar.quantidade': '2', 'exemplar.melhor_conservacao': 'on' }, record.fontes), { exemplar: { quantidade: 2, criterio_selecao: 'melhor_conservacao' } });
+});
 
-    const baseItem = { imagens: { frente: { valido: false }, card: { valido: false }, verso: { valido: false }, thumb: { valido: false } } };
-    const html = buildAssetsBlock(baseItem, { data: { registro: { imagens: {} } } });
+test('quantidade registrada não desaparece ao limpar o formulário', () => {
+  const existing = structuredClone(record); existing.exemplar.quantidade = 1;
+  assert.throws(() => buildEditorChanges(existing, { 'exemplar.quantidade': '' }, existing.fontes), /já foi registrada/);
+});
 
-    await t.test('1. Frente ausente exibe controle upload (Obrigatório)', () => { assert.ok(html.includes('file-frente" accept="image/webp" required aria-required="true"'), 'Contém input da frente obrigatório'); });
-    await t.test('2. Card ausente exibe controle upload (Obrigatório)', () => { assert.ok(html.includes('file-card" accept="image/webp" required aria-required="true"'), 'Contém input do card obrigatório'); });
-    await t.test('3. Verso ausente aparece como opcional', () => { assert.ok(html.includes('verso (Opcional)'), 'Verso é Opcional'); assert.ok(!html.includes('file-verso" accept="image/webp" required aria-required'), 'Sem aria-required'); });
-    await t.test('4. Thumb ausente aparece como opcional', () => { assert.ok(html.includes('thumb (Opcional)'), 'Thumb é Opcional'); });
-    await t.test('5. Asset presente exibe preview/path oficial correto', () => {
-        const h2 = buildAssetsBlock({ imagens: { ...baseItem.imagens, frente: { valido: true } } }, { data: { registro: { auditoria: { ultima_revisao: '2025-01-01' }, imagens: { frente: '/assets/selos/x.webp' } } } });
-        assert.ok(h2.includes('src="/assets/selos/x.webp"'), 'Exibiu imagem');
-        assert.ok(h2.includes('<code>/assets/selos/x.webp</code>'), 'Exibiu path');
-    });
+test('temas aceitam linhas e emissão desconhecida pode ser anulada sem apagar ressalvas', () => {
+  assert.equal(fieldValue(record, 'identificacao.tema'), record.identificacao.tema.join('\n'));
+  assert.deepEqual(buildEditorChanges(record, { 'identificacao.tema': ' Tema A \n\nTema B ', 'emissao.ano': '' }, record.fontes), { identificacao: { tema: ['Tema A', 'Tema B'] }, emissao: { ano: null } });
+});
 
-    await t.test('6. Asset presente exibe formulário de Retificação e bloqueia Delete/Exclusão expressa', () => {
-        const h2 = buildAssetsBlock({ imagens: { ...baseItem.imagens, frente: { valido: true } } }, { data: { registro: { auditoria: { ultima_revisao: 'old-stamp-date' }, imagens: { frente: '/assets/selos/x.webp' } } } });
-        assert.ok(h2.includes('data-method="PUT"'), 'Ativa intent explícita de Substituição via PUT');
-        assert.ok(h2.includes('expected_updated_at'), 'Assegura a flag optimistic lock UI -> HTTP em expected_updated_at');
-        assert.ok(h2.includes('value="old-stamp-date"'), 'Vincula id original de data para evitar bypass concorrente');
-        assert.match(h2, /Substituir imagem/, 'Reflete rótulo exato instruído na UI');
-        assert.ok(!h2.toLowerCase().includes('excluir'), 'O botão excluir não deveria constar nas validações presentes');
-        assert.ok(!h2.toLowerCase().includes('deletar'), 'O botão deletar não deveria constar');
-    });
+test('preview de rascunho usa endpoint administrativo e rejeita identificador ou papel inválido', () => {
+  assert.equal(privateAssetUrl(record.id, 'frente', digest), '/api/admin/selos/SEL-000001/assets/frente?v=' + digest);
+  assert.throws(() => privateAssetUrl('../SEL-000001', 'frente'), /inválida/);
+  assert.throws(() => privateAssetUrl(record.id, 'original'), /inválida/);
+});
 
-    await t.test('7. Envio monta FormData contendo o papel correto', async () => {
-        const { submitSimulation, getNetwork } = await runSimulatedDispatcher(200, {});
-        await submitSimulation('card', 'SEL-000001');
-        assert.equal(getNetwork().sentFormData.get('papel'), 'card');
-    });
+test('upload conserva bytes originais no FormData e usa revisão completa do registro', async () => {
+  const form = buildMediaFormData(file, 'frente', digest, '2', '3');
+  assert.equal(form.get('papel'), 'frente');
+  assert.equal(form.get('expected_digest'), digest);
+  assert.equal(form.get('expected_updated_at'), null);
+  assert.equal(form.get('crop_x'), '2'); assert.equal(form.get('crop_y'), '3');
+  assert.deepEqual(new Uint8Array(await form.get('file').arrayBuffer()), new Uint8Array(await file.arrayBuffer()));
+});
 
-    await t.test('8. Retificação usa POST dedicado sem perder o intent de substituição', async () => {
-        const { submitSimulation, getNetwork } = await runSimulatedDispatcher(200, {});
-        await submitSimulation('frente', 'SEL-999999');
-        assert.equal(getNetwork().fetchTarget, '/api/admin/selos/SEL-999999/assets/retificar');
-    });
+test('upload bloqueia digest ausente e recorte inválido antes do envio', () => {
+  assert.throws(() => buildMediaFormData(file, 'frente', ''), /Recarregue/);
+  for (const value of ['-1', '1.5', 'NaN', '9007199254740993']) assert.throws(() => buildMediaFormData(file, 'card', digest, value, '0'), /recortes/);
+  assert.throws(() => buildMediaFormData(new File([new Uint8Array(5 * 1024 * 1024 + 1)], 'grande.png'), 'frente', digest), /5 MiB/);
+});
 
-    await t.test('9. Sucesso provoca atualização/reload do estado oficial', async () => {
-        const { submitSimulation, getDOM } = await runSimulatedDispatcher(200, {});
-        await submitSimulation('frente', 'SEL-999999');
-        assert.equal(getDOM().reloads, 1, 'Deve realizar window location reload');
-    });
+test('schema mantém os sete registros sem exigir contagens não comprovadas', async () => {
+  for (let sequence = 1; sequence <= 7; sequence++) {
+    const id = 'SEL-' + String(sequence).padStart(6, '0');
+    const current = JSON.parse(await readFile(new URL('../src/data/selos/' + id + '.json', import.meta.url), 'utf8'));
+    assert.equal(validateSeloSchema(current).valid, true, id);
+  }
+});
 
-    await t.test('10. HTTP 409 (PUT) apresenta mensagem Mid-Air de divergência otimista', async () => {
-        const { submitSimulation, getDOM } = await runSimulatedDispatcher(409, { error: { message: 'Existing' } });
-        await submitSimulation('frente', 'SEL-999'); // frente usa PUT
-        assert.equal(getDOM().msg, 'Bloqueio otimista: estado do registro divergiu (mid-air collision).');
-    });
-
-    await t.test('11. HTTP 413 apresenta mensagem segura de limite de 5 MB', async () => {
-        const { submitSimulation, getDOM } = await runSimulatedDispatcher(413, { error: { message: 'Too large' } });
-        await submitSimulation('frente', 'SEL-999');
-        assert.equal(getDOM().msg, 'Arquivo excede limite permitido (5MB)');
-    });
-
-    await t.test('12. HTTP 415 apresenta mensagem segura de formato inválido', async () => {
-        const { submitSimulation, getDOM } = await runSimulatedDispatcher(415, { error: { message: 'Must be webp' } });
-        await submitSimulation('frente', 'SEL-999');
-        assert.equal(getDOM().msg, 'Formato inválido: Must be webp');
-    });
-
-    await t.test('13. HTTP 401 executa o tratamento de sessão previsto', async () => {
-        const { submitSimulation, getDOM } = await runSimulatedDispatcher(401, {});
-        await submitSimulation('frente', 'SEL-999');
-        assert.ok(getDOM().sessionExpired, 'Deve despachar admin:session-expired emit no document');
-    });
-
-    await t.test('14. Botão fica disabled enquanto a request está pendente', async () => {
-        let resolveRequest;
-        globalThis.fetch = () => new Promise(r => { resolveRequest = r; }); // Infinite promise wait
-        const domTrigger = async () => {
-            let disabled = true; let text = 'Enviando...';
-            return { disabled, text };
-        };
-        const s = await domTrigger();
-        assert.ok(s.disabled, 'Desativa botão');
-        assert.equal(s.text, 'Enviando...', 'Altera texto do botão');
-    });
-
-    await t.test('15. Uma segunda submissão durante request pendente NÃO dispara segunda request', async () => {
-        let callCount = 0;
-        const { submitSimulation } = await runSimulatedDispatcher(200, {});
-        globalThis.fetch = async () => { callCount++; return new Promise(() => { }); /* stuck promise */ };
-        submitSimulation('frente', 'SEL-999');
-        submitSimulation('frente', 'SEL-999');
-        assert.equal(callCount, 1, 'Impediu duplo clique limitando ao primeiro call pendente');
-    });
+test('schema protege regra de repetidos também fora da interface', () => {
+  const candidate = structuredClone(record);
+  candidate.exemplar.quantidade = 2;
+  assert.equal(validateSeloSchema(candidate).valid, false);
+  candidate.exemplar.criterio_selecao = 'melhor_conservacao';
+  assert.equal(validateSeloSchema(candidate).valid, true);
+  candidate.exemplar.quantidade = 0;
+  assert.equal(validateSeloSchema(candidate).valid, false);
 });

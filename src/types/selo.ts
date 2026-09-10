@@ -67,7 +67,7 @@ export interface Selo {
   emissao: { ano?: number | null; data_oficial?: string | null; data_status?: NivelConfianca | string | null; finalidade?: string | null; tiragem?: number | string | null; tiragem_status?: string | null };
   tecnica: { impressao?: string | null; papel?: string | null; goma_original_da_emissao?: string | null; filigrana?: string | null; denteacao?: string | null; dimensoes_mm?: { largura?: number | null; altura?: number | null } | null; impressor?: string | null; impressor_status?: string | null };
   catalogos: { RHM?: CatalogoRef | null; Scott?: CatalogoRef | null; Michel?: CatalogoRef | null; Yvert_et_Tellier?: CatalogoRef | null; Stanley_Gibbons?: CatalogoRef | null; outros?: Record<string, CatalogoRef> };
-  exemplar: { uso_postal?: string | null; carimbo_frontal?: string | null; goma?: string | null; charneira?: string | null; papel?: string | null; serrilha?: string | null; centragem?: string | null; rasgos?: string | null; dobras?: string | null; manchas?: string | null; classificacao_visual?: string | null; observacao?: string | null };
+  exemplar: { quantidade?: number; criterio_selecao?: 'melhor_conservacao'; uso_postal?: string | null; carimbo_frontal?: string | null; goma?: string | null; charneira?: string | null; papel?: string | null; serrilha?: string | null; centragem?: string | null; rasgos?: string | null; dobras?: string | null; manchas?: string | null; classificacao_visual?: string | null; observacao?: string | null };
   imagens: { frente: string; verso?: string | null; card: string; thumb?: string | null; alt: string };
   historico: { resumo?: string | null; nota?: string | null };
   historico_editorial?: EventoEditorial[];

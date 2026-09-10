@@ -1,301 +1,120 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, rm, stat, readFile } from 'node:fs/promises';
+import { mkdtemp, rm, readFile } from 'node:fs/promises';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
+import sharp from 'sharp';
+import { imageFixture, memoryStore } from './helpers/media-fixture.mjs';
+import { jsonDigest } from '../src/lib/catalogo/digest.mjs';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const ID = 'SEL-999999';
 const ORIGINAL_CWD = process.cwd();
-const ROOT = await mkdtemp(path.join(tmpdir(), 'selos-2a2-'));
+const ROOT = await mkdtemp(path.join(tmpdir(), 'selos-upload-'));
+const ORIGINAL = await imageFixture('png');
+const RECORD_KEY = `manifests/${ID}.json`;
+const ASSET_KEY = `assets/selos/${ID}/${ID}-frente.webp`;
+const initialRecord = () => ({ id: ID, slug: 'registro-de-teste', imagens: {}, historico_editorial: [], auditoria: { ultima_revisao: '2026-09-10', versao: '1.0.0' } });
+const makeForm = (options = {}) => {
+  const form = new FormData(); form.set('papel', options.papel ?? 'frente');
+  if (options.file !== false) form.set('file', new File([options.bytes ?? ORIGINAL], options.name ?? 'foto.png', { type: options.mime ?? 'image/png' }));
+  form.set('expected_digest', options.expected ?? jsonDigest(initialRecord()));
+  if (options.crop_x !== undefined) form.set('crop_x', options.crop_x);
+  if (options.crop_y !== undefined) form.set('crop_y', options.crop_y);
+  return form;
+};
+
 process.chdir(ROOT);
+// Import runtime-dependent modules only after the isolated fixture directory is active.
+const { mediaHash } = await import('../src/lib/catalogo/media.mjs');
+const { POST } = await import('../src/pages/api/admin/selos/[id]/assets.ts');
+const { writeJsonExclusive, readJson } = await import('../src/lib/catalogo/io.mjs');
+async function call(form, { id = ID, role = 'administrador', authenticated = true, origin = 'http://localhost' } = {}) {
+  return POST({ params: { id }, locals: authenticated ? { adminUser: { username: 'admin', role } } : {}, request: new Request(`http://localhost/api/admin/selos/${id}/assets`, { method: 'POST', headers: { origin }, body: form }) });
+}
 
-// Setup Blob Store Mocks
-const blobData = {};
-const blobMeta = {};
-globalThis.__MOCK_BLOB_STORE = {
-    get: async (key, opts) => {
-        if (!blobData[key]) return null;
-        if (opts && opts.type === 'arrayBuffer') {
-            if (Buffer.isBuffer(blobData[key])) {
-                return new Uint8Array(blobData[key]).buffer;
-            }
-            return blobData[key].buffer || blobData[key];
-        }
-        return blobData[key];
-    },
-    set: async (key, val, opts) => {
-        if (opts?.onlyIfNew && key in blobData) return { modified: false };
-        if (opts?.onlyIfMatch && blobMeta[key]?.etag !== opts.onlyIfMatch) return { modified: false };
-        blobData[key] = val;
-        const etag = 'mock-etag-' + Date.now() + '-' + Math.random();
-        blobMeta[key] = { etag, metadata: opts?.metadata || {} };
-        return { modified: true, etag };
-    },
-    getWithMetadata: async (key, opts) => {
-        if (!blobData[key]) return null;
-        let data = blobData[key];
-        if (opts && opts.type === 'json' && typeof data === 'string') {
-            try { data = JSON.parse(data); } catch { }
-        } else if (opts && opts.type === 'json' && Buffer.isBuffer(data)) {
-            try { data = JSON.parse(data.toString('utf8')); } catch { }
-        }
-        return { data, etag: blobMeta[key]?.etag || 'mock-etag', metadata: blobMeta[key]?.metadata };
-    },
-    setJSON: async (key, val, opts) => {
-        if (opts?.onlyIfMatch && blobMeta[key]?.etag !== opts.onlyIfMatch) {
-            return { modified: false }; // Concorrência
-        }
-        if (opts?.onlyIfNew && blobData[key]) {
-            return { modified: false };
-        }
-        blobData[key] = JSON.stringify(val);
-        const newEtag = 'mock-etag-' + Date.now();
-        blobMeta[key] = { etag: newEtag, metadata: opts?.metadata || {} };
-        return { modified: true, etag: newEtag };
-    },
-    getMetadata: async (key) => blobMeta[key] || null,
-    delete: async (key) => { delete blobData[key]; delete blobMeta[key]; },
-    list: async () => ({ blobs: Object.keys(blobData).map(k => ({ key: k })) })
-};
-
-const SETUP_MODE = (serverless) => {
-    globalThis.__MOCK_NETLIFY_ENV = serverless;
-};
-
-// Create a valid WebP buffer for tests
-const createValidWebP = () => {
-    const buf = Buffer.alloc(20);
-    buf.write('RIFF', 0);
-    buf.writeUInt32LE(12, 4);
-    buf.write('WEBP', 8);
-    // Dummy payload
-    buf.write('TEST', 12);
-    return buf;
-};
-
-const createInvalidMagicFile = () => {
-    const buf = Buffer.alloc(20);
-    buf.write('FAKE', 0); // Not RIFF
-    buf.writeUInt32LE(12, 4);
-    buf.write('WEBP', 8);
-    return buf;
-};
-
-test('Microbloco 2A.2.4 - Upload Serverless Seguro de Assets', async (t) => {
-    t.after(async () => { process.chdir(ORIGINAL_CWD); await rm(ROOT, { recursive: true, force: true }); });
-    const { POST } = await import('../src/pages/api/admin/selos/[id]/assets.ts');
-    const { writeJsonExclusive, readJson } = await import('../src/lib/catalogo/io.mjs');
-
-    const PREPARE_STAMP = async (id, isServerless, imagens = {}) => {
-        SETUP_MODE(isServerless);
-        const dummyPath = path.join(ROOT, 'src', 'data', 'selos', `${id}.json`);
-        const json = { id, slug: 'dummy-selo-' + id, imagens };
-        await writeJsonExclusive(dummyPath, json);
+test('Upload preserva fotografia original e promove apenas derivado rastreável', async (t) => {
+  t.after(async () => { process.chdir(ORIGINAL_CWD); await rm(ROOT, { recursive: true, force: true }); globalThis.__MOCK_NETLIFY_ENV = false; delete globalThis.__MOCK_MEDIA_STORE; delete globalThis.__MOCK_BLOB_STORE; });
+  let catalog; let media;
+  t.beforeEach(() => {
+    catalog = memoryStore({ [RECORD_KEY]: initialRecord() }); media = memoryStore();
+    globalThis.__MOCK_NETLIFY_ENV = true; globalThis.__MOCK_BLOB_STORE = catalog.store; globalThis.__MOCK_MEDIA_STORE = media.store;
+  });
+  await t.test('exige sessão, perfil de edição, mesma origem e ID válido', async () => {
+    assert.equal((await call(makeForm(), { authenticated: false })).status, 401);
+    assert.equal((await call(makeForm(), { role: 'revisor' })).status, 403);
+    assert.equal((await call(makeForm(), { origin: 'https://outro.example' })).status, 403);
+    assert.equal((await call(makeForm(), { id: 'invalid' })).status, 400);
+    assert.equal(media.writes.length, 0);
+  });
+  await t.test('recusa selo ausente, papel inválido e arquivo ausente', async () => {
+    assert.equal((await call(makeForm(), { id: 'SEL-111111' })).status, 404);
+    assert.equal((await call(makeForm({ papel: 'capa' }))).status, 422);
+    assert.equal((await call(makeForm({ file: false }))).status, 422);
+  });
+  await t.test('verifica decodificação completa, MIME real e limite de 5 MiB', async () => {
+    assert.equal((await call(makeForm({ bytes: Buffer.from('RIFFxxxxWEBP') }))).status, 415);
+    assert.equal((await call(makeForm({ mime: 'image/jpeg' }))).status, 415);
+    assert.equal((await call(makeForm({ bytes: Buffer.alloc(5 * 1024 * 1024 + 1) }))).status, 413);
+    assert.equal(media.writes.length, 0);
+  });
+  await t.test('recusa recorte inválido e versão integral obsoleta', async () => {
+    for (const crop_x of ['-1', '1.5', '6', 'NaN']) assert.equal((await call(makeForm({ crop_x }))).status, 422);
+    assert.equal((await call(makeForm({ expected: '0'.repeat(64) }))).status, 409);
+    assert.equal(media.writes.length, 0);
+  });
+  await t.test('Blobs arquiva original exato, derivado e recibo antes do primeiro upload', async () => {
+    const result = await call(makeForm({ crop_x: '1', crop_y: '2' }), { role: 'catalogador' });
+    const body = await result.json(); assert.equal(result.status, 200, JSON.stringify(body));
+    const asset = catalog.data.get(ASSET_KEY); const proof = body.data.provenance;
+    assert.deepEqual(media.data.get(`originais/${mediaHash(ORIGINAL)}`), ORIGINAL);
+    assert.deepEqual(media.data.get(`derivados/${proof.derived_hash}.webp`), asset);
+    assert.ok(media.data.has(`procedencia/${proof.derived_hash}.json`));
+    assert.equal(proof.derived_hash, mediaHash(asset));
+    const decoded = await sharp(asset).metadata(); assert.equal(decoded.width, 10); assert.equal(decoded.height, 6);
+    assert.equal(catalog.data.get(RECORD_KEY).imagens.frente, `/${ASSET_KEY}`);
+    assert.equal(body.data.record_digest, jsonDigest(catalog.data.get(RECORD_KEY)));
+    assert.ok(media.writes.every((write) => write.opts.onlyIfNew));
+    await assert.rejects(readFile(path.join(ROOT, 'public', ASSET_KEY)), { code: 'ENOENT' });
+  });
+  await t.test('binário existente impede sobrescrita, placeholder sem binário permite primeiro envio', async () => {
+    catalog.data.get(RECORD_KEY).imagens.frente = `/${ASSET_KEY}`;
+    catalog.data.set(ASSET_KEY, ORIGINAL); catalog.etags.set(ASSET_KEY, 'asset');
+    const expected = jsonDigest(catalog.data.get(RECORD_KEY));
+    assert.equal((await call(makeForm({ expected }))).status, 409);
+    catalog.data.delete(ASSET_KEY); catalog.etags.delete(ASSET_KEY);
+    assert.equal((await call(makeForm({ expected }))).status, 200);
+  });
+  await t.test('falha ao preservar original impede qualquer promoção', async () => {
+    media.store.set = async () => { throw new Error('arquivo indisponível'); };
+    assert.equal((await call(makeForm())).status, 500);
+    assert.equal(catalog.data.has(ASSET_KEY), false);
+    assert.deepEqual(catalog.data.get(RECORD_KEY), initialRecord());
+  });
+  await t.test('falha do JSON reverte somente derivado mutável e mantém original arquivado', async () => {
+    catalog.store.setJSON = async () => { throw new Error('gravação falhou'); };
+    assert.equal((await call(makeForm())).status, 500);
+    assert.equal(catalog.data.has(ASSET_KEY), false);
+    assert.deepEqual(catalog.data.get(RECORD_KEY), initialRecord());
+    assert.deepEqual(media.data.get(`originais/${mediaHash(ORIGINAL)}`), ORIGINAL);
+  });
+  await t.test('mudança concorrente no mesmo dia rejeita digest dentro do modificador', async () => {
+    const setJSON = catalog.store.setJSON;
+    catalog.store.setJSON = async (key, value, opts) => {
+      if (key === RECORD_KEY) { catalog.data.get(key).titulo = 'alterado'; catalog.etags.set(key, 'concurrent'); catalog.store.setJSON = setJSON; return { modified: false }; }
+      return setJSON(key, value, opts);
     };
-
-    t.afterEach(async () => {
-        for (const k of Object.keys(blobData)) delete blobData[k];
-        for (const k of Object.keys(blobMeta)) delete blobMeta[k];
-
-        const dummyBase = path.join(ROOT, 'src', 'data', 'selos');
-        const assetsBase = path.join(ROOT, 'public', 'assets', 'selos');
-        await rm(path.join(dummyBase, 'SEL-777777.json'), { force: true });
-        await rm(path.join(dummyBase, 'SEL-888888.json'), { force: true });
-        await rm(path.join(dummyBase, 'SEL-999999.json'), { force: true });
-        await rm(path.join(assetsBase, 'SEL-777777'), { recursive: true, force: true });
-        await rm(path.join(assetsBase, 'SEL-888888'), { recursive: true, force: true });
-        await rm(path.join(assetsBase, 'SEL-999999'), { recursive: true, force: true });
-    });
-
-    const runPOST = async (id, formData, isAuthenticated = true) => {
-        const req = new Request(`http://localhost/api/admin/selos/${id}/assets`, {
-            method: 'POST',
-            headers: { origin: 'http://localhost' },
-            body: formData,
-        });
-        const ctx = {
-            params: { id },
-            request: req,
-            locals: isAuthenticated ? { adminUser: { username: 'admin' } } : {}
-        };
-        return await POST(ctx);
-    };
-
-    await t.test('1. Autenticação ausente -> 401', async () => {
-        const formData = new FormData();
-        const res = await runPOST('SEL-777777', formData, false);
-        assert.equal(res.status, 401);
-    });
-
-    await t.test('2. ID inválido -> 400', async () => {
-        const res = await runPOST('INVALIDO', new FormData());
-        assert.equal(res.status, 400);
-    });
-
-    await t.test('3. Selo inexistente -> 404', async () => {
-        SETUP_MODE(false);
-        const res = await runPOST('SEL-777777', new FormData());
-        assert.equal(res.status, 404);
-    });
-
-    await t.test('4. Papel inválido -> 422', async () => {
-        await PREPARE_STAMP('SEL-777777', false);
-        const formData = new FormData();
-        formData.append('papel', 'capa'); // Invalid
-        formData.append('file', new Blob([createValidWebP()]), 'a.webp'); // Blob without File name might cause issue, JS File object is missing in basic Node, but Astro polyfills it. We can just use standard Blob API if node lets us.
-
-        // Let's create a Mock File explicitly to pass Astro FormData extraction properly:
-        const file = new File([createValidWebP()], 'test.webp', { type: 'image/webp' });
-        formData.set('file', file);
-
-        const res = await runPOST('SEL-777777', formData);
-        assert.equal(res.status, 422);
-
-        const payload = await res.json();
-        assert.ok(payload.error.details.errors[0].includes('papel'));
-    });
-
-    await t.test('10, 11. MIME invalido -> 415 e Arquivo nao binario -> 422', async () => {
-        await PREPARE_STAMP('SEL-777777', false);
-        const formData = new FormData();
-        formData.append('papel', 'frente');
-        formData.append('file', new File([createValidWebP()], 'test.jpg', { type: 'image/jpeg' })); // type is jpeg, invalid!
-
-        const res = await runPOST('SEL-777777', formData);
-        assert.equal(res.status, 415);
-    });
-
-    await t.test('12. Magic bytes incompatíveis falsos WEBP -> 415', async () => {
-        await PREPARE_STAMP('SEL-777777', false);
-        const formData = new FormData();
-        formData.append('papel', 'frente');
-
-        const hackerFile = new File([createInvalidMagicFile()], 'test.webp', { type: 'image/webp' });
-        formData.append('file', hackerFile);
-
-        const res = await runPOST('SEL-777777', formData);
-        assert.equal(res.status, 415);
-        assert.ok((await res.json()).error.message.includes('Assinatura profunda WebP inválida'));
-    });
-
-    await t.test('13. Arquivo limite máximo de 5MB -> 413', async () => {
-        await PREPARE_STAMP('SEL-777777', false);
-        const formData = new FormData();
-        formData.append('papel', 'frente');
-
-        // Simulating a huge File simply by padding
-        const bigBuf = Buffer.alloc((5 * 1024 * 1024) + 1); // 5MB + 1 byte
-        const bigFile = new File([bigBuf], 'test.webp', { type: 'image/webp' });
-        formData.append('file', bigFile);
-
-        const res = await runPOST('SEL-777777', formData);
-        assert.equal(res.status, 413);
-    });
-
-    await t.test('21. Impedir overwrite estrito somente quando o binário já existe -> 409', async () => {
-        await PREPARE_STAMP('SEL-888888', true, { frente: '/assets/selos/SEL-888888/SEL-888888-frente.webp' });
-        await globalThis.__MOCK_BLOB_STORE.set('assets/selos/SEL-888888/SEL-888888-frente.webp', createValidWebP(), { onlyIfNew: true });
-        const formData = new FormData(); formData.append('papel', 'frente'); formData.append('file', new File([createValidWebP()], 'test.webp', { type: 'image/webp' }));
-        assert.equal((await runPOST('SEL-888888', formData)).status, 409);
-    });
-
-    await t.test('22. Placeholder canônico sem binário permite o primeiro upload', async () => {
-        await PREPARE_STAMP('SEL-888888', true, { frente: '/assets/selos/SEL-888888/SEL-888888-frente.webp' });
-        const formData = new FormData(); formData.append('papel', 'frente'); formData.append('file', new File([createValidWebP()], 'test.webp', { type: 'image/webp' }));
-        const response = await runPOST('SEL-888888', formData); assert.equal(response.status, 200, await response.text());
-        assert.ok(blobData['assets/selos/SEL-888888/SEL-888888-frente.webp']);
-    });
-
-    await t.test('5, 7, 8, 9, 17. Path feliz LOCAL (Sem Blobs, Escrita Física e Update JSON)', async () => {
-        await PREPARE_STAMP('SEL-999999', false); // Clean
-
-        const validBuf = createValidWebP();
-        const formData = new FormData();
-        formData.append('papel', 'verso');
-        formData.append('file', new File([validBuf], 'weird-name-user-sent.webp', { type: 'image/webp' }));
-
-        const res = await runPOST('SEL-999999', formData);
-
-        const bodyText = await res.text();
-        assert.equal(res.status, 200, bodyText);
-
-        // 8. Filename server-side canonical derivation -> target
-        const payload = JSON.parse(bodyText);
-        const expectedPath = `/assets/selos/SEL-999999/SEL-999999-verso.webp`;
-        assert.equal(payload.data.target, expectedPath);
-
-        // Verify that the file was written locally physically
-        const localFs = path.join(process.cwd(), 'public', expectedPath);
-        const stats = await stat(localFs);
-        assert.ok(stats.isFile(), 'Arquivo não persistido localmente');
-        const readBuf = await readFile(localFs);
-        assert.deepEqual(readBuf, validBuf, 'Bytes diferem');
-
-        // Verify JSON Update
-        const json = await readJson(path.join(ROOT, 'src', 'data', 'selos', 'SEL-999999.json'));
-        assert.equal(json.imagens.verso, expectedPath, 'Mecanismo atômico não registrou path no JSON corretamente');
-
-        // Confirm Blob is completely empty
-        assert.equal(Object.keys(blobData).length, 0, 'Blobs acionado ilicitamente em fallback Local');
-    });
-
-    await t.test('6, 16. Path feliz SERVERLESS (Isolamento Blobs)', async () => {
-        await PREPARE_STAMP('SEL-999999', true); // Cloud
-
-        const validBuf = createValidWebP();
-        const formData = new FormData();
-        formData.append('papel', 'thumb');
-        formData.append('file', new File([validBuf], 'test.webp', { type: 'image/webp' }));
-
-        const res = await runPOST('SEL-999999', formData);
-        assert.equal(res.status, 200);
-
-        const expectedPath = `/assets/selos/SEL-999999/SEL-999999-thumb.webp`;
-
-        // 16. Serverless must NOT create any physical directory
-        const localFs = path.join(process.cwd(), 'public', expectedPath);
-        await assert.rejects(stat(localFs), { code: 'ENOENT' }, 'Isolamento Blob vazou escrita para FS Nativo!');
-
-        const blobKeyRecord = `manifests/SEL-999999.json`;
-        const blobKeyAsset = `assets/selos/SEL-999999/SEL-999999-thumb.webp`;
-
-        assert.ok(blobData[blobKeyAsset], 'Asset missing nos blobs');
-
-        // Checking if JSON was merged atomically via ETag mechanism!
-        assert.ok(blobData[blobKeyRecord], 'JSON não persistido nos blobs');
-        const json = JSON.parse(blobData[blobKeyRecord]);
-        assert.equal(json.imagens.thumb, expectedPath);
-    });
-
-    await t.test('14, 15, 20. Atomicidade Isolada. Falha transacional impede commit falso e orfandamento', async () => {
-        // Pre-stamp existing cloud
-        await PREPARE_STAMP('SEL-999999', true);
-
-        const formData = new FormData();
-        formData.append('papel', 'card');
-        formData.append('file', new File([createValidWebP()], 'test.webp', { type: 'image/webp' }));
-
-        // Simulating JSON Write Fail AFTER Asset is successfully uploaded!
-        const originalSetJSON = globalThis.__MOCK_BLOB_STORE.setJSON;
-        globalThis.__MOCK_BLOB_STORE.setJSON = async (key) => {
-            if (key === 'manifests/SEL-999999.json') throw new Error('Falhas no banco de blobs via rate limit!!');
-            return originalSetJSON(...arguments);
-        };
-
-        const res = await runPOST('SEL-999999', formData);
-
-        // 15. The system MUST error!
-        assert.equal(res.status, 500);
-
-        // 14/20. The JSON wasn't mutated at all in the process. Wait, it crashed so it threw instantly!
-        globalThis.__MOCK_BLOB_STORE.setJSON = originalSetJSON; // Restore
-
-        const jsonRAW = blobData['manifests/SEL-999999.json'];
-        const json = JSON.parse(jsonRAW);
-        assert.equal(json.imagens?.card, undefined, 'Atomic Violation: JSON modificado mesmo existindo erro persistência');
-        assert.equal(blobData['assets/selos/SEL-999999/SEL-999999-card.webp'], undefined, 'Rollback deve remover somente o asset criado pela operação');
-    });
-
+    assert.equal((await call(makeForm())).status, 409);
+    assert.equal(catalog.data.get(RECORD_KEY).titulo, 'alterado');
+    assert.equal(catalog.data.has(ASSET_KEY), false);
+  });
+  await t.test('modo local mantém fotografia exata em data/originais e derivado em public', async () => {
+    globalThis.__MOCK_NETLIFY_ENV = false;
+    const recordPath = path.join(ROOT, 'src/data/selos', `${ID}.json`);
+    await writeJsonExclusive(recordPath, initialRecord());
+    const response = await call(makeForm()); const payload = await response.json(); assert.equal(response.status, 200, JSON.stringify(payload));
+    assert.deepEqual(await readFile(path.join(ROOT, 'data/originais/originais', mediaHash(ORIGINAL))), ORIGINAL);
+    const bytes = await readFile(path.join(ROOT, 'public', ASSET_KEY)); assert.equal(mediaHash(bytes), payload.data.provenance.derived_hash);
+    assert.equal((await readJson(recordPath)).imagens.frente, `/${ASSET_KEY}`);
+    assert.equal(media.writes.length, 0);
+  });
 });

@@ -4,7 +4,21 @@
 
 Use a `main` de [ThiagoGelinski/colecao-selos](https://github.com/ThiagoGelinski/colecao-selos/tree/main) como fonte oficial do código e dos dados aprovados para publicação. Antes de editar, confirme pasta, remoto, branch, atualização da `main` e alterações locais identificadas. Prepare mudanças em branch separada; merge e publicação exigem autorização do responsável.
 
-Os comandos abaixo descrevem a operação local. O painel persiste trabalho administrativo nos Blobs, mas as páginas públicas incorporam os JSONs do GitHub durante o build. Não existe integração automática ativa entre esses caminhos. A API pública de imagens prioriza os Blobs; uma retificação de mídia pode aparecer antes de novo build. Veja a [arquitetura de publicação](../publicacao/arquitetura.md).
+Os comandos numerados abaixo descrevem a operação local. O painel persiste rascunhos nos Blobs, enquanto páginas e imagens públicas vêm do build da main. O serviço integrado está implementado e depende de configuração de runtime para operar. Veja a [arquitetura de publicação](../publicacao/arquitetura.md).
+
+## Fluxo pelo painel
+
+1. Cadastre e edite a ficha com perfil administrador ou catalogador. Preserve fontes, ressalvas e informações não confirmadas.
+2. Envie a captura original; informe somente recortes simétricos. O servidor arquiva original, derivado e recibo antes de trocar a imagem corrente. A prévia permanece privada.
+3. Informe quantidade somente após conferência. Para repetidos, selecione o exemplar de melhor conservação e registre a confirmação.
+4. Prepare o snapshot da ficha, manifesto, imagens e main. Um administrador ou revisor confere a versão exibida e confirma sua aprovação; o servidor usa a identidade autenticada.
+5. O backend congela a revisão e cria branch/PR contendo somente registro, manifesto permitido e WebPs aprovados. Acompanhe a CI para o SHA exato.
+6. Após os testes verdes, somente o administrador pode publicar. O servidor revalida tudo e avança main sem força. Novo conteúdo, imagem, manifesto ou base exigem nova revisão.
+7. Confira o commit e o deploy Netlify. O estado publicado no JSON é condição editorial do snapshot, não evidência de que o site público foi atualizado.
+
+O token GitHub fica somente nas Functions da Netlify; sem configuração, a publicação retorna erro explícito. Teste isolado não comprova permissões ou deploy reais. Em resposta externa incerta ou manifesto pendente, consulte GitHub/main/deploy antes de intervir, mantendo recibos, rascunhos e backups intactos.
+
+## Operação pelo CLI
 
 ## 1. Criar e reservar
 
@@ -42,7 +56,7 @@ npm run selo:revisao -- SEL-000008 --observacao "Pronto para revisão editorial"
 npm run selo:aprovar -- SEL-000008 --revisor "Nome do revisor"
 ```
 
-A aprovação humana registra identidade normalizada, data, versão e hash do conteúdo. Ela mantém `apto_para_publicacao: false`. O comando deve registrar uma decisão humana explícita; a IA não pode criar essa decisão nem preencher verificações visuais sem evidências. Para a futura integração, a revisão deverá identificar também os arquivos de mídia e seus hashes, conforme a arquitetura de publicação.
+A aprovação humana registra identidade normalizada, data, versão e hash do conteúdo. Ela mantém `apto_para_publicacao: false`. O comando deve registrar uma decisão humana explícita; a IA não pode criar essa decisão nem preencher verificações visuais sem evidências. No painel, a revisão autenticada inclui também hashes dos bytes de mídia, manifesto e base Git; o hash editorial do CLI sozinho não aprova uma alteração de fotografia.
 
 ## 5. Publicar no registro
 
@@ -50,7 +64,7 @@ A aprovação humana registra identidade normalizada, data, versão e hash do co
 npm run selo:publicar -- SEL-000008
 ```
 
-Somente este comando pode ativar `apto_para_publicacao`, depois de validar hash, versão, estrutura e assets. Ele não cria commit, push, merge ou deploy.
+No fluxo CLI, este comando aplica a aprovação válida e ativa `apto_para_publicacao` após validar hash, versão, estrutura e assets. Não cria commit, push, merge ou deploy. O serviço autenticado do painel prepara seu próprio snapshot final após a decisão humana, antes da promoção ao GitHub.
 
 ## 6. Auditar
 
@@ -63,9 +77,9 @@ A auditoria classifica achados em `errors`, `warnings` e `informational`. Relat�
 
 ## 7. Verificar na CI
 
-Pull Requests e pushes em `main` executam instalação limpa, testes, auditoria, Astro Check e build. O mesmo fluxo pode ser reproduzido com `npm run ci`. Falhas de schema interrompem comandos mutáveis antes da gravação e também interrompem o carregamento/build. A CI não substitui a revisão humana e não contém etapa de deploy.
+Pull Requests e pushes em main executam instalação limpa, testes, auditoria, Astro Check, lint, tipos, `git diff --check`, build e `tests/netlify-bundle.check.mjs`. Os scripts lint, typecheck e check são entradas de Astro Check, sem ESLint separado. `npm run ci` executa testes, auditoria, check e build; a conferência do pacote Netlify e de diferenças também deve ser executada na validação completa.
 
-A preparação do fluxo integrado prevê snapshot dos Blobs, revisão humana do conteúdo e da mídia, exportação para branch/PR, checks obrigatórios e publicação do SHA integrado à `main` somente após autorização. A cadeia ainda não está conectada. Antes de ativá-la, será necessário resolver a mídia pública mutável e a reconciliação de `baseline_hash`/ETag sem perder edições posteriores. Consulte [arquitetura de publicação](../publicacao/arquitetura.md).
+Falhas de schema interrompem comandos mutáveis e carregamento/build. A CI não substitui revisão humana nem contém etapa de deploy. O serviço de publicação exige sucesso do workflow e do job para o SHA exato, confirmação administrativa e base ainda atual. A configuração e a prova de deploy real são separadas dos testes isolados.
 
 ## 8. Rejeitar, revogar e manter
 

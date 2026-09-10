@@ -20,6 +20,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
   if (!locals.adminUser) {
     return jsonResponse(apiError('UNAUTHORIZED', 'Autenticação necessária.'), 401);
   }
+  if (!['administrador','catalogador'].includes(locals.adminUser.role)) return jsonResponse(apiError('FORBIDDEN','Perfil sem permissão de cadastro.'),403);
   if (!validateAdminMutationOrigin(request)) return invalidOriginResponse();
 
   // Validação de Content-Type

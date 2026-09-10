@@ -1,3 +1,4 @@
+import { jsonDigest } from '../catalogo/digest.mjs';
 import type { Selo } from '../../types/selo';
 import { validateRecordOperational } from '../catalogo/audit.mjs';
 import { dataPath, loadRecords } from '../catalogo/records.mjs';
@@ -19,7 +20,7 @@ export async function getAdminStamp(id: string) {
     throw e;
   }
   const validation = await validateRecordOperational(record, dataPath(id));
-  return { resumo: toAdminRecord(record, validation), registro: record, historico: record.historico_editorial ?? [], validacao: validation };
+  return { record_digest: jsonDigest(record), resumo: toAdminRecord(record, validation), registro: record, historico: record.historico_editorial ?? [], validacao: validation };
 }
 
 export async function getAdminDashboard() {

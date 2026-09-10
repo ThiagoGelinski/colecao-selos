@@ -78,26 +78,15 @@ test('Microbloco 2A.2.3 - HTTP Serving Proxy', async (t) => {
         assert.equal(Object.keys(blobData).length, 0, 'O blob store NÃO PODE ter sido consultado em Local!');
     });
 
-    await t.test('2, 4, 8, 10. Route GET (Serverless): Deve retornar 200 via Blob, e Blobs usam Key assets/selos/ID/file', async () => {
+    await t.test('2. Rota pública nunca expõe um asset disponível somente em Blobs', async () => {
         SETUP_MODE(true);
-        const originalBytes = Buffer.from([0xFF, 0x00, 0xAA]);
+        const draftBytes = Buffer.from([0xFF, 0x00, 0xAA]);
         const testPath = path.join(ROOT, 'public', 'assets', 'selos', 'SEL-999903', 'SEL-999903-card.png');
-
-        // Escreve pelo Adapter no Blob
-        await writeAssetBinary(testPath, originalBytes, 'image/png');
-
-        // Assert Blob Key Format requirement 10
-        assert.ok(blobData['assets/selos/SEL-999903/SEL-999903-card.png'] !== undefined, 'Req 10: Formato de Key de leitura/gravação incorreto');
-
-        const res = await runGET('SEL-999903', 'SEL-999903-card.png');
-        assert.equal(res.status, 200, 'Esperava status 200');
-        assert.equal(res.headers.get('content-type'), 'image/png', 'Mime deve inferir .png => image/png');
-
-        const resBuffer = Buffer.from(await res.arrayBuffer());
-        assert.deepEqual(resBuffer, originalBytes, 'Bytes respondidos diferem dos originários Blob ArrayBuffer');
-
-        // Confirma Serverless nunca tocou no FS native
-        await assert.rejects(stat(testPath), { code: 'ENOENT' }, 'Req 8: Filesystem host não deve possuir arquivos no runtime cloud');
+        await writeAssetBinary(testPath, draftBytes, 'image/png');
+        assert.ok(blobData['assets/selos/SEL-999903/SEL-999903-card.png']);
+        const response = await runGET('SEL-999903', 'SEL-999903-card.png');
+        assert.equal(response.status, 404, 'Rascunho privado não pode vazar pela URL pública');
+        await assert.rejects(stat(testPath), { code: 'ENOENT' });
     });
 
     await t.test('3. Asset inexistente na Rota devolve 404 (Local e Cloud)', async () => {

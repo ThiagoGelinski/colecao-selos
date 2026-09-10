@@ -1,5 +1,22 @@
 # Histórico do pipeline AI-First
 
+## 2026-09-10 — Recuperação funcional e integração governada
+
+- Dependências atualizadas após auditoria: Astro 7.3.2, adaptador Netlify 8.2.5, Sharp 0.35.4 e Blobs 10.7.13. Overrides limitados ao plugin de desenvolvimento Netlify e ao Sharp compartilhado eliminam os avisos transitivos; testes e build foram repetidos.
+
+- Editor estruturado, digest completo para concorrência e permissões de edição, aprovação e publicação no servidor.
+- Upload da captura original, arquivo privado imutável por SHA256, recibo técnico, WebP lossless e somente recorte simétrico; derivados anteriores preservados.
+- Prévias administrativas privadas; imagens públicas passam a usar exclusivamente os arquivos aprovados do build, corrigindo a exposição de mídia de rascunho descrita na etapa anterior.
+- Snapshot autenticado com ficha, manifesto, imagens e base Git; aprovação humana, branch/PR idempotentes, CI para SHA exato e ação Publicar exclusiva do administrador.
+- Promoção da main por fast-forward sem força, com validação do diff e dos bytes; recibos de revisão separados do trabalho administrativo.
+- Reconciliação condicional de baseline e manifesto pendente preserva reservas de outros rascunhos e exige investigação de conflitos sem apagar Blobs ou backups.
+- JSONs, manifesto e template incluídos explicitamente no pacote da Function, com verificação após o build.
+- Quantidade opcional e critério de melhor conservação para repetidos, sem presumir contagens dos sete selos.
+- README, operação e arquitetura atualizados; checklist recebe somente nota técnica, mantendo pendentes os itens visuais sem evidência.
+- Ativação do token de runtime e confirmação de deploy são verificações externas separadas. Esta entrada descreve implementação, não certifica configuração remota ou publicação concluída.
+- Recuperação prevê namespace administrativo v2, preservando o store legado com rascunhos cujos IDs colidem com a main; nenhum conflito deve ser transferido ou publicado automaticamente. Backup remoto e ativação precisam de evidência própria.
+- Preservados os sete JSONs, 21 WebPs, documentos históricos e o relatório de validação de 2026-09-09.
+
 ## 2026-09-09 — Documentação e preparação da publicação governada
 
 - Documentação conciliada com os sete registros publicados no snapshot oficial `df7d805bfd2cc4909257f46b00957868e421f8a1`.

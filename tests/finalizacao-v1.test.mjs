@@ -98,13 +98,29 @@ test('validação operacional reconhece assets existentes somente no Blob', asyn
   assert.equal((await validateAssets(record)).find((item) => item.kind === 'card').exists, false);
 });
 
-test('limite Content-Length é avaliado antes de request.formData e file.size permanece validado', async () => {
-  const { contentLengthExceeds } = await import('../src/lib/admin/request-security.mjs');
-  const request = new Request('https://example.test/upload', { method: 'POST', headers: { origin: 'https://example.test', 'content-length': String(6 * 1024 * 1024) } });
-  assert.equal(contentLengthExceeds(request, 5 * 1024 * 1024 + 64 * 1024), true);
-  const source = await readSource('src/pages/api/admin/selos/[id]/assets.ts', 'utf8');
-  assert.ok(source.indexOf('contentLengthExceeds(request') < source.indexOf('request.formData()'));
-  assert.match(source, /file\.size > MAX_UPLOAD_SIZE/);
+test('upload rejeita limite multipart antes do parse e arquivo excessivo antes da conversão', async () => {
+  globalThis.__MOCK_NETLIFY_ENV = false;
+  const { POST } = await import('../src/pages/api/admin/selos/[id]/assets.ts');
+  const { MAX_ORIGINAL_SIZE } = await import('../src/lib/catalogo/media.mjs');
+  assert.equal(MAX_ORIGINAL_SIZE, 5 * 1024 * 1024);
+  const context = request => ({ params: { id: 'SEL-000001' }, locals: { adminUser: { username: 'teste-limites', role: 'administrador' } }, request });
+  let parsed = false;
+  const tooLarge = await POST(context({
+    url: 'https://example.test/api/admin/selos/SEL-000001/assets',
+    headers: new Headers({ origin: 'https://example.test', 'content-length': String(MAX_ORIGINAL_SIZE + 64 * 1024 + 1) }),
+    formData: async () => { parsed = true; throw Error('Multipart não deveria ser lido'); },
+  }));
+  assert.equal(tooLarge.status, 413);
+  assert.equal(parsed, false, 'Tamanho declarado deve ser bloqueado antes de carregar multipart');
+  const form = new FormData();
+  form.set('papel', 'frente');
+  form.set('file', new File([Buffer.alloc(MAX_ORIGINAL_SIZE + 1)], 'excessivo.png', { type: 'image/png' }));
+  const oversizedFile = await POST(context({
+    url: 'https://example.test/api/admin/selos/SEL-000001/assets',
+    headers: new Headers({ origin: 'https://example.test' }),
+    formData: async () => form,
+  }));
+  assert.equal(oversizedFile.status, 413, 'Arquivo excessivo deve ser rejeitado antes da decodificação, mesmo sem Content-Length');
 });
 test('assets baseline continuam disponíveis no modo serverless dual-source', async () => {
   globalThis.__MOCK_NETLIFY_ENV = true; const store = memoryStore(); globalThis.__MOCK_BLOB_STORE = store;

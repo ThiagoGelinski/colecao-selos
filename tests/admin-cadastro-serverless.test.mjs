@@ -21,7 +21,7 @@ const createContext = (bodyObj, isAuthenticated = true) => {
             headers: reqHeaders,
             text: async () => bodyStr
         },
-        locals: isAuthenticated ? { adminUser: { username: 'tester' } } : {}
+        locals: isAuthenticated ? { adminUser: { username: 'tester', role: 'administrador' } } : {}
     };
 };
 
@@ -86,6 +86,16 @@ test('Microbloco 2A.1.13 - POST Administrativo (Integração Serverless Blobs)',
         const ctx = createContext({ titulo: 'Unauthorized', slug: 'n' }, false);
         const res = await POST(ctx);
         assert.equal(res.status, 401);
+    });
+
+    await t.test('2B. Perfil consulta ou sem papel não cria registro', async () => {
+        for (const role of ['consulta', undefined]) {
+            const ctx = createContext({ titulo: 'Cadastro bloqueado', slug: 'bloqueado' });
+            ctx.locals.adminUser.role = role;
+            const before = JSON.stringify(blobData);
+            assert.equal((await POST(ctx)).status, 403);
+            assert.equal(JSON.stringify(blobData), before);
+        }
     });
 
     await t.test('3. Payload Inválido (422, sem título)', async () => {
@@ -176,11 +186,6 @@ test('Microbloco 2A.1.13 - POST Administrativo (Integração Serverless Blobs)',
     });
 
     await t.test('9. Falha Pré-Criação: Simulando falha pós-Id para validar Manifest Fallback', async () => {
-        // Limpeza preventiva: evita contaminação cruzada com admin-leitura-dual-source (test D) em modo paralelo
-        const { rm: rmFs } = await import('node:fs/promises');
-        const { default: pathMod } = await import('node:path');
-        await rmFs(pathMod.join(process.cwd(), 'src/data/selos/SEL-999400.json'), { force: true }).catch(() => { });
-
         let originalSet = globalThis.__MOCK_BLOB_STORE.setJSON;
         let called = false;
 

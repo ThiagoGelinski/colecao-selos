@@ -4,6 +4,8 @@ import path from 'node:path';
 import process from 'node:process';
 import { createHash, randomUUID } from 'node:crypto';
 import { getStore } from '@netlify/blobs';
+import { ID_MANIFEST } from './paths.mjs';
+import { jsonDigest } from './digest.mjs';
 
 export const isServerlessEngine = () => {
     if (globalThis.__MOCK_NETLIFY_ENV) return true;
@@ -11,11 +13,21 @@ export const isServerlessEngine = () => {
     return false;
 };
 
+const CATALOG_STORES = new Set(['colecao-selos-catalogo', 'colecao-selos-catalogo-v2']);
+/** Select a known catalogue generation explicitly; never silently create arbitrary stores. */
+export function catalogStoreName(env = process.env) {
+    const name = env.CATALOG_BLOB_STORE?.trim() || 'colecao-selos-catalogo';
+    if (!CATALOG_STORES.has(name)) throw Object.assign(new Error('Configuração de armazenamento do catálogo inválida.'), { code: 'CATALOG_STORE_INVALID', status: 503 });
+    return name;
+}
 let _blobStore = null;
+let _blobStoreName = null;
 const getBlobStore = () => {
+    const name = catalogStoreName();
     if (globalThis.__MOCK_BLOB_STORE) return globalThis.__MOCK_BLOB_STORE;
-    if (!_blobStore) {
-        _blobStore = getStore({ name: 'colecao-selos-catalogo', consistency: 'strong' });
+    if (!_blobStore || _blobStoreName !== name) {
+        _blobStore = getStore({ name, consistency: 'strong' });
+        _blobStoreName = name;
     }
     return _blobStore;
 };
@@ -87,6 +99,28 @@ const isDeepEqual = (a, b) => {
     return true;
 };
 
+// A deployed baseline may advance only to the exact reviewed Blob snapshot.
+// CAS updates metadata without erasing an edit that arrived during reconciliation.
+const reconcileBaseline = async (store, key, payload, baseline, target) => {
+    const digest = baselineHash(baseline);
+    for (let attempt = 0; attempt < 5; attempt++) {
+        const previous = payload?.metadata?.baseline_hash;
+        const approvedManifest = key === 'manifests/ids.json' && payload?.metadata?.pending_baseline_hash === digest;
+        if (previous === digest && !approvedManifest) return payload;
+        if (!payload?.data || (!approvedManifest && !isDeepEqual(payload.data, baseline))) {
+            throw conflictError('Inconsistência Crítica (Dual-Source): baseline alterado após materialização em ' + target, 'RECORD_CONFLICT');
+        }
+        if (!payload.etag) throw conflictError('ETag indisponível para reconciliar o baseline.', 'RECORD_CONFLICT');
+        const metadata = { ...payload.metadata, baseline_hash: digest };
+        if (approvedManifest) delete metadata.pending_baseline_hash;
+        const reconciled = await store.setJSON(key, payload.data, { onlyIfMatch: payload.etag, metadata });
+        if (reconciled?.modified === true) return { ...payload, etag: reconciled.etag, metadata };
+        payload = await readBlobWithEtag(store, key, 'json');
+        if (!payload?.data) throw conflictError('Registro indisponível durante reconciliação.', 'RECORD_CONFLICT');
+    }
+    throw conflictError('Concorrência intensa durante reconciliação do baseline.', 'RECORD_CONFLICT');
+};
+
 export const exists = async (target) => access(target, constants.F_OK).then(() => true).catch(() => false);
 
 export const readJson = async (target) => {
@@ -117,18 +151,17 @@ export const readJson = async (target) => {
     }
 
     const blobStore = await getBlobStore();
-    const payload = typeof blobStore.getWithMetadata === 'function'
+    let payload = typeof blobStore.getWithMetadata === 'function'
         ? await readBlobWithEtag(blobStore, blobKey, 'json')
         : await blobStore.get(blobKey).then((raw) => raw == null ? null : ({ data: typeof raw === 'string' ? JSON.parse(raw) : raw, metadata: {} }));
     if (!payload?.data) { if (baselineError) throw baselineError; return baselineData; }
-    const blobData = payload.data;
     if (!baselineError) {
         const materializedHash = payload.metadata?.baseline_hash;
         if (materializedHash) {
-            if (materializedHash !== baselineHash(baselineData)) throw new Error(`Inconsistência Crítica (Dual-Source): baseline alterado após materialização em ${target}`);
-        } else if (!isDeepEqual(blobData, baselineData)) throw new Error(`Inconsistência Crítica (Dual-Source): Divergência de dados inaceitável no alvo ${target}`);
+            payload = await reconcileBaseline(blobStore, blobKey, payload, baselineData, target);
+        } else if (!isDeepEqual(payload.data, baselineData)) throw new Error('Inconsistência Crítica (Dual-Source): Divergência de dados inaceitável no alvo ' + target);
     }
-    return blobData;
+    return payload.data;
 };
 
 export async function writeJsonAtomic(target, value) { await mkdir(path.dirname(target), { recursive: true }); const temporary = `${target}.${process.pid}.tmp`; await writeFile(temporary, `${JSON.stringify(value, null, 2)}\n`, 'utf8'); await rename(temporary, target); }
@@ -372,6 +405,13 @@ export const existsAssetBinary = async (target) => {
     return false;
 };
 
+/** Public media comes exclusively from the approved Git build, never draft Blobs. */
+export const readPublishedAssetBinary = async (target) => {
+    const blobKey = getAssetBlobKey(target);
+    if (!blobKey) throw new Error('Alvo inválido para leitura de asset publicado: ' + target);
+    return readAssetFromFilesystem(target, blobKey);
+};
+
 export const readAssetBinary = async (target) => {
     if (!isServerlessEngine()) {
         return readFile(target);
@@ -479,18 +519,22 @@ export const updateRecordExpected = async (target, expectedUpdatedAt, modifier) 
  * @param {string} target
  * @param {Buffer|Uint8Array} replacement
  * @param {string|null} mimeType
+ * @param {{ expectedSha256?: string | null }} [options]
  */
-export const beginAssetReplacement = async (target, replacement, mimeType = null) => {
+export const beginAssetReplacement = async (target, replacement, mimeType = null, { expectedSha256 = null } = {}) => {
     const blobKey = getAssetBlobKey(target);
     if (!blobKey) throw new Error(`Alvo inválido para substituição de asset: ${target}`);
+    if (expectedSha256 !== null && !/^[a-f0-9]{64}$/.test(expectedSha256)) throw conflictError('Hash esperado inválido.', 'ASSET_CONFLICT');
+    const matchesExpected = (bytes) => expectedSha256 === null || createHash('sha256').update(bytes).digest('hex') === expectedSha256;
     if (!isServerlessEngine()) {
         const snapshot = await stat(target, { bigint: true });
+        if (!matchesExpected(await readFile(target))) throw conflictError('O asset mudou após arquivamento.', 'ASSET_CONFLICT');
         const backup = `${target}.${process.pid}.${randomUUID()}.backup`;
         const temporary = `${target}.${process.pid}.${randomUUID()}.tmp`;
         await writeFile(temporary, replacement);
         try {
             await rename(target, backup);
-            if (!sameFile(snapshot, await stat(backup, { bigint: true }))) {
+            if (!sameFile(snapshot, await stat(backup, { bigint: true })) || !matchesExpected(await readFile(backup))) {
                 await rename(backup, target);
                 throw conflictError('O asset mudou durante a retificação.', 'ASSET_CONFLICT');
             }
@@ -517,8 +561,19 @@ export const beginAssetReplacement = async (target, replacement, mimeType = null
         };
     }
     const store = getBlobStore();
-    const snapshot = await readBlobWithEtag(store, blobKey, 'arrayBuffer');
-    if (!snapshot?.data || !snapshot.etag) throw Object.assign(new Error('Asset inexistente.'), { code: 'ENOENT' });
+    let snapshot = await readBlobWithEtag(store, blobKey, 'arrayBuffer');
+    if (!snapshot?.data) {
+        // Materialize the deployed asset once; the Git original remains untouched.
+        const baseline = await readAssetFromFilesystem(target, blobKey);
+        const created = await store.set(blobKey, baseline, { onlyIfNew: true, ...(mimeType ? { metadata: { 'content-type': mimeType } } : {}) });
+        snapshot = await readBlobWithEtag(store, blobKey, 'arrayBuffer');
+        if (!created?.modified || !snapshot?.data || !snapshot.etag ||
+            (created.etag && snapshot.etag !== created.etag) || !Buffer.from(snapshot.data).equals(baseline)) {
+            throw conflictError('O asset mudou durante a materialização.', 'ASSET_CONFLICT');
+        }
+    }
+    if (!snapshot.etag) throw conflictError('ETag indisponível para retificação de asset.', 'ASSET_CONFLICT');
+    if (!matchesExpected(Buffer.from(snapshot.data))) throw conflictError('O asset mudou após arquivamento.', 'ASSET_CONFLICT');
     const replaced = await store.set(blobKey, replacement, { onlyIfMatch: snapshot.etag, ...(mimeType ? { metadata: { 'content-type': mimeType } } : {}) });
     if (!replaced || replaced.modified === false || !replaced.etag) throw conflictError('O asset mudou durante a retificação.', 'ASSET_CONFLICT');
     return {
@@ -529,3 +584,26 @@ export const beginAssetReplacement = async (target, replacement, mimeType = null
         }
     };
 };
+/** Stage only an explicitly validated published manifest, preserving every draft reservation. */
+export async function stageManifestBaseline(expectedDigest, publishedManifest, { target = ID_MANIFEST } = {}) {
+    if (getBlobKey(target) !== 'manifests/ids.json' || !isServerlessEngine()) throw conflictError('Preparação de baseline exige manifesto administrativo em Blobs.', 'RECORD_CONFLICT');
+    if (!/^[a-f0-9]{64}$/.test(expectedDigest ?? '')) throw conflictError('Hash esperado do manifesto inválido.', 'RECORD_CONFLICT');
+    const baseline = JSON.parse(await readFile(target, 'utf8'));
+    await readMutableManifest(target);
+    const store = getBlobStore();
+    for (let attempt = 0; attempt < 5; attempt++) {
+        let payload = await readBlobWithEtag(store, 'manifests/ids.json', 'json');
+        if (!payload?.data || !payload.etag) throw conflictError('Manifesto ou ETag indisponível.', 'RECORD_CONFLICT');
+        if (payload.metadata?.baseline_hash) payload = await reconcileBaseline(store, 'manifests/ids.json', payload, baseline, target);
+        if (jsonDigest(payload.data) !== expectedDigest) throw conflictError('O manifesto mudou durante a preparação da publicação.', 'RECORD_CONFLICT');
+        const currentBaseline = baselineHash(baseline), nextBaseline = baselineHash(publishedManifest);
+        const pending = payload.metadata?.pending_baseline_hash;
+        if (pending && pending !== currentBaseline && pending !== nextBaseline) throw conflictError('Há outra publicação com manifesto pendente de integração. Confirme seu estado no GitHub antes de continuar.', 'MANIFEST_PUBLICATION_PENDING');
+        const metadata = { ...payload.metadata, baseline_hash: currentBaseline };
+        if (nextBaseline !== currentBaseline) metadata.pending_baseline_hash = nextBaseline;
+        else delete metadata.pending_baseline_hash;
+        const result = await store.setJSON('manifests/ids.json', payload.data, { onlyIfMatch: payload.etag, metadata });
+        if (result?.modified === true) return { baseline_hash: metadata.baseline_hash, pending_baseline_hash: metadata.pending_baseline_hash };
+    }
+    throw conflictError('Concorrência intensa no manifesto antes da publicação.', 'RECORD_CONFLICT');
+}

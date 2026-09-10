@@ -7,7 +7,7 @@ Esta camada organiza a colaboração entre automação, agentes de IA e revisão
 1. **ID permanente e sequencial:** toda inclusão começa pela reserva atômica em `manifests/ids.json`.
 2. **Conteúdo rastreável:** dados, fontes, confiança e estado editorial permanecem no registro.
 3. **IA prepara; humano decide:** nenhuma automação pode produzir uma aprovação humana.
-4. **Publicação em duas etapas:** `selo:aprovar` registra a decisão; `selo:publicar` apenas aplica uma aprovação válida já existente.
+4. **Aprovação e publicação separadas:** no CLI, `selo:aprovar` registra a decisão e `selo:publicar` aplica a aprovação; no painel, aprovação humana cria a revisão GitHub e a ação Publicar exige administrador e CI verde.
 5. **Falha fechada:** ausência, expiração lógica ou inconsistência da aprovação bloqueia publicação.
 6. **Auditoria reproduzível:** relatórios são gerados localmente a partir dos arquivos versionados.
 7. **Fonte oficial:** código e dados aprovados para publicação são os da `main` de [ThiagoGelinski/colecao-selos](https://github.com/ThiagoGelinski/colecao-selos/tree/main).
@@ -24,19 +24,21 @@ Esta camada organiza a colaboração entre automação, agentes de IA e revisão
 
 Consulte [workflow.md](./workflow.md) para o fluxo e [governanca.md](./governanca.md) para responsabilidades e bloqueios.
 
-## Estado atual e integração planejada
+## Estado atual e integração implementada
 
-O commit oficial de referência `df7d805bfd2cc4909257f46b00957868e421f8a1` contém sete selos, de `SEL-000001` a `SEL-000007`, publicados nos JSONs e com aprovação registrada. O manifesto aponta `next_sequence: 8`; sempre consulte o manifesto atualizado e reserve IDs pelo comando, sem assumir que a próxima sequência continua livre.
+O commit oficial de referência `df7d805bfd2cc4909257f46b00957868e421f8a1` contém sete selos, de SEL-000001 a SEL-000007, publicados nos JSONs e com aprovação registrada. Seus sete JSONs e 21 WebPs são preservados. O manifesto aponta `next_sequence: 8` nesse snapshot; reserve sempre pelo estado atualizado, sem reutilizar IDs.
 
-O painel grava alterações nos Blobs, enquanto `src/lib/selos.ts` incorpora os JSONs do repositório durante o build público. Não há integração automática que transporte o trabalho administrativo ao GitHub. As imagens são uma exceção: sua API prioriza mídia dos Blobs e pode alterar a URL pública antes de novo build.
+O painel grava rascunhos nos Blobs. O catálogo público incorpora os JSONs do GitHub durante o build e serve somente as imagens desse build. Prévias de trabalho são privadas e autenticadas. Upload original, arquivo por SHA256 e conversão lossless com recorte simétrico foram implementados; isso não comprova a origem histórica dos WebPs existentes.
 
-A [arquitetura de publicação](../publicacao/arquitetura.md) prepara o fluxo painel → aprovação humana → GitHub → testes → Netlify, incluindo aprovação do snapshot, preservação de originais, separação de mídia e reconciliação do baseline. A cadeia ainda não está conectada. A existência de WebPs e de aprovação no JSON não comprova o arquivamento dos originais nem preenche retrospectivamente uma revisão visual.
+A cadeia implementada é painel → snapshot → aprovação humana autenticada → branch/PR → CI → ação Publicar do administrador → main → Netlify. O serviço exige token restrito ao repositório no servidor e conexão Git do Netlify; sua ativação e o deploy real precisam de evidências separadas. A [arquitetura de publicação](../publicacao/arquitetura.md) descreve hashes, permissões, idempotência e reconciliação que preserva outros rascunhos.
+
+Quantidade é opcional; repetidos exigem contagem confirmada e seleção do exemplar de melhor conservação. Campos ausentes permanecem “Não informada”. Não são criadas aprovações humanas ou verificações visuais por inferência da automação.
 
 ## Contrato executável
 
 O arquivo `schemas/selo.schema.json` usa JSON Schema Draft 2020-12 e é compilado uma única vez por `src/lib/selo-validation.mjs` com AJV e formatos oficiais. CLI, testes e runtime Astro consomem esse mesmo validador. A validação estrutural trata tipos, obrigatoriedade, formatos, enums e propriedades desconhecidas; a camada semântica compartilhada trata relações do projeto, como `seo.canonical_path` igual a `/selos/<slug>`. Regras de autorização editorial, arquivos e assets são relatadas separadamente.
 
-A CI executa `npm ci`, testes, auditoria, check e build. Ela é exclusivamente verificadora: não concede aprovação humana, não muda status, não faz merge e não dispara publicação.
+A CI executa `npm ci`, testes, auditoria, Astro Check, lint, tipos, `git diff --check`, build e verificação dos arquivos da Function Netlify. `lint`, `typecheck` e `check` chamam Astro Check; não existe etapa ESLint separada. A CI não aprova conteúdo nem contém etapa de deploy. O serviço do painel verifica o resultado para o SHA exato antes de permitir a ação Publicar.
 
 ## Arquitetura final do CLI
 

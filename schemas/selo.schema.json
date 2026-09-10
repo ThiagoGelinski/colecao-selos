@@ -225,7 +225,45 @@
       "type": "object"
     },
     "exemplar": {
-      "type": "object"
+      "type": "object",
+      "properties": {
+        "quantidade": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "criterio_selecao": {
+          "enum": [
+            "melhor_conservacao"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "type": "object",
+            "required": [
+              "quantidade"
+            ],
+            "properties": {
+              "quantidade": {
+                "type": "integer",
+                "minimum": 2
+              }
+            }
+          },
+          "then": {
+            "type": "object",
+            "required": [
+              "criterio_selecao"
+            ],
+            "properties": {
+              "criterio_selecao": {
+                "const": "melhor_conservacao"
+              }
+            }
+          }
+        }
+      ]
     },
     "imagens": {
       "type": "object",

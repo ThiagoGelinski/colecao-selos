@@ -21,3 +21,7 @@ manifests/ids.lock*
 *.backup
 *.log
 .publication-work/
+
+# Originais e recibos locais imutáveis (armazenamento privado).
+data/originais/
+data/publicacao/

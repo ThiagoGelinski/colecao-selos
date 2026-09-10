@@ -2,123 +2,226 @@
 export const prerender = false;
 import AdminLayout from '../../../layouts/AdminLayout.astro';
 const id = Astro.params.id ?? '';
+const role = Astro.locals.adminUser?.role ?? 'consulta';
 ---
-<AdminLayout title={`Registro ${id}`}>
-  <header class="page-head"><div><p class="eyebrow">Consulta e gestão de assets</p><h1>{id}</h1></div><a class="button" href="/admin/selos">Voltar à lista</a></header>
-  <section data-detail data-record-id={id}><div class="panel loading">Carregando registro…</div></section>
+<AdminLayout title={'Registro ' + id}>
+  <header class="page-head"><div><p class="eyebrow">Edição, imagens e publicação</p><h1>{id}</h1></div><a class="button" href="/admin/selos">Voltar à lista</a></header>
+  <section class="stamp-detail" data-detail data-record-id={id} data-role={role}><div class="panel loading">Carregando registro…</div></section>
   <script>
-    const target = document.querySelector<HTMLElement>('[data-detail]')!; const id = target.dataset.recordId ?? '';
-    const entities: Record<string, string> = { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }; const escape = (value: unknown) => String(value ?? '—').replace(/[&<>"']/g, (char) => entities[char] ?? char);
-    fetch(`/api/admin/selos/${encodeURIComponent(id)}`).then(async (response) => {
-      const payload = await response.json(); if (response.status === 401) { window.dispatchEvent(new Event('admin:session-expired')); return; } if (!response.ok) throw new Error(payload.error?.message);
-      const item = payload.data.resumo; const history = payload.data.historico.length ? `<ul>${payload.data.historico.map((event: { tipo: string; ocorrido_em: string }) => `<li>${escape(event.tipo)} — ${escape(event.ocorrido_em)}</li>`).join('')}</ul>` : '<p class="muted">Registro legado sem eventos editoriais.</p>';
-      const validationLayers = [['Estrutural', item.validacao.estrutural], ['Semântica', item.validacao.semantica], ['Editorial', item.validacao.editorial], ['Assets', item.validacao.assets]];
-      const validation = validationLayers.map(([label, layer]) => `<article class="panel detail-card"><h3>${label}</h3><span class="badge ${layer.estado === 'valida' ? 'ok' : 'bad'}">${escape(layer.rotulo)}${layer.estado === 'invalida' ? ` — ${escape(layer.erros)} erro(s)` : ''}</span></article>`).join('');
-      const assetsBlock = ['frente', 'card', 'verso', 'thumb'].map((kind) => {
-        const estado = item.imagens[kind];
-        const isRequired = kind === 'frente' || kind === 'card';
-        const labelText = isRequired ? `${escape(kind)} (Obrigatório)` : `${escape(kind)} (Opcional)`;
+    import type { Selo, Fonte } from '../../../types/selo';
+    import { editorialFields, fieldValue, buildEditorChanges, privateAssetUrl, buildMediaFormData } from '../../../lib/admin/editor-form.mjs';
 
-        let visual = '';
-        if (estado.valido) {
-            const path = payload.data.registro.imagens?.[kind];
-            visual = `
-                <div class="asset-preview" style="margin-bottom:12px;">
-                    <img src="${escape(path)}" alt="Preview ${escape(kind)}" style="max-width:200px; display:block; margin: 10px 0; border: 1px solid #ddd;" />
-                    <p class="muted">Path: <code>${escape(path)}</code></p>
-                    <span class="badge ok">Processado</span>
-                    <p><a class="button" href="${escape(path)}" target="_blank" rel="noopener">Abrir imagem em tamanho maior</a></p>
-                </div>
-                <form class="asset-upload-form" data-kind="${escape(kind)}" data-id="${escape(id)}" data-method="PUT">
-                    <input type="hidden" name="expected_updated_at" value="${escape(payload.data.registro.auditoria?.ultima_revisao)}" />
-                    <div style="margin-bottom: 8px; border-top: 1px dashed #eee; padding-top: 8px;">
-                        <label for="replace-file-${escape(kind)}" style="display:block; font-weight:bold; margin-bottom: 4px;">Retificar imagem (.webp)</label>
-                        <input type="file" id="replace-file-${escape(kind)}" accept="image/webp" required />
-                    </div>
-                    <div class="feedback-msg" style="margin-bottom: 8px; color: #cc0000;"></div>
-                    <button type="submit" class="button">Substituir imagem</button>
-                </form>
-            `;
-        } else {
-            visual = `
-                <form class="asset-upload-form" data-kind="${escape(kind)}" data-id="${escape(id)}" data-method="POST">
-                    <div style="margin-bottom: 8px;">
-                        <label for="file-${escape(kind)}" style="display:block; font-weight:bold; margin-bottom: 4px;">Arquivo (.webp)</label>
-                        <input type="file" id="file-${escape(kind)}" accept="image/webp" required ${isRequired ? 'aria-required="true"' : ''} />
-                    </div>
-                    <div class="feedback-msg" style="margin-bottom: 8px; color: #cc0000;"></div>
-                    <button type="submit" class="button">Fazer Upload</button>
-                </form>
-            `;
-        }
-        return `<li style="margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px dashed #eee;"><strong>${labelText}</strong><br>${visual}</li>`;
-      }).join('');
+    type Layer = { estado: string; rotulo: string; erros: number };
+    type Detail = {
+      registro: Selo; record_digest: string;
+      resumo: { validacao: { estrutural: Layer; semantica: Layer; editorial: Layer; assets: Layer }; imagens: Record<string, { valido: boolean }> };
+    };
+    type Publication = { configured?: boolean; state?: string; pr_url?: string; head_sha?: string; ci_passed?: boolean; can_publish?: boolean; base_current?: boolean; snapshot_hash?: string; record_digest?: string; base_sha?: string; files?: { path: string; sha256: string }[] };
+    const target = document.querySelector<HTMLElement>('[data-detail]')!;
+    const id = target.dataset.recordId ?? '';
+    const role = target.dataset.role ?? 'consulta';
+    const canEdit = ['administrador', 'catalogador'].includes(role);
+    const canApprove = ['administrador', 'revisor'].includes(role);
+    const endpoint = '/api/admin/selos/' + encodeURIComponent(id);
+    const entities: Record<string, string> = { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' };
+    const escape = (value: unknown) => String(value ?? '').replace(/[&<>"']/g, char => entities[char] ?? char);
+    const message = (error: unknown) => error instanceof Error ? error.message : 'Não foi possível concluir a operação.';
+    let detail: Detail;
+    let sources: Fonte[] = [];
+    let snapshot = '';
+    let publication: Publication = {};
 
-      target.innerHTML = `<div class="detail-grid"><dl class="panel detail-card"><dt>Título</dt><dd>${escape(item.titulo)}</dd><dt>País / ano</dt><dd>${escape(item.pais)} · ${escape(item.ano)}</dd><dt>Status</dt><dd>${escape(item.status)}</dd><dt>Resultado geral</dt><dd><span class="badge ${item.validacao.valida ? 'ok' : 'bad'}">${item.validacao.valida ? 'Válido' : `${escape(item.validacao.erros)} erro(s)`}</span></dd><dt>Página pública</dt><dd><a href="/selos/${encodeURIComponent(item.slug)}">Abrir página</a></dd></dl><div class="panel detail-card"><h2>Histórico editorial</h2>${history}</div></div><h2 class="section-title">Camadas de validação</h2><div class="validation-grid">${validation}</div><section class="panel detail-card"><h2>Imagens do selo</h2><ul style="list-style: none; padding: 0;">${assetsBlock}</ul></section><h2 class="section-title">Registro oficial</h2><pre class="record-json">${escape(JSON.stringify(payload.data.registro, null, 2))}</pre>`;
+    async function request(url: string, options: RequestInit = {}) {
+      const response = await fetch(url, { ...options, credentials: 'same-origin' });
+      const payload = await response.json();
+      if (response.status === 401) window.dispatchEvent(new Event('admin:session-expired'));
+      if (!response.ok) {
+        if (payload.error?.code === 'PUBLICATION_NOT_CONFIGURED') throw new Error('A integração com o GitHub ainda precisa ser configurada no servidor. O registro permanece salvo no painel.');
+        if (response.status === 409) throw new Error(payload.error?.message || 'O registro mudou. Recarregue a página antes de continuar.');
+        throw new Error(payload.error?.message || 'Não foi possível concluir a operação.');
+      }
+      return payload.data;
+    }
 
-      target.querySelectorAll('.asset-upload-form').forEach(form => {
-          form.addEventListener('submit', async (e) => {
-              e.preventDefault();
-              const f = e.target as HTMLFormElement;
-              const kind = f.dataset.kind!;
-              const httpMethod = f.dataset.method || 'POST';
-              const btn = f.querySelector('button') as HTMLButtonElement;
-              const msg = f.querySelector('.feedback-msg') as HTMLElement;
-              const input = f.querySelector('input[type="file"]') as HTMLInputElement;
+    function input(path: string, label: string, kind: string) {
+      const value = fieldValue(detail.registro, path);
+      const identity = 'editor-' + path.replaceAll('.', '-');
+      const required = ['titulo', 'identificacao.pais', 'identificacao.tipo', 'identificacao.categoria', 'identificacao.valor_facial.valor', 'identificacao.valor_facial.unidade'].includes(path);
+      const control = ['textarea', 'lines'].includes(kind)
+        ? '<textarea id="' + identity + '" name="' + path + '" rows="3">' + escape(value) + '</textarea>'
+        : '<input id="' + identity + '" name="' + path + '" type="' + (kind === 'date' ? 'date' : kind === 'year' ? 'number' : 'text') + '" value="' + escape(value) + '"' + (required ? ' required' : '') + (kind === 'year' ? ' min="1000" max="9999" step="1"' : '') + ' />';
+      return '<label for="' + identity + '">' + label + control + '</label>';
+    }
 
-              if (!input.files || input.files.length === 0 || !input.files[0]) return;
+    function editorMarkup() {
+      if (!canEdit) return '<p class="muted">Seu perfil permite consultar este registro' + (canApprove ? ' e revisar sua publicação.' : '.') + '</p>';
+      const groups = [
+        ['Identificação e emissão', editorialFields.filter(([path]) => !path!.startsWith('exemplar.') && !path!.startsWith('historico.') && !path!.startsWith('seo.') && !path!.startsWith('imagens.'))],
+        ['Estado do exemplar', editorialFields.filter(([path]) => path!.startsWith('exemplar.'))],
+        ['Textos da página', editorialFields.filter(([path]) => path!.startsWith('historico.') || path!.startsWith('seo.') || path!.startsWith('imagens.'))]
+      ] as const;
+      return '<form data-editor class="panel detail-card"><h2>Editar registro</h2><p>Registre apenas dados comprovados. Salvar uma alteração exige uma nova aprovação antes da publicação.</p>' +
+        groups.map(([label, fields]) => '<fieldset><legend>' + label + '</legend><div class="editor-grid">' + fields.map(([path, title, kind]) => input(path!, title!, kind!)).join('') + '</div></fieldset>').join('') +
+        '<fieldset><legend>Exemplares repetidos</legend><label>Quantidade confirmada no acervo<input name="exemplar.quantidade" type="number" min="1" step="1" placeholder="Não informada" value="' + escape(detail.registro.exemplar.quantidade) + '" /></label><p class="muted">Deixe em branco se a quantidade ainda não foi conferida. Havendo repetidos, fotografe o exemplar de melhor conservação.</p><label class="check-label"><input name="exemplar.melhor_conservacao" type="checkbox"' + (detail.registro.exemplar.criterio_selecao === 'melhor_conservacao' ? ' checked' : '') + ' />Conferi os exemplares repetidos e a fotografia mostra o de melhor conservação.</label></fieldset>' +
+        '<fieldset><legend>Fontes e evidências</legend><div data-sources></div><button class="button button-ghost" type="button" data-add-source>Adicionar fonte</button></fieldset><p data-editor-message role="status" aria-live="polite"></p><button class="button" type="submit">Salvar alterações</button></form>';
+    }
 
-              btn.disabled = true;
-              btn.textContent = 'Enviando...';
-              msg.textContent = '';
-              msg.style.color = '#cc0000';
+    function mediaMarkup() {
+      return '<section class="panel detail-card"><h2>Fotografias</h2><p>A fotografia original é preservada. O processamento admite somente recortes iguais nos lados opostos e conversão técnica para WebP.</p><div class="media-grid">' +
+        ['frente', 'card', 'verso', 'thumb'].map(kind => {
+          const present = detail.resumo.imagens[kind]?.valido;
+          const preview = privateAssetUrl(id, kind, detail.record_digest);
+          const label = kind === 'frente' || kind === 'card' ? 'obrigatória' : 'opcional';
+          return '<article><h3>' + kind + ' <small>(' + label + ')</small></h3>' +
+            (present ? '<a href="' + escape(preview) + '" target="_blank" rel="noopener"><img loading="lazy" src="' + escape(preview) + '" alt="Prévia administrativa — ' + kind + '" /></a>' : '<p class="muted">Imagem ainda não disponível.</p>') +
+            (canEdit ? '<form class="asset-upload-form" data-kind="' + kind + '" data-replace="' + (present ? 'true' : 'false') + '"><label>Fotografia original (até 5 MiB)<input type="file" name="file" accept="image/png,image/jpeg,image/webp,image/tiff,.tif,.tiff" required /></label><div class="crop-grid"><label>Recorte em cada lateral (px)<input name="crop_x" type="number" min="0" step="1" value="0" required /></label><label>Recorte no topo e na base (px)<input name="crop_y" type="number" min="0" step="1" value="0" required /></label></div><p class="feedback-msg" role="status" aria-live="polite"></p><button class="button" type="submit">' + (present ? 'Retificar a partir do original' : 'Adicionar fotografia') + '</button></form>' : '') + '</article>';
+        }).join('') + '</div></section>';
+    }
 
-              const formData = new FormData();
-              formData.append('papel', kind);
-              formData.append('file', input.files[0]);
+    function publicationMarkup() {
+      return '<section class="panel detail-card"><h2>Aprovação e publicação</h2><p>O painel salva rascunhos no Netlify Blobs. O catálogo público recebe somente os arquivos aprovados no GitHub main, após os testes e um novo build do Netlify.</p><div class="publication-actions">' +
+        (canApprove ? '<button class="button" type="button" data-prepare>Preparar revisão</button>' : '') +
+        '<button class="button button-ghost" type="button" data-publication-status>Atualizar situação</button></div><div data-review hidden><h3>Revisão preparada</h3><div data-snapshot-summary></div><label class="check-label"><input type="checkbox" data-human-confirm />Revisei os dados, as fontes e as fotografias desta versão e aprovo seu envio para publicação.</label><button class="button" type="button" data-approve disabled>Aprovar e enviar ao GitHub</button></div><div data-publication-info aria-live="polite"></div>' +
+        (role === 'administrador' ? '<button class="button" type="button" data-publish hidden disabled>Publicar versão aprovada</button>' : '') +
+        '<p data-publication-message role="status" aria-live="polite"></p></section>';
+    }
 
-              if (httpMethod === 'PUT') {
-                  const expectedField = f.querySelector('input[name="expected_updated_at"]') as HTMLInputElement;
-                  if (expectedField) formData.append('expected_updated_at', expectedField.value);
-              }
+    function renderSources() {
+      const host = target.querySelector<HTMLElement>('[data-sources]');
+      if (!host) return;
+      const fields = [['titulo', 'Título', 'text'], ['url', 'URL', 'url'], ['uso', 'Como sustenta o registro', 'text'], ['tipo', 'Tipo de fonte', 'text'], ['data_consulta', 'Data de consulta', 'date'], ['confianca', 'Confiança / ressalva', 'text']];
+      host.innerHTML = sources.map((source, index) => '<fieldset data-source="' + index + '"><legend>Fonte ' + (index + 1) + '</legend><div class="editor-grid">' + fields.map(([key, label, kind]) => {
+        const value = source[key as keyof Fonte];
+        return '<label>' + label + '<input data-source-key="' + key + '" type="' + kind + '" value="' + escape(value) + '"' + (key === 'titulo' || key === 'uso' ? ' required' : '') + ' /></label>';
+      }).join('') + '</div><button class="button button-ghost" type="button" data-remove-source="' + index + '">Remover esta fonte</button></fieldset>').join('');
+      host.querySelectorAll<HTMLButtonElement>('[data-remove-source]').forEach(button => button.addEventListener('click', () => { captureSources(); sources.splice(Number(button.dataset.removeSource), 1); renderSources(); }));
+    }
 
-              try {
-                  const endpoint = httpMethod === 'PUT'
-                      ? `/api/admin/selos/${encodeURIComponent(f.dataset.id!)}/assets/retificar`
-                      : `/api/admin/selos/${encodeURIComponent(f.dataset.id!)}/assets`;
-                  const res = await fetch(endpoint, {
-                      method: 'POST',
-                      body: formData
-                  });
-                  const json = await res.json();
-
-                  if (res.ok) {
-                      msg.style.color = 'green';
-                      msg.textContent = httpMethod === 'PUT' ? 'Retificação concluída com sucesso. Recarregando...' : 'Upload concluído com sucesso. Recarregando...';
-                      setTimeout(() => window.location.reload(), 1000);
-                  } else {
-                      let text = json.error?.message || 'Falha no servidor';
-                      if (res.status === 400) text = `Requisição inválida: ${text}`;
-                      if (res.status === 401) { text = 'Sessão expirada'; window.dispatchEvent(new Event('admin:session-expired')); }
-                      if (res.status === 404) text = 'Selo/Asset não encontrado';
-                      if (res.status === 409) text = httpMethod === 'PUT' ? 'Bloqueio otimista: estado do registro divergiu (mid-air collision).' : 'Asset já existe';
-                      if (res.status === 413) text = 'Arquivo excede limite permitido (5MB)';
-                      if (res.status === 415) text = `Formato inválido: ${text}`;
-                      if (res.status === 422) text = `Dados inválidos: ${text}`;
-                      if (res.status === 500) text = 'Falha interna no servidor';
-                      msg.textContent = text;
-                      btn.disabled = false;
-                      btn.textContent = httpMethod === 'PUT' ? 'Substituir' : 'Fazer Upload';
-                      input.value = ''; // clean field
-                  }
-              } catch (err: any) {
-                  msg.textContent = err.message || 'Erro de rede';
-                  btn.disabled = false;
-                  btn.textContent = 'Fazer Upload';
-              }
-          });
+    function captureSources() {
+      target.querySelectorAll<HTMLElement>('[data-source]').forEach(row => {
+        const source = sources[Number(row.dataset.source)]!;
+        row.querySelectorAll<HTMLInputElement>('[data-source-key]').forEach(control => {
+          const key = control.dataset.sourceKey as keyof Fonte;
+          if (control.value !== String(source[key] ?? '')) (source as unknown as Record<string, unknown>)[key] = control.value || (['titulo', 'uso'].includes(key) ? '' : null);
+        });
       });
+    }
 
-    }).catch((error) => { target.innerHTML = `<div class="error">${escape(error.message || 'Erro ao carregar registro.')}</div>`; });
+    function setPublication(data: Publication) {
+      publication = data;
+      const host = target.querySelector<HTMLElement>('[data-publication-info]')!;
+      const safeLink = data.pr_url?.startsWith('https://github.com/ThiagoGelinski/colecao-selos/pull/') ? data.pr_url : '';
+      host.innerHTML = '<p>' + (data.configured === false ? 'A integração de publicação ainda precisa ser configurada no servidor.' : data.state === 'merged' ? 'Versão enviada à main. A publicação pública depende da conclusão do build no Netlify.' : data.state === 'pending' ? 'A aprovação foi registrada, mas a criação ou o vínculo da revisão ainda está pendente. Consulte o GitHub e retome a aprovação do mesmo snapshot.' : data.state === 'closed' ? 'A revisão foi encerrada no GitHub. Confira o PR antes de preparar uma nova publicação.' : data.state === 'review' ? 'Revisão enviada ao GitHub. ' + (data.base_current === false ? 'A main avançou; prepare e aprove uma nova revisão.' : data.ci_passed ? 'Testes concluídos com sucesso.' : 'Aguardando os testes desta versão.') : 'Nenhuma publicação em andamento para este registro.') + '</p>' + (safeLink ? '<p><a href="' + escape(safeLink) + '" target="_blank" rel="noopener">Consultar revisão no GitHub</a></p>' : '');
+      const publishButton = target.querySelector<HTMLButtonElement>('[data-publish]');
+      if (publishButton) { publishButton.hidden = data.state !== 'review'; publishButton.disabled = !(data.can_publish && data.ci_passed && data.head_sha); }
+    }
+
+    function assertReviewMatchesDisplayedRecord() {
+      const editor = target.querySelector<HTMLFormElement>('[data-editor]');
+      if (editor) {
+        captureSources();
+        if (Object.keys(buildEditorChanges(detail.registro, Object.fromEntries(new FormData(editor)), sources)).length) throw new Error('Salve as alterações do formulário antes de preparar ou aprovar a revisão.');
+      }
+      if ([...target.querySelectorAll<HTMLInputElement>('input[type=file]')].some(control => control.files?.length)) throw new Error('Conclua o envio da fotografia selecionada antes de preparar ou aprovar a revisão.');
+    }
+
+    async function publicationAction(action: string, extra: Record<string, unknown> = {}) {
+      return await request(endpoint + '/publicacao', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, ...extra }) }) as Publication;
+    }
+
+    async function refreshPublication() {
+      const feedback = target.querySelector<HTMLElement>('[data-publication-message]')!;
+      try { setPublication(await publicationAction('status')); feedback.textContent = ''; }
+      catch (error) { feedback.textContent = message(error); }
+    }
+
+    async function load() {
+      snapshot = '';
+      detail = await request(endpoint) as Detail;
+      sources = structuredClone(detail.registro.fontes);
+      const record = detail.registro;
+      const history = record.historico_editorial?.length ? '<ul>' + record.historico_editorial.map(event => '<li>' + escape(event.tipo) + ' — ' + escape(event.ocorrido_em) + ' — ' + escape(event.responsavel) + '</li>').join('') + '</ul>' : '<p class="muted">Registro legado sem eventos editoriais.</p>';
+      const layers = [['Estrutural', detail.resumo.validacao.estrutural], ['Semântica', detail.resumo.validacao.semantica], ['Editorial', detail.resumo.validacao.editorial], ['Imagens', detail.resumo.validacao.assets]] as const;
+      target.innerHTML = '<div class="detail-grid"><dl class="panel detail-card"><dt>Título</dt><dd>' + escape(record.titulo) + '</dd><dt>País / ano</dt><dd>' + escape(record.identificacao.pais) + ' · ' + escape(record.emissao.ano ?? 'Não informado') + '</dd><dt>Status do registro</dt><dd>' + escape(record.publicacao.status) + '</dd><dt>Quantidade no acervo</dt><dd>' + escape(record.exemplar.quantidade ?? 'Não informada') + '</dd><dt>Versão</dt><dd>' + escape(record.auditoria.versao) + '</dd><dt>Página pública</dt><dd><a href="/selos/' + encodeURIComponent(record.slug) + '">Consultar versão publicada</a></dd></dl><div class="panel detail-card"><h2>Histórico editorial</h2>' + history + '</div></div><h2>Validação atual</h2><div class="validation-grid">' +
+        layers.map(([label, layer]) => '<article class="panel detail-card"><h3>' + label + '</h3><span class="badge ' + (layer.estado === 'valida' ? 'ok' : 'bad') + '">' + escape(layer.rotulo) + '</span></article>').join('') + '</div>' +
+        editorMarkup() + mediaMarkup() + publicationMarkup() + '<details class="panel detail-card"><summary>Consultar JSON do registro de trabalho</summary><pre class="record-json">' + escape(JSON.stringify(record, null, 2)) + '</pre></details>';
+      renderSources();
+      target.querySelector('[data-add-source]')?.addEventListener('click', () => { captureSources(); sources.push({ titulo: '', uso: '' }); renderSources(); });
+      target.querySelector<HTMLFormElement>('[data-editor]')?.addEventListener('submit', async event => {
+        event.preventDefault();
+        const form = event.currentTarget as HTMLFormElement;
+        const button = form.querySelector<HTMLButtonElement>('button[type="submit"]')!;
+        const feedback = form.querySelector<HTMLElement>('[data-editor-message]')!;
+        if (button.disabled) return;
+        button.disabled = true; feedback.textContent = 'Salvando…';
+        try {
+          captureSources();
+          const changes = buildEditorChanges(record, Object.fromEntries(new FormData(form)), sources);
+          if (!Object.keys(changes).length) { feedback.textContent = 'Nenhuma alteração para salvar.'; return; }
+          await request(endpoint, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ expected_digest: detail.record_digest, changes }) });
+          await load();
+          target.querySelector<HTMLElement>('[data-editor-message]')!.textContent = 'Alterações salvas. Prepare uma nova revisão para publicar.';
+        } catch (error) { feedback.textContent = message(error); }
+        finally { button.disabled = false; }
+      });
+      target.querySelectorAll<HTMLFormElement>('.asset-upload-form').forEach(form => form.addEventListener('submit', async event => {
+        event.preventDefault();
+        const button = form.querySelector<HTMLButtonElement>('button')!;
+        const feedback = form.querySelector<HTMLElement>('.feedback-msg')!;
+        if (button.disabled) return;
+        button.disabled = true; feedback.textContent = 'Preservando original e processando fotografia…';
+        try {
+          const file = form.querySelector<HTMLInputElement>('[name="file"]')!.files?.[0];
+          if (!file) throw new Error('Escolha a fotografia original.');
+          const cropX = form.querySelector<HTMLInputElement>('[name="crop_x"]')!.value;
+          const cropY = form.querySelector<HTMLInputElement>('[name="crop_y"]')!.value;
+          const body = buildMediaFormData(file, form.dataset.kind!, detail.record_digest, cropX, cropY);
+          await request(endpoint + '/assets' + (form.dataset.replace === 'true' ? '/retificar' : ''), { method: 'POST', body });
+          await load();
+        } catch (error) { feedback.textContent = message(error); }
+        finally { button.disabled = false; }
+      }));
+      const pubFeedback = target.querySelector<HTMLElement>('[data-publication-message]')!;
+      target.querySelector<HTMLButtonElement>('[data-publication-status]')!.addEventListener('click', refreshPublication);
+      target.querySelector<HTMLInputElement>('[data-human-confirm]')!.addEventListener('change', event => {
+        target.querySelector<HTMLButtonElement>('[data-approve]')!.disabled = !(event.currentTarget as HTMLInputElement).checked || !snapshot || !canApprove;
+      });
+      target.querySelector<HTMLButtonElement>('[data-prepare]')?.addEventListener('click', async event => {
+        const button = event.currentTarget as HTMLButtonElement;
+        button.disabled = true; pubFeedback.textContent = 'Preparando a versão para revisão…'; snapshot = '';
+        target.querySelector<HTMLElement>('[data-review]')!.hidden = true;
+        try {
+          assertReviewMatchesDisplayedRecord();
+          const data = await publicationAction('prepare');
+          if (data.record_digest !== detail.record_digest) throw new Error('O registro mudou desde sua leitura. Recarregue a página e confira os dados e imagens antes de aprovar.');
+          snapshot = data.snapshot_hash ?? '';
+          target.querySelector<HTMLElement>('[data-snapshot-summary]')!.innerHTML = '<p>Confira os dados e as fotografias exibidos acima. Esta aprovação vale somente para a versão preparada agora.</p><details><summary>Arquivos desta revisão</summary><ul>' + (data.files ?? []).map(file => '<li><code>' + escape(file.path) + '</code></li>').join('') + '</ul></details>';
+          target.querySelector<HTMLInputElement>('[data-human-confirm]')!.checked = false;
+          target.querySelector<HTMLButtonElement>('[data-approve]')!.disabled = true;
+          target.querySelector<HTMLElement>('[data-review]')!.hidden = false;
+          pubFeedback.textContent = 'Revisão preparada. Confirme sua aprovação para enviá-la ao GitHub.';
+        } catch (error) { pubFeedback.textContent = message(error); }
+        finally { button.disabled = false; }
+      });
+      target.querySelector<HTMLButtonElement>('[data-approve]')!.addEventListener('click', async event => {
+        const button = event.currentTarget as HTMLButtonElement;
+        if (!canApprove || !snapshot || !target.querySelector<HTMLInputElement>('[data-human-confirm]')!.checked) return;
+        button.disabled = true; pubFeedback.textContent = 'Registrando aprovação e enviando a revisão…';
+        try { assertReviewMatchesDisplayedRecord(); setPublication(await publicationAction('approve', { snapshot_hash: snapshot, confirm: true })); snapshot = ''; target.querySelector<HTMLElement>('[data-review]')!.hidden = true; pubFeedback.textContent = 'Aprovação registrada. Consulte a situação dos testes antes de publicar.'; }
+        catch (error) { pubFeedback.textContent = message(error); button.disabled = false; }
+      });
+      target.querySelector<HTMLButtonElement>('[data-publish]')?.addEventListener('click', async event => {
+        const button = event.currentTarget as HTMLButtonElement;
+        if (!publication.can_publish || !publication.head_sha || button.disabled) return;
+        button.disabled = true; pubFeedback.textContent = 'Publicando a versão aprovada…';
+        try { setPublication(await publicationAction('publish', { head_sha: publication.head_sha })); pubFeedback.textContent = 'Versão enviada à main. Aguarde a conclusão do deploy no Netlify para conferir o catálogo público.'; }
+        catch (error) { pubFeedback.textContent = message(error); await refreshPublication(); }
+      });
+      await refreshPublication();
+    }
+    load().catch(error => { target.innerHTML = '<div class="error" role="alert">' + escape(message(error)) + '</div>'; });
   </script>
+  <style is:global>
+    .stamp-detail>.panel{margin:1.2rem 0}.stamp-detail fieldset{border:1px solid var(--admin-border);border-radius:.35rem;margin:1.2rem 0;padding:1rem}.stamp-detail legend{font-weight:700;padding:0 .4rem}.stamp-detail .editor-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,17rem),1fr));gap:1rem}.stamp-detail textarea{width:100%;padding:.6rem;border:1px solid #aaa394;border-radius:.35rem;font:inherit;color:inherit;resize:vertical}.stamp-detail .check-label{display:flex;align-items:flex-start;gap:.6rem;line-height:1.5;margin:1rem 0}.stamp-detail .check-label input{width:1.1rem;min-height:1.1rem;margin:.2rem 0;flex-shrink:0}.stamp-detail .media-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,20rem),1fr));gap:1.5rem}.stamp-detail .media-grid article{border-bottom:1px solid var(--admin-border);padding-bottom:1rem}.stamp-detail .media-grid img{max-width:100%;max-height:20rem;object-fit:contain;display:block;margin-bottom:1rem}.stamp-detail .media-grid form{display:grid;gap:.8rem}.stamp-detail .crop-grid{display:grid;grid-template-columns:1fr 1fr;gap:.7rem}.stamp-detail .publication-actions{display:flex;flex-wrap:wrap;gap:.8rem}.stamp-detail button:disabled{opacity:.55;cursor:not-allowed}.stamp-detail [data-remove-source]{margin-top:1rem}.stamp-detail [role=status]{min-height:1.2em}.stamp-detail details summary{cursor:pointer;font-weight:700}.stamp-detail [hidden]{display:none!important}
+  </style>
 </AdminLayout>

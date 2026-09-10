@@ -1,136 +1,125 @@
-# Preparação da publicação governada
+# Publicação governada: painel, GitHub e Netlify
 
-Estado em 2026-09-09: arquitetura proposta e pré-validador local implementado. A integração ponta a ponta ainda não está ativa. Esta entrega não cria PR, não escreve no GitHub, não altera os Blobs e não executa merge ou deploy.
+Atualização de implementação: 2026-09-10. A fonte oficial é a [main de ThiagoGelinski/colecao-selos](https://github.com/ThiagoGelinski/colecao-selos/tree/main). O código do fluxo está implementado; a ativação remota depende das credenciais, das permissões e do vínculo Git do Netlify. Esta especificação não afirma que a integração em produção já tenha sido ativada ou validada.
 
-## Fonte oficial e diagnóstico de retomada
+O [relatório de 2026-09-09](validacao-2026-09-09.md) permanece inalterado como histórico da preparação local. O pré-validador daquela etapa continua disponível e tem finalidade distinta do serviço autenticado descrito aqui.
 
-O código e os dados publicados têm como fonte oficial a branch main de ThiagoGelinski/colecao-selos. Em 2026-09-09, main local e GitHub coincidiam no commit df7d805bfd2cc4909257f46b00957868e421f8a1. Há sete JSONs publicados e 21 WebPs rastreados. O estado do site Netlify em produção não foi comprovado apenas por essa leitura.
+## Fontes de dados e publicação
 
-A pasta C:\Projetos\colecao-selos não existia. O proprietário escolheu expressamente continuar na cópia colecao-selos da pasta aberta no Google Drive. Antes da edição não havia arquivos versionados modificados. Os itens não rastreados identificados eram .netlify/ e dois arquivos .bundle; continuam fisicamente preservados e agora estão ignorados pelo Git. Nenhuma das outras cópias/backups foi consolidada, movida ou removida.
-
-A branch de trabalho é docs/preparacao-publicacao-governada, criada a partir desse main. A API do GitHub reportou main sem proteção de branch naquele momento. O workflow de CI existir não significa que o GitHub exija seus resultados antes do merge.
-
-## Comportamento atual comprovado pelo código
-
-| Camada | Fonte e comportamento atuais |
+| Camada | Fonte |
 | --- | --- |
-| Catálogo público | src/lib/selos.ts incorpora src/data/selos/*.json com import.meta.glob durante o build. |
-| Publicação editorial | O CLI exige aprovação, hash e versão; selo:publicar altera o JSON local e não executa Git, merge ou deploy. |
-| Painel | Rotas server-side consultam baseline e Netlify Blobs; cadastros/alterações são gravados no store colecao-selos-catalogo. |
-| Registros no Blobs | Chaves manifests/SEL-xxxxxx.json e manifests/ids.json. Leitura detecta divergência do baseline materializado. |
-| Imagens públicas | netlify.toml encaminha /assets/selos/... à API. readAssetBinary prioriza Blobs, depois arquivos do deploy. |
-| Credenciais | Store administrativo próprio no Netlify Blobs, separado dos registros do catálogo. |
-| Integração | Não existe, no main verificado, promoção automática do conteúdo do painel para PR no GitHub. |
+| Código e dados aprovados oficiais | GitHub main |
+| Páginas públicas | JSONs incorporados por `src/lib/selos.ts` durante o build |
+| Imagens públicas | WebPs incluídos no mesmo build; a API pública não lê rascunhos dos Blobs |
+| Trabalho administrativo | Baseline do deploy e store selecionado por `CATALOG_BLOB_STORE`; recuperação configurada em `colecao-selos-catalogo-v2` |
+| Fotografias originais, derivados e procedência | Store privado `colecao-selos-originais` |
+| Revisões e vínculo com PR | Store privado `colecao-selos-publicacao` |
 
-Consequência: salvar um texto no painel não atualiza o catálogo público estático. Uma retificação de imagem, porém, pode alterar os bytes servidos na URL pública antes de um novo build. O fluxo proposto só poderá ser ativado depois de isolar imagens de rascunho das imagens aprovadas.
+Os sete JSONs e 21 WebPs do commit base `df7d805bfd2cc4909257f46b00957868e421f8a1` permanecem preservados. Os arquivos de captura originais não foram identificados no inventário versionado; a presença de WebPs não demonstra sua proveniência histórica. Nenhuma contagem de repetidos foi presumida.
 
-## Fluxo alvo e limites desta entrega
+O painel grava registros em `manifests/SEL-xxxxxx.json` e o manifesto administrativo em `manifests/ids.json`, no store do catálogo. O registro público só muda quando o snapshot aprovado chega à main e o Netlify conclui um novo build. `publicacao.status: publicado` no JSON descreve a aptidão desse snapshot, não a confirmação do deploy.
 
-1. **Capturar e preservar:** guardar os bytes originais sem alteração, identificar origem, tamanho e SHA256; gravar com exclusividade em acervo de originais separado. Sem exclusão nem sobrescrita.
-2. **Preparar no painel:** produzir rascunho e derivados de revisão em namespace separado, com ETags e versão. Não substituir a chave pública existente.
-3. **Congelar revisão:** reunir JSON final proposto, base Git, manifesto de IDs, hashes dos originais/derivados e receita em snapshot imutável.
-4. **Aprovação humana:** sessão autenticada registra identidade, decisão e instante para o hash completo do snapshot. Revisão inclui frente, verso, conteúdo e fidelidade fotográfica. Aprovação editorial histórica de um selo não aprova novos bytes.
-5. **GitHub:** serviço com credencial exclusiva do servidor revalida a main remota e os ETags, cria uma branch e um PR com somente arquivos permitidos. Sem escrita direta em main, sem auto-merge.
-6. **CI:** testes, auditoria, Astro Check e build são obrigatórios. O ambiente de preview deve consumir exatamente o commit do PR.
-7. **Merge autorizado:** o mantenedor autoriza a integração depois da revisão. Essa autorização é distinta da aprovação editorial do selo.
-8. **Netlify:** implantação do commit integrado de main. Confirmar o SHA efetivamente implantado e validar catálogo e imagens.
-9. **Reconciliação:** atualizar o baseline administrativo por operação condicional, somente se snapshot, ETags e commit implantado ainda corresponderem. Edições posteriores permanecem pendentes.
+`astro.config.mjs` inclui explicitamente imagens, JSONs, manifesto e template no pacote da Function. `tests/netlify-bundle.check.mjs` verifica esses arquivos após o build, evitando falhas de cadastro ou leitura causadas por arquivos ausentes no runtime.
 
-| Componente | Nesta entrega |
+## Recuperação do store administrativo legado
+
+A inspeção remota encontrou no store `colecao-selos-catalogo` registros de trabalho com IDs SEL-000002 e SEL-000003 colidindo com os selos oficiais, além de imagem de verso divergente para SEL-000003 e manifesto antigo. Esses objetos não podem ser tratados como versões aprovadas dos registros da main.
+
+A configuração de recuperação usa `CATALOG_BLOB_STORE=colecao-selos-catalogo-v2` nas Functions de produção para iniciar a área de trabalho a partir do baseline oficial dos sete selos. O seletor aceita somente o store legado e o v2. A configuração local continua usando o filesystem; a variável não move arquivos ou conteúdo entre stores.
+
+O store legado deve permanecer intacto: nenhum registro, imagem, reserva ou credencial é excluído, movido ou sobrescrito. A cópia de segurança dos quatro objetos foi verificada por dupla leitura, hashes SHA-256 e ETags estáveis; a variável de seleção do store v2 foi confirmada pela API Netlify. Os registros conflitantes não são transferidos automaticamente nem publicados com IDs oficiais colidentes. Sua eventual recuperação editorial exige inspeção e decisão específica, preservando toda a evidência anterior.
+
+O store de credenciais administrativas e a sessão de acesso permanecem separados e não mudam com `CATALOG_BLOB_STORE`. Nunca recrie o bootstrap ou apague credenciais para trocar a área de trabalho do catálogo.
+
+## Fluxo implementado
+
+1. **Editar:** administrador ou catalogador salva a ficha por PATCH e envia fotografias. A API preserva identidade, caminhos e controle editorial; alterações invalidam a aprovação anterior. A comparação usa digest do JSON completo e escrita condicional por ETag.
+2. **Preparar:** `POST /api/admin/selos/:id/publicacao` com `action: prepare` lê a main remota, ficha, manifesto e bytes das imagens. Valida schema, semântica, histórico, caminhos, reservas e imagens. Devolve resumo e hash da versão a revisar.
+3. **Aprovar:** administrador ou revisor autenticado confere dados, fontes e imagens e envia `action: approve`, `snapshot_hash` e `confirm: true`. A identidade vem da sessão, não de um nome fornecido pelo navegador. O serviço relê o snapshot e rejeita qualquer mudança.
+4. **Criar revisão GitHub:** o servidor congela o registro final e os bytes aprovados em recibo exclusivo e cria a branch `publicacao/<ID>-<prefixo-do-hash>` e seu PR. O diff é conferido contra o snapshot.
+5. **Verificar CI:** `action: status` consulta o PR e a execução de `.github/workflows/ci.yml` para seu SHA exato. O workflow e o job `Testes, auditoria e build` precisam concluir com sucesso. PR fechado, draft, outra origem ou SHA alterado bloqueiam a publicação.
+6. **Publicar:** somente administrador envia `action: publish` e `head_sha`. O servidor reconfere main, base do commit, diff, conteúdos, mídia e manifesto. Persiste a ficha aprovada por CAS, prepara a referência do manifesto e avança main ao commit conferido por fast-forward com `force: false`.
+7. **Conferir deploy:** o projeto Netlify conectado à main recebe a mudança e executa o build. Verifique o commit implantado, o resultado do deploy e o catálogo público. O serviço não fabrica uma confirmação Netlify a partir do estado do JSON ou PR.
+
+A CI é verificadora e não concede aprovação editorial. Mudanças de implementação continuam em branches próprias e dependem da autorização do responsável; o exportador de selos não publica alterações arbitrárias de código.
+
+## Hashes, escopo e idempotência
+
+`src/lib/catalogo/digest.mjs` calcula SHA256 com chaves JSON ordenadas recursivamente. O snapshot inclui digest do registro completo, digest do manifesto administrativo, SHA da main e lista de caminhos/hashes dos bytes das imagens. Alterar conteúdo, versão, imagem ou base invalida a revisão. O hash editorial legado `recordHash` continua no registro, mas não é usado sozinho para aprovar bytes de mídia.
+
+Os recibos são persistidos com criação exclusiva em `reviews/<ID>/<snapshot_hash>.json` e os vínculos com GitHub em `pulls/<ID>/<snapshot_hash>.json`. O recibo guarda responsável, data, base, registro final, manifesto proposto e bytes de mídia. Repetir o mesmo snapshot reutiliza seu recibo e branch/PR; o backend confere a revisão existente antes de aceitá-la.
+
+A exportação de conteúdo admite exclusivamente:
+
+- `src/data/selos/SEL-xxxxxx.json` do selo revisado;
+- `manifests/ids.json` com reservas oficiais preservadas;
+- WebPs aprovados em `public/assets/selos/SEL-xxxxxx/`.
+
+Originais privados, credenciais, backups, `.bundle`, `.netlify`, `node_modules`, `dist` e temporários não entram no diff de conteúdo. Verificação do PR rejeita exclusões, renomes, caminhos adicionais, outra base ou bytes divergentes.
+
+Uma falha externa pode deixar recibo sem vínculo de PR, branch já criada ou resposta de atualização da main incerta. Consulte o PR e a referência Git antes de repetir ou intervir; não conclua que nada foi gravado apenas porque a resposta falhou. Nenhum recibo ou backup deve ser apagado para resolver pendências.
+
+## Fotografias e procedência
+
+O upload recebe bytes originais PNG, JPEG, WebP ou TIFF de até 5 MiB. Formato decodificado e MIME devem corresponder. Há limites de pixels e dimensões; animações, múltiplas páginas e arquivos que exigiriam conversão de espaço de cor ou precisão são recusados.
+
+O servidor executa somente recorte simétrico e conversão WebP lossless. `crop_x` remove a mesma margem esquerda/direita; `crop_y` faz o mesmo no topo/base. As margens são inteiros não negativos e o resultado deve ter área positiva. Zero mantém o tamanho naquele eixo; não há redimensionamento ou orientação automática.
+
+O processador preserva metadados, confere ICC/orientação e compara os pixels retidos da origem com o derivado. Não permite IA generativa, retoque, restauração, filtros, correção de cores, deformação, reconstrução de perfurações ou alteração de marcas. Cabe ao revisor conferir visualmente que a serrilha inteira foi preservada e que a captura corresponde ao exemplar.
+
+O arquivo privado usa chaves por conteúdo:
+
+- `originais/<sha256>`: captura recebida, byte a byte;
+- `derivados/<sha256>.webp`: resultado técnico;
+- `procedencia/<sha256>.json`: recibo gerado pelo servidor;
+- `historico-derivados/<sha256>`: imagem anterior preservada na retificação, sem ser apresentada como original.
+
+As gravações são exclusivas e verificadas por leitura. Originais e derivados anteriores não são sobrescritos; não há rota de exclusão. A mídia corrente só é promovida após o arquivamento. Na publicação, um WebP idêntico ao legado oficial é preservado como tal; bytes novos ou alterados exigem original, derivado e recibo válidos.
+
+Prévias administrativas são autenticadas e usam `Cache-Control: no-store`. A rota pública lê exclusivamente o arquivo do build. Uma retificação privada não altera silenciosamente a fotografia pública na mesma URL.
+
+O campo `exemplar.quantidade` é opcional e inteiro positivo. Quantidade maior que 1 exige `criterio_selecao: melhor_conservacao` e confirmação humana no editor. O catálogo exibe “Não informada” quando a contagem não foi registrada; validação técnica não comprova conservação física.
+
+## Manifesto e reconciliação após o build
+
+`publicationManifest` parte do manifesto oficial, preserva todas as reservas existentes e acrescenta somente a reserva concluída do selo aprovado. IDs ou slugs conflitantes são recusados; `next_sequence` nunca retrocede. Reservas de outros rascunhos permanecem no manifesto administrativo dos Blobs, sem exportar suas fichas.
+
+O `baseline_hash` legado é SHA256 de `JSON.stringify(baseline)`, respeitando a ordem das chaves, e tem contrato diferente do digest canônico do snapshot. A reconciliação atualiza metadados por compare-and-swap apenas quando o novo baseline corresponde ao conteúdo aprovado. Divergência de conteúdo ou ETag preserva o trabalho posterior e retorna conflito.
+
+Para o manifesto, `stageManifestBaseline` valida seu digest atual e registra `pending_baseline_hash` do manifesto público proposto, mantendo todas as reservas administrativas no payload. Quando o build passa a conter exatamente esse manifesto, a reconciliação atualiza `baseline_hash` e consome o marcador, sem perder rascunhos privados.
+
+Um marcador pendente de outra integração causa `MANIFEST_PUBLICATION_PENDING`. Antes de intervenção, confirme o estado da main, do PR e do deploy. Não remova o marcador, Blobs, reservas ou backups por tentativa. Falhas de deploy não apagam o estado administrativo ou os originais.
+
+## Configuração de runtime
+
+O backend usa `GITHUB_PUBLISH_TOKEN` apenas no servidor. Restrinja o token a `ThiagoGelinski/colecao-selos` e às permissões:
+
+| Permissão GitHub | Acesso |
 | --- | --- |
-| Contrato do pacote | schemas/publicacao.schema.json |
-| Pré-validação local, somente leitura | src/lib/publicacao/prepare.mjs e tools/publicacao.mjs |
-| Testes do preparo | tests/publicacao.test.mjs, executados também pelo npm test existente |
-| Revisão humana autenticada do snapshot | Especificada; falta conectar ao painel |
-| Acervo imutável de originais e gerador de derivados | Especificados; não implantados e nenhum original atual é presumido |
-| Exportação Blobs → branch/PR | Especificada; sem transporte/API ativados |
-| Imagens públicas isoladas dos rascunhos | Requisito de ativação; comportamento atual não foi alterado nesta entrega |
-| Confirmação do deploy e reconciliação Blobs | Especificadas; ainda sem automação |
-| Proteção de main e credenciais de serviço | Exigem configuração posterior autorizada |
+| Contents | Leitura e escrita |
+| Pull requests | Leitura e escrita |
+| Actions | Leitura |
+| Metadata | Leitura |
 
-## Contrato verificável do pacote
+Configure o segredo no Netlify com escopo **Functions**, no contexto de produção autorizado. Não use prefixo `PUBLIC_` nem salve o valor em Git, cliente, logs ou `netlify.toml`. O `.env.example` mantém essa variável vazia. Sem o token, o backend falha com `PUBLICATION_NOT_CONFIGURED` (503); salvar ficha e enviar fotografia são operações independentes.
 
-O pacote JSON usa schema_version 1.0.0 e contém:
+Na recuperação, configure também `CATALOG_BLOB_STORE=colecao-selos-catalogo-v2` com escopo Functions em produção, preservando o store legado conforme a seção acima.
 
-- repository fixo, base_commit de main e created_at;
-- records com ID, hash canônico do registro base ou null para um novo ID, blob_etag, JSON final proposto e todos os papéis de imagem usados;
-- ids com hash do manifesto base, ETag e manifesto completo proposto;
-- para cada imagem: arquivo derivado relativo à pasta do pacote, SHA256 binário, referência ao original com SHA256 e receita;
-- approval separada do conteúdo, inicialmente pending, vinculada a snapshot_sha256.
+O projeto Netlify precisa estar conectado ao repositório oficial, branch main, build `npm run build` e diretório `dist`. A publicação respeita as regras que o GitHub aplicar; não usa force push nem bypass. Se a política de branches impedir atualização da referência, a operação falha e deve ser analisada com o responsável.
 
-O JSON final proposto deve ter sido preparado pelo domínio editorial existente: status publicado, aptidão técnica e aprovação válida, ainda sem ser integrado em main. O validador não executa selo:aprovar ou selo:publicar e não modifica esse estado. Um registro existente em main continua público enquanto a alteração proposta está em revisão.
+Referências de configuração: [variáveis em Functions](https://docs.netlify.com/build/functions/environment-variables/) e [Git references API](https://docs.github.com/en/rest/git/refs).
 
-O hash do snapshot usa JSON com chaves ordenadas recursivamente e inclui todos os campos, exceto approval. Cobre registros completos, manifesto, base Git, ETags, nomes, hashes das fotografias e receitas. Mudança em qualquer um desses campos exige nova revisão. Não usar recordHash isoladamente como aprovação da mídia: o hash editorial atual não cobre os bytes das imagens.
+## Validação e limites das evidências
 
-base_sha256 também usa JSON canônico. Já metadata.baseline_hash do Blobs atual é SHA256 de JSON.stringify(baseline), respeitando a ordem das chaves. São contratos diferentes; o novo pré-validador não modifica nem substitui o algoritmo de io.mjs.
+A CI executa instalação limpa, testes, auditoria, Astro Check, lint, tipos, `git diff --check`, build e conferência do pacote Netlify. `lint`, `typecheck` e `check` são entradas para Astro Check; não são verificações ESLint diferentes.
 
-Os ETags no pacote identificam o snapshot lido. O pré-validador local não consulta o Blobs para verificar se ainda são atuais. Essa conferência condicional é obrigatória no futuro exportador e na reconciliação.
+Testes ponta a ponta isolados devem percorrer edição, snapshot, aprovação, PR, CI, publicação e leitura do build usando fixtures/stores temporários. Não devem consumir IDs reais ou deixar selo fictício permanente. Seu sucesso demonstra contratos e proteções, sem comprovar login real, token configurado, permissões, aprovação editorial em produção ou deploy público. Essas evidências precisam ser registradas separadamente.
 
-## Fotografias: preservação e operações permitidas
+## Pré-validador local preservado
 
-Os 21 WebPs versionados são preservados como acervo existente. Não há, no inventário rastreado verificado, comprovação dos originais de captura ou de sua proveniência. Isso não significa que os originais estejam ausentes das outras pastas; significa que esta entrega não os localizou nem autenticou. O legado fica intacto. Uma nova promoção de imagem pelo fluxo preparado exige uma referência verificável ao original.
+`npm run publicacao:preparar -- .publication-work/revisao-001/pacote.json` usa `schemas/publicacao.schema.json` e `templates/publicacao.template.json`. Lê a main local, verifica pacote, hashes, reservas, aprovação declarada, originais e receita; rejeita caminhos externos e divergências.
 
-Para novas capturas, o acervo deverá armazenar original/<sha256> com gravação exclusiva, metadados de procedência e sem rota de exclusão. Uma nova captura recebe outro hash e outra entrada. Original e derivado nunca usam o mesmo arquivo. Backups transacionais da retificação atual não substituem esse acervo.
+Esse comando é somente leitura, não autentica o nome declarado, não cria PR, não faz push e sempre retorna `mode: preparation_only` e `can_publish: false`. Não substitui o serviço autenticado nem autoriza publicação. Seu histórico de implementação e validação em 2026-09-09 permanece no relatório original.
 
-A receita permite apenas:
 
-- recorte com margens inteiras não negativas, esquerda igual a direita e topo igual a baixo, preservando largura e altura positivas;
-- conversão técnica para WebP, com encoder, versão, qualidade e modo lossless documentados.
-
-Margens zero representam conversão sem recorte. A simetria não exige que margem horizontal e vertical tenham o mesmo valor. A renderização responsiva em CSS não altera os arquivos; não haverá redimensionamento dos pixels no processamento permitido.
-
-Não são permitidos reconstrução por IA, remoção/preenchimento de elementos, alteração de cor/contraste/nitidez, retoque, rotação corretiva, deformação ou recorte assimétrico. A receita rejeita campos adicionais. Uma receita declarada, mesmo validada, não comprova os pixels: o processador futuro deve decodificar a fonte, aplicar somente essas operações, produzir o derivado e demonstrar os parâmetros. O revisor compara o resultado com a captura.
-
-O pré-validador verifica os hashes, decodifica originais e WebPs em memória e confere as dimensões físicas declaradas e resultantes do recorte. Rejeita animação/múltiplos frames e aplica limites de tamanho e pixels. Não comprova origem fotográfica nem equivalência visual dos pixels. Seus testes usam imagens sintéticas e não são evidência visual. Nenhuma fotografia foi processada nesta entrega.
-
-## Uso local do preparo
-
-Requer Node.js 24 e dependências instaladas. Crie o pacote de trabalho em pasta ignorada, por exemplo .publication-work/revisao-001/, mantendo originais e derivados separados.
-
-1. Partir do template publicacao.template.json, preencher o JSON proposto, manifesto, referências e hashes com evidências reais.
-2. Confirmar main local contra o GitHub antes de produzir o snapshot. Nunca trocar a base silenciosamente durante uma revisão.
-3. Rodar o comando abaixo. Enquanto approval estiver pending, ele retorna bloqueios e o hash a apresentar à revisão humana.
-4. Registrar a decisão real fora da automação de preparo. O futuro painel autenticado é quem deverá criar a evidência verificável; não preencher uma identidade fictícia.
-5. Reexecutar contra o mesmo snapshot e arquivos.
-
-~~~bash
-npm run publicacao:preparar -- .publication-work/revisao-001/pacote.json
-~~~
-
-Sem npm disponível no terminal, a execução equivalente é node tools/publicacao.mjs seguido do caminho. O comando exige o origin oficial, lê main por git show e usa apenas a pasta do pacote para verificar os arquivos. Rejeita caminhos externos, links simbólicos/junctions, originais ausentes, divergência de hashes, colisões e perda de reservas.
-
-A saída é JSON único, com ok e código 0 somente para um pacote tecnicamente consistente; bloqueios retornam código 1. Sempre retorna mode: preparation_only e can_publish: false. files lista apenas JSONs, manifesto e WebPs derivados permitidos. Os originais ficam fora desse plano público e devem permanecer preservados no acervo privado. Em caso de bloqueio, files fica vazio.
-
-O comando não autentica a pessoa indicada por reviewer, não comprova assinatura de aprovação e não transfere arquivos. Seu resultado não autoriza merge ou publicação. Um integrador futuro nunca deve confiar apenas em um nome digitado ou em ok: true.
-
-## Exportador e PR a implementar
-
-O serviço de integração deverá receber somente o identificador de um snapshot já aprovado e buscar o payload congelado no servidor. Não aceitar arquivos arbitrários do navegador como autoridade para escrever em GitHub.
-
-Antes da gravação, conferir o commit remoto de main, assinatura/autenticidade da aprovação, versão do snapshot, ETags atuais e hashes de todos os bytes. Gerar uma chave de idempotência a partir do hash do snapshot. Repetição devolve o mesmo PR; não cria novas branches ou consome IDs.
-
-O diff do PR permite exclusivamente src/data/selos/SEL-xxxxxx.json, manifests/ids.json e WebPs derivados aprovados em public/assets/selos/SEL-xxxxxx/. Nunca incluir .bundle, .netlify, node_modules, dist, temporários, credenciais, originais privados ou backups. Um PR de implementação, como esta branch documental/técnica, tem escopo separado do exportador de conteúdo.
-
-Nesta v1, o manifesto preserva integralmente todas as reservas antigas, inclusive canceladas/falhas. Transições de reservas antigas ainda incompletas e mudanças de slug de reservas existentes não são promovidas por este preparo; exigem fluxo posterior explicitamente validado. Novas reservas completas podem ser acrescentadas. Não reutilizar lacunas e não retroceder next_sequence. A união do catálogo base com os candidatos precisa manter IDs e slugs únicos. Se main avançar, refazer o pacote e solicitar nova revisão; não substituir automaticamente o commit base aprovado.
-
-A credencial do serviço fica apenas no servidor, limitada ao repositório e à criação/atualização de branches e PRs. Não conceder ao automatismo o papel de revisor ou bypass da proteção de main. Configuração de proteção e escopos deve ser feita e validada em etapa autorizada.
-
-## Publicação de imagens e reconciliação
-
-Antes de ativar a promoção, servir publicamente somente a mídia aprovada que acompanha o build, ou uma release imutável explicitamente vinculada ao commit. Rascunhos usam namespace privado distinto, acessível apenas pelo painel autenticado. Evitar URLs de produção que priorizem uma chave mutável do rascunho.
-
-Após o deploy, o reconciliador deve:
-
-1. Confirmar que o SHA implantado é o commit integrado aprovado.
-2. Ler novamente registro/manifesto/versões da mídia e comparar os ETags com o snapshot exportado.
-3. Verificar o conteúdo incorporado pelo build e calcular o novo baseline_hash pelo algoritmo legado exato.
-4. Atualizar metadados por compare-and-swap e registrar evento com snapshot, commit, deploy e hashes.
-5. Se qualquer ETag ou conteúdo mudou, registrar conflito e manter o estado posterior; não apagar Blobs nem sobrescrever revisões novas.
-
-Não corrigir a divergência simplesmente removendo baseline_hash ou apagando o store. Falhas de deploy mantêm rascunho e originais preservados. Rollback público deverá selecionar um commit previamente aprovado e manter todo o histórico.
-
-## Critérios para ativação futura
-
-Além de testes unitários do preparo, comprovar em ambiente de homologação: aprovação autenticada, captura de originais com gravação exclusiva, reprodução de derivados, isolamento da mídia pública, repetição idempotente de PR, conflito com main/ETag avançados, rejeição de hashes adulterados, CI obrigatória, bloqueio de merge sem autorização, deploy do SHA esperado e reconciliação sem perda de edição concorrente.
-
-A integração remota só estará pronta depois dessas evidências. O estado implementado agora é a preparação local verificável e a especificação dos componentes restantes.
+Nota operacional de 2026-09-10: o site Netlify está ligado à main oficial. O backup dos quatro objetos legados foi verificado por dupla leitura e SHA-256; nenhum objeto remoto foi removido. CATALOG_BLOB_STORE=colecao-selos-catalogo-v2 foi configurado para o próximo deploy. O plano atual recusou escopos granulares; foram usados os escopos padrão. Para GITHUB_PUBLISH_TOKEN, prefira Functions quando o plano permitir; caso contrário, use os escopos padrão com valor de produção. O código consome esse segredo apenas no servidor e não o inclui no cliente. A credencial GitHub do painel ainda aguarda configuração e verificação.

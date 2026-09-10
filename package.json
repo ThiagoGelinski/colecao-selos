@@ -29,19 +29,23 @@
     "catalogo:auditoria": "node tools/catalogo.mjs catalogo:auditoria",
     "catalogo:status": "node tools/catalogo.mjs catalogo:status",
     "catalogo:manutencao": "node tools/catalogo.mjs catalogo:manutencao",
-    "ci": "npm test && npm run catalogo:auditoria && npm run check && npm run build"
+    "ci": "npm test && npm run catalogo:auditoria && npm audit --audit-level=high && npm run lint && npm run typecheck && npm run build && node tests/netlify-bundle.check.mjs"
   },
   "dependencies": {
-    "@astrojs/netlify": "^6.6.5",
+    "@astrojs/netlify": "8.2.5",
     "@astrojs/sitemap": "^3.5.1",
-    "@netlify/blobs": "^10.7.9",
+    "@netlify/blobs": "10.7.13",
     "ajv": "^8.20.0",
     "ajv-formats": "^3.0.1",
-    "astro": "^5.12.0",
-    "sharp": "0.34.5"
+    "astro": "7.3.2",
+    "sharp": "0.35.4"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.4",
     "typescript": "^5.8.3"
+  },
+  "overrides": {
+    "@netlify/vite-plugin": "3.0.1",
+    "sharp": "$sharp"
   }
 }

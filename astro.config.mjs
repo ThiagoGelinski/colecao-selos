@@ -8,6 +8,13 @@ const site = process.env.SITE_URL ?? DEFAULT_SITE_URL;
 export default defineConfig({
   site,
   output: 'static',
-  adapter: netlify({ imageCDN: false, includeFiles: ['./public/assets/selos/**/*'] }),
+  // Keep the previous HTML whitespace behavior while upgrading the compiler.
+  compressHTML: true,
+  adapter: netlify({ imageCDN: false, includeFiles: [
+    './public/assets/selos/**/*',
+    './src/data/selos/*.json',
+    './manifests/ids.json',
+    './templates/selo.template.json',
+  ] }),
   integrations: [sitemap()],
 });

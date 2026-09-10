@@ -1,36 +1,70 @@
-# Fundação do painel administrativo
+# Painel administrativo
 
-A área administrativa permite consulta, cadastro e gestão de assets com autenticação server-side. As páginas públicas continuam pré-renderizadas; `/admin/**` e `/api/admin/**` usam renderização sob demanda pelo adaptador oficial `@astrojs/netlify`. O painel não concede aprovação humana. Registros e mídia têm caminhos de leitura diferentes, detalhados abaixo.
+O painel permite consulta, cadastro, edição, fotografias e publicação com autenticação no servidor. `/admin/**` e `/api/admin/**` executam sob demanda; as páginas e imagens públicas vêm do build do GitHub main.
 
 ## Rotas
 
-- `/admin/login`: autenticação;
-- `/admin/primeiro-acesso`: cadastro definitivo obrigatório durante o bootstrap;
-- `/admin/alterar-senha`: troca posterior da senha, com confirmação da senha atual;
-- `/admin`: indicadores e atividade;
-- `/admin/selos`: busca, filtros e paginação;
-- `/admin/selos/:id`: consulta do registro, upload inicial e retificação controlada de assets;
+- `/admin/login`, `/admin/primeiro-acesso` e `/admin/alterar-senha`: acesso e credenciais.
+- `/admin`: indicadores e atividade.
+- `/admin/selos`: busca, cadastro, filtros e paginação.
+- `/admin/selos/:id`: edição estruturada, fontes, quantidade, imagens, revisão e publicação.
 - `/admin/configuracoes`: diagnóstico não sensível.
+- `/api/admin/selos/:id/assets/:papel`: prévia privada da imagem de trabalho, sem cache.
+- `/api/admin/selos/:id/publicacao`: ações `prepare`, `approve`, `status` e `publish`.
 
-## Dados administrativos e catálogo público
+## Dados e permissões
 
-A `main` de [ThiagoGelinski/colecao-selos](https://github.com/ThiagoGelinski/colecao-selos/tree/main) é a fonte oficial do código e dos dados aprovados para publicação. No snapshot `df7d805bfd2cc4909257f46b00957868e421f8a1`, há sete selos (`SEL-000001` a `SEL-000007`) publicados nos JSONs.
+A fonte oficial é a [main de ThiagoGelinski/colecao-selos](https://github.com/ThiagoGelinski/colecao-selos/tree/main). A recuperação preserva os sete registros SEL-000001 a SEL-000007 e suas 21 imagens WebP.
 
-Em produção, `src/lib/catalogo/io.mjs` grava registros, reservas e assets no store `colecao-selos-catalogo` do Netlify Blobs. Os JSONs de registros usam chaves `manifests/SEL-xxxxxx.json`; o manifesto usa `manifests/ids.json`. Alterações de registros empregam controle de concorrência por ETag e conservam a referência ao conteúdo de origem quando materializadas a partir do deploy.
+O store selecionado por `CATALOG_BLOB_STORE` guarda trabalho administrativo: registros em `manifests/SEL-xxxxxx.json`, manifesto em `manifests/ids.json` e mídia em suas chaves próprias. O servidor combina o conteúdo do deploy com as alterações dos Blobs. As gravações verificam digest do registro completo e ETag; uma tela antiga não pode sobrescrever outra edição no mesmo dia.
 
-Os Blobs são a área de trabalho administrativa: conter um registro ali não o integra ao GitHub nem autoriza publicação. O painel combina o baseline disponível no servidor com registros persistidos nos Blobs. Já o catálogo público usa `src/lib/selos.ts`, que incorpora somente os JSONs de `src/data/selos/` com `import.meta.glob` durante o build. Cadastros e alterações do painel não atualizam automaticamente essas páginas.
+| Operação | Perfis |
+| --- | --- |
+| Consulta e situação da publicação | administrador, catalogador, revisor, consulta |
+| Cadastro, edição e fotografias | administrador, catalogador |
+| Aprovação humana | administrador, revisor |
+| Publicação na main | administrador |
 
-**Exceção atual da mídia:** `netlify.toml` encaminha `/assets/selos/...` para `/api/assets/selos/...`. A leitura da API prioriza os Blobs e usa a imagem do deploy como fallback. Assim, uma retificação na mesma URL pode aparecer publicamente antes de qualquer aprovação, commit ou novo build, embora os dados da página permaneçam estáticos.
+O formulário envia somente campos editáveis alterados. ID, slug, caminhos das imagens, aprovação, histórico e controle editorial não são livremente alteráveis por PATCH. Salvar conteúdo ou retificar imagem invalida a aprovação anterior e exige nova revisão.
 
-A integração **painel → aprovação humana → GitHub → testes → Netlify ainda não está conectada**. A [arquitetura de publicação](../publicacao/arquitetura.md) define sua preparação, a separação da mídia em revisão e a reconciliação por hash/ETag após o deploy. Atualizar o JSON do GitHub sem reconciliar o `baseline_hash` de um registro materializado pode causar conflito de leitura no painel. Não apague nem sobrescreva os Blobs para resolver essa divergência automaticamente.
+O catálogo público incorpora os JSONs durante o build por `src/lib/selos.ts`. A API pública de imagens usa exclusivamente os arquivos desse build; não consulta rascunhos em Blobs. As prévias privadas do painel podem mostrar alterações ainda não publicadas.
 
-## Fotografias e retificação
+## Área de trabalho da recuperação
 
-As fotografias originais devem permanecer preservadas, sem exclusão, movimentação ou sobrescrita. Somente recorte simétrico e conversão técnica para WebP são permitidos; cada derivado precisa manter vínculo verificável com o original e com os parâmetros usados. Não são permitidos retoque, geração por IA, reconstrução, remoção de fundo, correção de cor, rotação ou redimensionamento.
+A inspeção do store legado `colecao-selos-catalogo` identificou rascunhos com IDs SEL-000002 e SEL-000003 colidindo com os selos oficiais, mídia divergente e manifesto antigo. A recuperação prevê `CATALOG_BLOB_STORE=colecao-selos-catalogo-v2` nas Functions de produção, usando o baseline oficial dos sete selos sem transferir automaticamente esses conflitos.
 
-O upload atual recebe WebP e não comprova que o original esteja arquivado nem quais transformações ocorreram antes do envio. A retificação substitui o derivado corrente e seu backup transacional não é um arquivo permanente de originais. A existência dos 21 WebPs versionados tampouco comprova a preservação dos arquivos de captura. Preserve o material existente e registre a proveniência ainda não comprovada como pendência.
+O store antigo e seus objetos permanecem preservados. Não apague, mova ou sobrescreva registros, imagens ou backups. A conclusão da cópia verificável e a ativação remota precisam ser confirmadas separadamente; esta documentação não as declara concluídas. O store de credenciais não muda e o acesso definitivo não deve ser reiniciado. Veja [recuperação e reconciliação](../publicacao/arquitetura.md).
 
-Backups existentes não podem ser excluídos, movidos ou sobrescritos. Os requisitos de armazenamento imutável e revisão de mídia estão na [arquitetura de publicação](../publicacao/arquitetura.md).
+## Fotografias e repetidos
+
+Envie a fotografia original em PNG, JPEG, WebP ou TIFF, até 5 MiB. Informe recorte horizontal e vertical em pixels: o primeiro remove a mesma margem esquerda/direita e o segundo no topo/base. Zero mantém a dimensão naquele eixo. Preserve toda a serrilha.
+
+O servidor decodifica a imagem, rejeita animação, múltiplas páginas e formatos que exigiriam conversão de espaço de cor ou precisão, aplica somente o recorte e converte para WebP lossless. Confere pixels retidos, ICC e orientação. Não aplica IA, retoque, filtros, restauração, redimensionamento ou rotação automática.
+
+Originais, derivados e recibos por SHA256 são arquivados com gravação exclusiva no store privado `colecao-selos-originais`. A retificação arquiva os bytes da imagem anterior como derivado legado, sem chamá-lo de original. A referência corrente só muda após a verificação desses arquivos. Não há rota de exclusão desse acervo.
+
+Os 21 WebPs históricos não demonstram a localização das capturas originais nem sua transformação anterior. Os originais de captura não foram identificados entre os arquivos versionados; outros arquivos e backups permanecem intactos. Não exclua, mova ou sobrescreva backups.
+
+A quantidade é opcional e aparece como “Não informada” enquanto não conferida. Havendo repetidos, informe a quantidade e confirme que a fotografia mostra o exemplar de melhor conservação. O schema exige esse critério para quantidade maior que 1; nenhum valor foi inventado para registros antigos.
+
+## Revisão e publicação
+
+1. Salve a edição e conclua o envio das fotografias. A tela bloqueia a revisão de alterações ainda não salvas.
+2. Use **Preparar revisão**. O servidor vincula ficha completa, manifesto e bytes de imagens à main atual por hashes. Uma tela desatualizada precisa ser recarregada.
+3. Um administrador ou revisor confere conteúdo, fontes e imagens e marca a confirmação humana explícita. **Aprovar e enviar ao GitHub** registra responsável da sessão, data e snapshot em recibo imutável e cria branch e Pull Request.
+4. Atualize a situação. O backend exige o workflow `.github/workflows/ci.yml` e o job **Testes, auditoria e build** concluídos com sucesso para o SHA exato do PR.
+5. Somente o administrador usa **Publicar versão aprovada**. O servidor revalida conteúdo, imagens, manifesto, diff, SHA e main; grava o snapshot aprovado por CAS e avança main por fast-forward sem força. Mudanças posteriores exigem nova revisão.
+6. O Netlify deve estar conectado a essa main para executar o build. Confira separadamente o deploy e o catálogo; `publicado` no JSON não comprova que o site já mudou.
+
+Os recibos ficam no store `colecao-selos-publicacao`. Repetir o mesmo snapshot reutiliza sua revisão. Falhas ou resultados externos incertos exigem consulta do PR e da referência Git antes de intervenção; não apague recibos, Blobs ou backups para destravar. A reconciliação preserva rascunhos posteriores e reservas de outros selos. Consulte [arquitetura](../publicacao/arquitetura.md).
+
+A integração depende da configuração de runtime. Esta documentação registra o comportamento implementado; não afirma que credenciais, conexão Git ou um teste real em produção já estejam validados.
+
+## Credencial de publicação
+
+Configure `GITHUB_PUBLISH_TOKEN` no servidor, com escopo **Functions** no Netlify, no contexto de produção autorizado. Restrinja o token ao repositório `ThiagoGelinski/colecao-selos`: Contents e Pull requests em leitura/escrita, Actions e Metadata em leitura.
+
+Não use prefixo `PUBLIC_`, não versione o valor nem o coloque no cliente, logs ou `netlify.toml`. A entrada de exemplo fica vazia. Sem a configuração, a publicação retorna `PUBLICATION_NOT_CONFIGURED` (503); edição e upload continuam independentes. O token não concede ao software uma decisão editorial: aprovação humana e ação administrativa permanecem obrigatórias.
 
 ## Primeiro acesso
 
@@ -80,7 +114,8 @@ Depois do cadastro, `/admin/alterar-senha` exige sessão administrativa, senha a
 - `ADMIN_ROLE`: perfil inicial, padrão `administrador`;
 - `ADMIN_SESSION_TTL_SECONDS`: duração entre 300 e 86400 segundos, padrão 28800;
 - `SITE_URL`: origem pública do site;
-- `PUBLICATION_MODE`: política pública já existente.
+- `PUBLICATION_MODE`: política pública já existente;
+- `CATALOG_BLOB_STORE`: seletor restrito a `colecao-selos-catalogo` ou `colecao-selos-catalogo-v2`; a recuperação prevê v2 nas Functions de produção, preservando o store legado.
 
 O segredo de bootstrap nunca deve ser colocado em `netlify.toml`, código, documentação, logs ou bundle cliente. Se o store estiver vazio e a configuração estiver ausente, desabilitada, curta ou em contexto proibido, a inicialização falha fechada e não grava estado parcial. Depois de `bootstrap_consumed=true`, as variáveis de bootstrap são ignoradas e não podem reabrir o fluxo.
 
@@ -97,21 +132,31 @@ Não configure bootstrap em Deploy Preview ou branch deploy. Não coloque segred
 
 ## Arquitetura
 
-- `src/lib/admin/credential-store.mjs`: Netlify Blobs, consistência forte, ETag, migração e irreversibilidade;
-- `src/lib/admin/auth-service.mjs`: login, cadastro inicial e troca posterior;
-- `src/lib/admin/auth.mjs`: scrypt, comparação e políticas de usuário/senha;
-- `src/lib/admin/session.mjs`: sessões assinadas e versionadas;
-- `src/middleware.ts`: autenticação, bloqueio do bootstrap e headers;
-- `src/pages/api/admin`: backend JSON padronizado;
-- `src/lib/admin/catalog-service.ts`: leitura e validação operacional do catálogo.
+- `src/lib/admin/credential-store.mjs`: Netlify Blobs, consistência forte, ETag e irreversibilidade do bootstrap.
+- `src/lib/admin/auth-service.mjs`: login, cadastro inicial e troca posterior.
+- `src/lib/admin/auth.mjs` e `session.mjs`: hashes e sessões assinadas.
+- `src/middleware.ts`: autenticação, bloqueio de bootstrap e headers.
+- `src/lib/admin/editor.mjs`: edição protegida e invalidação de aprovação.
+- `src/lib/catalogo/media.mjs`: arquivo de originais e processamento permitido.
+- `src/lib/publicacao/`: snapshots, recibos e integração GitHub.
+- `src/pages/api/admin`: backend JSON com verificações de sessão, papel e concorrência.
 
-Os endpoints de cadastro e assets persistem registros e referências de mídia com concorrência otimista. Eles não concedem aprovação humana, não alteram os JSONs do GitHub e não geram novo catálogo público. A mídia servida a partir dos Blobs permanece a exceção descrita acima: usa cache curto com revalidação e pode mudar na mesma URL.
+Cadastro, edição e upload persistem rascunhos. Aprovação e promoção ao GitHub usam operações separadas. `astro.config.mjs` inclui JSONs, manifesto, template e imagens no pacote da Function; `tests/netlify-bundle.check.mjs` verifica esses arquivos após o build.
 
 ## Verificação
 
-```bash
+~~~bash
 npm test
 npm run catalogo:auditoria
+npm run lint
+npm run typecheck
 npm run check
 npm run build
-```
+node tests/netlify-bundle.check.mjs
+git diff --check
+~~~
+
+`lint`, `typecheck` e `check` executam Astro Check, sem etapa ESLint separada. Testes isolados não equivalem a login, aprovação ou deploy reais; registre essas evidências separadamente. Não use registros fictícios permanentes para testar a publicação.
+
+
+Nota operacional de 2026-09-10: o site Netlify está ligado à main oficial. O backup dos quatro objetos legados foi verificado por dupla leitura e SHA-256; nenhum objeto remoto foi removido. CATALOG_BLOB_STORE=colecao-selos-catalogo-v2 foi configurado para o próximo deploy. O plano atual recusou escopos granulares; foram usados os escopos padrão. Para GITHUB_PUBLISH_TOKEN, prefira Functions quando o plano permitir; caso contrário, use os escopos padrão com valor de produção. O código consome esse segredo apenas no servidor e não o inclui no cliente. A credencial GitHub do painel ainda aguarda configuração e verificação.
