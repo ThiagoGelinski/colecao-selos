@@ -62,7 +62,9 @@ A integração depende da configuração de runtime. Esta documentação registr
 
 ## Credencial de publicação
 
-Configure `GITHUB_PUBLISH_TOKEN` no servidor, com escopo **Functions** no Netlify, no contexto de produção autorizado. Restrinja o token ao repositório `ThiagoGelinski/colecao-selos`: Contents e Pull requests em leitura/escrita, Actions e Metadata em leitura.
+Siga o [passo a passo para conectar o GitHub](conectar-github.md), incluindo a opção de envio por tela local temporária e a configuração manual no Netlify.
+
+Configure `GITHUB_PUBLISH_TOKEN` no servidor, preferindo o escopo **Functions** no Netlify quando o plano permitir; use os escopos padrão se a seleção granular não estiver disponível. Mantenha o valor somente no contexto de produção autorizado. Restrinja o token ao repositório `ThiagoGelinski/colecao-selos`: Contents e Pull requests em leitura/escrita, Actions e Metadata em leitura.
 
 Não use prefixo `PUBLIC_`, não versione o valor nem o coloque no cliente, logs ou `netlify.toml`. A entrada de exemplo fica vazia. Sem a configuração, a publicação retorna `PUBLICATION_NOT_CONFIGURED` (503); edição e upload continuam independentes. O token não concede ao software uma decisão editorial: aprovação humana e ação administrativa permanecem obrigatórias.
 
