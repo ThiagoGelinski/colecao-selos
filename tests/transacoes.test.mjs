@@ -1,24 +1,54 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { access, mkdtemp, mkdir, readFile, rmdir, unlink, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, rmdir, unlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
+import { once } from 'node:events';
 
 const TOOL = path.resolve('tools/catalogo.mjs');
 const TEMPLATE_SOURCE = path.resolve('templates/selo.template.json');
 
-async function waitForFile(target, timeout = 2_000) {
-  const deadline = Date.now() + timeout;
-  while (Date.now() < deadline) {
-    try {
-      await access(target);
-      return;
-    } catch {
-      await new Promise((resolve) => setTimeout(resolve, 20));
-    }
-  }
-  throw new Error(`Tempo esgotado aguardando arquivo: ${target}`);
+// Pause at the existing delay hook, after the lock snapshot/identity check.
+// IPC keeps the replacement deterministic even when Windows startup is slow.
+function pauseLockRemoval(t, root, command, args = [], env = {}) {
+  const source = `
+    import { pathToFileURL } from 'node:url';
+    const originalSetTimeout = globalThis.setTimeout;
+    let paused = false;
+    globalThis.setTimeout = (callback, delay, ...args) => {
+      if (!paused && delay === Number(process.env.SELO_TEST_LOCK_REMOVE_DELAY_MS)) {
+        paused = true;
+        process.once('message', () => { process.disconnect(); callback(...args); });
+        process.send('removal-ready');
+        return;
+      }
+      return originalSetTimeout(callback, delay, ...args);
+    };
+    await import(pathToFileURL(process.argv[1]).href);
+  `;
+  const child = spawn(process.execPath, ['--input-type=module', '-e', source, TOOL, command, ...args], {
+    cwd: root, env: { ...process.env, ...env, SELO_TEST_LOCK_REMOVE_DELAY_MS: '5432' },
+    stdio: ['ignore', 'pipe', 'pipe', 'ipc']
+  });
+  let stdout = ''; let stderr = '';
+  child.stdout.on('data', (chunk) => { stdout += chunk; });
+  child.stderr.on('data', (chunk) => { stderr += chunk; });
+  const result = new Promise((resolve, reject) => {
+    child.on('error', reject);
+    child.on('close', (status) => resolve({ status, stdout, stderr }));
+  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 30_000);
+  const ready = Promise.race([
+    once(child, 'message', { signal: controller.signal }).then(([message]) => assert.equal(message, 'removal-ready')),
+    result.then((outcome) => { throw new Error(`Processo terminou antes da remoção: ${outcome.status}\n${outcome.stderr}`); })
+  ]).finally(() => { clearTimeout(timeout); controller.abort(); });
+  t.after(async () => {
+    if (child.exitCode === null && child.signalCode === null) child.kill();
+    await result;
+  });
+  return { ready, result, resume: () => child.send('continue') };
 }
 
 function reservation(sequence, overrides = {}) {
@@ -246,32 +276,34 @@ test('falha transacional mantém manifesto legível', async () => {
   assert.equal(data.reserved[0].status, 'falha_na_criacao');
 });
 
-test('lock substituído entre snapshot e liberação não é removido', async () => {
+test('lock substituído entre snapshot e liberação não é removido', async (t) => {
   const root = await workspace();
   const lockPath = path.join(root, 'manifests', 'ids.lock');
-  const pending = runAsync(root, 'selo:novo', ['--slug', 'troca-na-liberacao', '--titulo', 'Troca'], { SELO_TEST_LOCK_REMOVE_DELAY_MS: '500' });
-  await waitForFile(lockPath);
-  await new Promise((resolve) => setTimeout(resolve, 100));
+  const pending = pauseLockRemoval(t, root, 'selo:novo', ['--slug', 'troca-na-liberacao', '--titulo', 'Troca']);
+  await pending.ready;
   await unlink(lockPath);
   const replacement = { pid: process.pid, timestamp: new Date().toISOString(), command: 'substituto', token: 'novo-token' };
   await writeLock(root, replacement);
-  const result = await pending;
+  pending.resume();
+  const result = await pending.result;
   assert.equal(result.status, 0, result.stderr);
   assert.deepEqual(JSON.parse(await readFile(lockPath, 'utf8')), replacement);
   await unlink(lockPath);
 });
 
-test('lock substituído antes da remoção obsoleta é preservado', async () => {
+test('lock substituído antes da remoção obsoleta é preservado', async (t) => {
   const root = await workspace();
   const lockPath = path.join(root, 'manifests', 'ids.lock');
   await writeLock(root, { pid: 99999999, timestamp: new Date(Date.now() - 60_000).toISOString(), command: 'obsoleto', token: 'antigo' });
-  const pending = runAsync(root, 'selo:novo', ['--slug', 'troca-obsoleto', '--titulo', 'Troca'], { SELO_LOCK_STALE_MS: '10', SELO_LOCK_TIMEOUT_MS: '900', SELO_LOCK_RETRY_MS: '20', SELO_TEST_LOCK_REMOVE_DELAY_MS: '500' });
-  await new Promise((resolve) => setTimeout(resolve, 150));
+  const pending = pauseLockRemoval(t, root, 'selo:novo', ['--slug', 'troca-obsoleto', '--titulo', 'Troca'], { SELO_LOCK_STALE_MS: '10', SELO_LOCK_TIMEOUT_MS: '900', SELO_LOCK_RETRY_MS: '20' });
+  await pending.ready;
   await unlink(lockPath);
   const replacement = { pid: process.pid, timestamp: new Date().toISOString(), command: 'ativo', token: 'token-ativo' };
   await writeLock(root, replacement);
-  const result = await pending;
+  pending.resume();
+  const result = await pending.result;
   assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /Timeout ao adquirir lock/);
   assert.deepEqual(JSON.parse(await readFile(lockPath, 'utf8')), replacement);
   await unlink(lockPath);
 });
@@ -287,14 +319,19 @@ test('processo não remove lock de outro token', async () => {
 
 test('processo não remove lock de outro PID ativo', async () => {
   const root = await workspace();
-  const holder = spawn(process.execPath, ['-e', 'setTimeout(() => {}, 2000)']);
+  const holder = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000); process.send("ready");'], { stdio: ['ignore', 'ignore', 'pipe', 'ipc'] });
+  const closed = once(holder, 'close');
   try {
+    const [message] = await once(holder, 'message', { signal: AbortSignal.timeout(30_000) });
+    assert.equal(message, 'ready');
     const replacement = { pid: holder.pid, timestamp: new Date(Date.now() - 60_000).toISOString(), command: 'holder', token: 'holder-token' };
     await writeLock(root, replacement);
     const result = run(root, 'selo:novo', ['--slug', 'pid-ativo', '--titulo', 'PID'], { SELO_LOCK_STALE_MS: '10', SELO_LOCK_TIMEOUT_MS: '80', SELO_LOCK_RETRY_MS: '10' });
     assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /Timeout ao adquirir lock/);
+    assert.doesNotThrow(() => process.kill(holder.pid, 0), 'O titular deve permanecer ativo durante todo o teste');
     assert.deepEqual(JSON.parse(await readFile(path.join(root, 'manifests', 'ids.lock'), 'utf8')), replacement);
-  } finally { holder.kill(); }
+  } finally { holder.kill(); await closed; }
 });
 
 test('falha após JSON criado remove o JSON da transação', async () => {

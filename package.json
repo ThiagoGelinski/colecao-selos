@@ -10,6 +10,7 @@
     "test": "node --test --test-isolation=process tests/*.test.mjs",
     "lint": "astro check",
     "typecheck": "astro check",
+    "publicacao:preparar": "node tools/publicacao.mjs",
     "test:schema": "node --test tests/schema.test.mjs",
     "dev": "astro dev",
     "build": "astro check && astro build",
@@ -36,7 +37,8 @@
     "@netlify/blobs": "^10.7.9",
     "ajv": "^8.20.0",
     "ajv-formats": "^3.0.1",
-    "astro": "^5.12.0"
+    "astro": "^5.12.0",
+    "sharp": "0.34.5"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.4",

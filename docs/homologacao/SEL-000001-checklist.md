@@ -1,14 +1,30 @@
 # Homologação visual — SEL-000001
 
+Atualização documental em 2026-09-09. Este checklist registra separadamente o estado editorial encontrado no JSON e as evidências de homologação visual. Caixas desmarcadas significam **verificação não comprovada neste documento**, não reprovação e não alteração do estado publicado.
+
 ## Identificação
 
 - ID: SEL-000001
 - País: Brasil
 - Título: Brasil — Campos Salles — 20 centavos
 - Ano: 1967
-- Status: homologação
+- Status no JSON oficial: publicado
 - Apto para preview: sim
-- Apto para publicação: não
+- Apto para publicação no JSON oficial: sim
+
+## Evidência editorial versionada
+
+Fonte: [src/data/selos/SEL-000001.json no commit oficial df7d805](https://github.com/ThiagoGelinski/colecao-selos/blob/df7d805bfd2cc4909257f46b00957868e421f8a1/src/data/selos/SEL-000001.json).
+
+- Aprovação registrada: `aprovacao_humana.status: aprovado`, decisão `aprovado`.
+- Revisor registrado: Thiago Gelinski.
+- Data da aprovação: `2026-07-29T02:45:46.418Z`.
+- Escopo: `publicacao_catalogo`.
+- Versão aprovada: `1.0.0-homologacao`.
+- Hash registrado: `700d4610b7185d02f4b7343c4360b101f047588fd17713b6fb1f24e9f4ebb098`.
+- Evento de publicação no histórico editorial: `2026-07-29T02:45:47.658Z`.
+
+Esses dados documentam uma decisão e um estado já presentes no repositório. Não comprovam individualmente as verificações abaixo, a preservação da fotografia original ou o SHA do deploy em produção. Nenhuma nova aprovação, revogação, publicação ou alteração do JSON foi feita nesta atualização.
 
 ## Páginas a revisar
 
@@ -76,13 +92,17 @@
 - [ ] Sitemap válido
 - [ ] robots.txt correto
 
-## Decisão final
+## Decisão da homologação visual — evidência pendente
 
 - [ ] Homologado sem ajustes
 - [ ] Homologado com ajustes
 - [ ] Reprovado temporariamente
-- [ ] Pronto para etapa de publicação
+- [ ] Revisão visual concluída com evidências registradas
 
 ## Observações
 
-Registrar nesta seção todos os problemas encontrados durante a revisão.
+Nenhuma execução de homologação visual foi comprovada por esta atualização documental. Os itens foram mantidos desmarcados; não foram inventados resultados, capturas, dispositivos testados ou revisores.
+
+Para cada revisão futura, registrar data, responsável, URL/ambiente, SHA do deploy, navegador e dimensões da tela, resultado e referência à evidência. O estado `publicado` do JSON e a aprovação editorial histórica não substituem esses registros. Testes, auditoria, Astro Check e build devem ter suas próprias evidências, sem marcar automaticamente os itens visuais.
+
+Fotografias originais e backups devem permanecer intactos. Novos derivados permitem somente recorte simétrico e conversão técnica para WebP, com proveniência verificável. A existência dos WebPs deste selo não demonstra, por si só, que os originais estejam arquivados.

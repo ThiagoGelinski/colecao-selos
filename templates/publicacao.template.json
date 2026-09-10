@@ -1,0 +1,79 @@
+{
+  "schema_version": "1.0.0",
+  "repository": "ThiagoGelinski/colecao-selos",
+  "base_commit": "PREENCHER_COM_SHA_MAIN_VERIFICADO",
+  "created_at": "PREENCHER_COM_INSTANTE_REAL",
+  "records": [
+    {
+      "id": "SEL-000008",
+      "base_sha256": null,
+      "blob_etag": "PREENCHER_COM_ETAG_REAL",
+      "record": {},
+      "assets": [
+        {
+          "role": "frente",
+          "file": "derivados/frente.webp",
+          "sha256": "PREENCHER_COM_SHA256_BINARIO",
+          "original": {
+            "file": "originais/frente.jpg",
+            "sha256": "PREENCHER_COM_SHA256_ORIGINAL"
+          },
+          "transform": {
+            "format": "webp",
+            "source_width": 1,
+            "source_height": 1,
+            "crop": {
+              "left": 0,
+              "right": 0,
+              "top": 0,
+              "bottom": 0
+            },
+            "encoder": {
+              "name": "PREENCHER",
+              "version": "PREENCHER",
+              "lossless": true,
+              "quality": 100
+            }
+          }
+        },
+        {
+          "role": "card",
+          "file": "derivados/card.webp",
+          "sha256": "PREENCHER_COM_SHA256_BINARIO",
+          "original": {
+            "file": "originais/card.jpg",
+            "sha256": "PREENCHER_COM_SHA256_ORIGINAL"
+          },
+          "transform": {
+            "format": "webp",
+            "source_width": 1,
+            "source_height": 1,
+            "crop": {
+              "left": 0,
+              "right": 0,
+              "top": 0,
+              "bottom": 0
+            },
+            "encoder": {
+              "name": "PREENCHER",
+              "version": "PREENCHER",
+              "lossless": true,
+              "quality": 100
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "ids": {
+    "base_sha256": "PREENCHER_COM_SHA256_JSON_CANONICO",
+    "blob_etag": "PREENCHER_COM_ETAG_REAL",
+    "value": {}
+  },
+  "approval": {
+    "status": "pending",
+    "reviewer": null,
+    "decided_at": null,
+    "snapshot_sha256": null
+  }
+}

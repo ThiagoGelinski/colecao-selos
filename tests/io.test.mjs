@@ -1,11 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdir, rm, writeFile, stat, readFile, readdir } from 'node:fs/promises';
+import { mkdtemp, mkdir, rm, writeFile, stat, readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
-import { randomUUID } from 'node:crypto';
+import { tmpdir } from 'node:os';
 import { listJsonNames, readJson, writeJsonExclusive } from '../src/lib/catalogo/io.mjs';
 
-const TEST_DIR = path.join(process.cwd(), 'tests', 'fixtures', `io-test-${randomUUID()}`);
+// Fixtures require real hard links; synced checkout filesystems may not support them.
+const TEST_DIR = await mkdtemp(path.join(tmpdir(), 'selos-io-'));
 
 test('io.mjs Additive Extensions', async (t) => {
     t.before(async () => {

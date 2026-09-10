@@ -13,3 +13,11 @@ logs/*.jsonl
 !logs/.gitkeep
 
 manifests/ids.lock*
+
+# Artefatos locais e backups preservados; nunca incluir em commits.
+.netlify/
+*.bundle
+*.tmp
+*.backup
+*.log
+.publication-work/

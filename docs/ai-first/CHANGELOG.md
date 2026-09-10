@@ -1,5 +1,17 @@
 # Histórico do pipeline AI-First
 
+## 2026-09-09 — Documentação e preparação da publicação governada
+
+- Documentação conciliada com os sete registros publicados no snapshot oficial `df7d805bfd2cc4909257f46b00957868e421f8a1`.
+- GitHub `main` definido como fonte oficial do código e dos dados aprovados para publicação, com alterações em branch separada e merge/deploy sujeitos à autorização.
+- Arquitetura atual explicitada: painel server-side grava nos Netlify Blobs, catálogo público incorpora JSONs durante o build e mídia pública pode ser servida dos Blobs.
+- Próxima sequência documentada a partir do manifesto; IDs devem ser reservados pelo comando, sem reutilização.
+- Checklist do `SEL-000001` corrigido para refletir a aprovação e o estado publicado registrados no JSON, sem marcar verificações visuais não comprovadas.
+- Preservação de originais e backups e limitação dos derivados a recorte simétrico e conversão técnica para WebP registradas; proveniência histórica não presumida.
+- Preparação do fluxo painel → aprovação humana → GitHub → testes → Netlify referenciada em [arquitetura de publicação](../publicacao/arquitetura.md). Integração externa, merge e deploy não ativados por esta atualização documental.
+
+As seções abaixo preservam o histórico de desenvolvimento; seus títulos não representam uma avaliação nova da prontidão atual.
+
 ## Em desenvolvimento — Bloco 2: IDs, concorrência e transações
 
 - lock exclusivo e configurável para manifests/ids.json;
@@ -27,6 +39,7 @@
 - validação antes de toda escrita de registro;
 - testes do contrato, template, catálogo real e equivalência entre camadas;
 - CI obrigatória com instalação limpa, testes, auditoria, check e build, sem deploy.
+
 ## Em desenvolvimento — Bloco 4: modularização e operação editorial
 
 - CLI modular com paths, I/O, lock, manifesto, registros, assets, transações, auditoria, histórico, erros e saída;
@@ -37,6 +50,7 @@
 - auditorias editorial e operacional ampliadas;
 - manutenção segura, diagnóstica por padrão, com dry-run e limpeza explícita;
 - testes integrados preservando os Blocos 1–3.
+
 ## Correções finais — Bloco 4
 
 - envelope JSON agora sempre corresponde ao exit code;
