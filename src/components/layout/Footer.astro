@@ -2,5 +2,16 @@
 import Container from './Container.astro';
 const year = new Date().getFullYear();
 ---
-<footer><Container><div><div><strong>Coleção Selos</strong><p>Catálogo filatélico digital para pesquisa, organização e preservação documental.</p></div><nav aria-label="Links do rodapé"><a href="/catalogo">Catálogo</a><a href="/sobre">Metodologia</a></nav></div><small>© {year} Coleção Selos · Catálogo em desenvolvimento</small></Container></footer>
-<style>footer{padding-block:3rem;border-top:1px solid var(--color-border);background:#ede7dc}footer .container>div{display:flex;justify-content:space-between;gap:2rem}strong{font:500 1.4rem var(--serif)}p{margin:.35rem 0 1.5rem;color:var(--color-muted)}nav{display:flex;gap:1.2rem;align-items:flex-start}small{color:var(--color-muted)}@media(max-width:36rem){footer .container>div{display:block}nav{margin-bottom:1.5rem}}</style>
+<footer><Container><div><div><strong>Coleção Selos</strong><p>Catálogo filatélico digital para pesquisa, organização e preservação documental.</p></div><nav aria-label="Links do rodapé"><a href="/catalogo">Catálogo</a><a href="/sobre">Metodologia</a><a class="admin-cta" href="/admin/login?returnTo=/admin" data-admin-cta>Área do Administrador</a><form data-admin-status method="post" action="/api/admin/auth/logout" hidden><button class="admin-cta" type="button" data-admin-logout>Sair</button></form></nav></div><small>© {year} Coleção Selos · Catálogo em desenvolvimento</small></Container></footer>
+<style>
+[hidden]{display:none!important}form{margin:0}button.admin-cta{font-family:inherit;background:transparent;cursor:pointer}
+footer{padding-block:3rem;border-top:1px solid var(--color-border);background:#ede7dc}
+footer .container>div{display:flex;justify-content:space-between;gap:2rem}
+strong{font:500 1.4rem var(--serif)}
+p{margin:.35rem 0 1.5rem;color:var(--color-muted)}
+nav{display:flex;gap:1.2rem;align-items:flex-start;flex-wrap:wrap}
+small{color:var(--color-muted);display:flex;gap:.8rem;align-items:center;flex-wrap:wrap}
+.admin-cta{display:inline-flex;align-items:center;padding:.42rem .7rem;border:1px solid var(--color-accent);border-radius:999rem;color:var(--color-accent);text-decoration:none;font-size:.78rem;font-weight:700;white-space:nowrap}
+.admin-cta:hover{background:var(--color-accent);color:white}
+@media(max-width:36rem){footer .container>div{display:block}nav{margin-bottom:1.5rem}}
+</style>

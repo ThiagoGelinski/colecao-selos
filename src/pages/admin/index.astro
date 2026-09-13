@@ -2,7 +2,7 @@
 export const prerender = false;
 import AdminLayout from '../../layouts/AdminLayout.astro';
 ---
-<AdminLayout title="Visão geral"><header class="page-head"><div><p class="eyebrow">Painel administrativo</p><h1>Visão geral</h1><p class="muted">Indicadores calculados a partir dos registros oficiais.</p></div></header><section data-dashboard><div class="panel loading">Carregando indicadores…</div></section><h2 class="section-title">Atividade recente</h2><section class="panel" data-activity><div class="loading">Carregando atividade…</div></section>
+<AdminLayout title="Visão geral"><header class="page-head"><div><p class="eyebrow">Painel administrativo</p><h1>Visão geral</h1><p class="muted">Indicadores calculados a partir dos registros oficiais.</p></div></header><a class="button" href="/admin/selos/novo">Adicionar novo selo</a><section data-dashboard><div class="panel loading">Carregando indicadores…</div></section><h2 class="section-title">Atividade recente</h2><section class="panel" data-activity><div class="loading">Carregando atividade…</div></section>
 <script>
  const dashboard=document.querySelector<HTMLElement>('[data-dashboard]');const activity=document.querySelector<HTMLElement>('[data-activity]');
  const escape=(value:unknown)=>String(value??'').replace(/[&<>'"]/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]||char));

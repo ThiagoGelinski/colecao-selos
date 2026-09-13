@@ -162,3 +162,17 @@ git diff --check
 
 
 Nota operacional de 2026-09-10: o site Netlify está ligado à main oficial. O backup dos quatro objetos legados foi verificado por dupla leitura e SHA-256; nenhum objeto remoto foi removido. CATALOG_BLOB_STORE=colecao-selos-catalogo-v2 foi configurado para o próximo deploy. O plano atual recusou escopos granulares; foram usados os escopos padrão. Para GITHUB_PUBLISH_TOKEN, prefira Functions quando o plano permitir; caso contrário, use os escopos padrão com valor de produção. O código consome esse segredo apenas no servidor e não o inclui no cliente. A credencial GitHub do painel ainda aguarda configuração e verificação.
+
+
+## Integração de pré-cadastro por IA
+
+O endpoint de pré-cadastro (`POST /api/admin/selos/pre-cadastro`) recebe foto de frente e/ou verso para propor campos iniciais: país, tema/personagem, valor facial e ano, além de observações de baixa confiança.
+A resposta é apenas assistida; não substitui revisão editorial humana.
+
+Sem configuração do provedor de IA ou em falha, a rota retorna `status: fallback` e mantém o fluxo manual para não bloquear cadastro.
+
+Configure no servidor: `GPT_PRECADASTRO_ENABLED=true`, `OPENAI_API_KEY` e `OPENAI_API_MODEL` (modelo habilitado com visão e Structured Outputs). `OPENAI_API_URL` é opcional e aceita somente `https://api.openai.com/v1`. A chave não pode ir ao frontend, GitHub ou logs.
+
+A integração usa a Responses API com `store: false`, timeout de 20 segundos, validação de JSON Schema e limite de cinco análises por minuto por sessão de usuário/instância. O botão usa frente e verso já selecionados; as fotos são enviadas apenas ao solicitar análise e se a integração estiver configurada. Receber uma proposta não grava nem aprova o selo. PNG, JPEG e WebP são enviados com seus bytes originais; TIFF permite cadastro/upload normal e usa fallback manual na análise.
+
+Referências: [entradas de imagem](https://developers.openai.com/api/docs/guides/images-vision) e [Structured Outputs](https://developers.openai.com/api/docs/guides/structured-outputs).

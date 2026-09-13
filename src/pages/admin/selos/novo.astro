@@ -6,10 +6,10 @@ import AdminLayout from '../../../layouts/AdminLayout.astro';
   <header class="page-head">
     <div>
       <p class="eyebrow">Cadastro manual</p>
-      <h1>Novo Selo</h1>
-      <p class="muted">Cria um rascunho inicial. Imagens, pesquisa e publicação serão tratados em etapas posteriores.</p>
+      <h1>Adicionar novo selo</h1>
+      <p class="muted">Cria um registro novo em rascunho e permite incluir frente e verso já nesta etapa.</p>
     </div>
-    <a class="button" href="/admin/selos">Voltar à lista</a>
+    <a class="button button-primary" href="/admin/selos">Voltar à lista</a>
   </header>
 
   <div class="panel" role="alert" aria-live="assertive" id="form-errors" hidden>
@@ -19,11 +19,10 @@ import AdminLayout from '../../../layouts/AdminLayout.astro';
 
   <form class="panel novo-selo-form" id="novo-selo-form" novalidate>
     <section class="form-section">
-      <h2 class="section-title">1. Identificação básica</h2>
-
+      <h2 class="section-title">1) Identificação básica</h2>
       <div class="field" id="field-titulo">
         <label for="titulo">Título do registro <span class="required" aria-hidden="true">*</span></label>
-        <p class="field-hint">Nome descritivo do selo, ex.: "Brasil — Campos Salles — 20 cruzeiros — 1967"</p>
+        <p class="field-hint">Nome descritivo inicial do selo.</p>
         <input
           type="text"
           id="titulo"
@@ -39,7 +38,7 @@ import AdminLayout from '../../../layouts/AdminLayout.astro';
 
       <div class="field" id="field-slug">
         <label for="slug">Slug (identificador na URL) <span class="required" aria-hidden="true">*</span></label>
-        <p class="field-hint">Apenas letras minúsculas, números e hífens. Gerado automaticamente a partir do título.</p>
+        <p class="field-hint">Apenas letras minúsculas, números e hífens.</p>
         <div class="slug-row">
           <input
             type="text"
@@ -60,30 +59,85 @@ import AdminLayout from '../../../layouts/AdminLayout.astro';
     </section>
 
     <section class="form-section">
-      <h2 class="section-title">2. Estado editorial inicial</h2>
-      <dl class="info-grid">
-        <dt>Status inicial</dt><dd><span class="badge">rascunho</span></dd>
-        <dt>ID</dt><dd class="muted">Gerado automaticamente pelo catálogo (ex.: SEL-000002)</dd>
-        <dt>Publicação</dt><dd class="muted">Não publicado no catálogo público</dd>
-      </dl>
+      <h2 class="section-title">2) Sugestão por IA (opcional)</h2>
+      <p class="field-hint">Use as fotos da frente/verso para receber uma proposta de preenchimento. A resposta é somente preliminar e não substitui a revisão humana.</p>
+      <p class="field-hint">A análise usa as fotos selecionadas abaixo. Nenhuma imagem é alterada pela IA.</p>
+      <div class="form-actions" style="margin-top:1rem">
+        <button type="button" class="button button-ghost" id="assistant-btn">Analisar com IA</button>
+        <button type="button" class="button button-ghost" id="assistant-clear">Limpar análise</button>
+      </div>
+      <div class="assistant-panel" id="assistant-result" hidden>
+        <h3>Proposta de pré-cadastro</h3>
+        <p id="assistant-text" class="muted"></p>
+        <div class="assistant-grid" id="assistant-fields"></div>
+        <div class="form-actions">
+          <button type="button" id="apply-assistant" class="button button-sm">Aplicar campos sugeridos</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="form-section">
+      <h2 class="section-title">3) Registro inicial de imagens</h2>
+      <p class="field-hint">Use uma foto original por arquivo, sem filtro. Identifique frente e verso. O recorte retira a mesma margem dos lados opostos; preserve toda a perfuração.</p>
+      <div class="photo-grid">
+        <div class="photo-field"><label for="front-photo">Frente (obrigatória)</label>
+          <span class="caption">Selecione o arquivo original ou use a câmera.</span>
+          <input id="front-photo" name="front-photo" type="file" accept="image/png,image/jpeg,image/webp,image/tiff,.tif,.tiff" required />
+          <label for="front-camera">Tirar foto da frente</label><input id="front-camera" type="file" accept="image/*" capture="environment" />
+          <div class="crop-grid"><label>Recorte em cada lateral (px)<input id="front-crop-x" type="number" value="0" min="0" step="1" inputmode="numeric" /></label><label>Recorte no topo e na base (px)<input id="front-crop-y" type="number" value="0" min="0" step="1" inputmode="numeric" /></label></div>
+          <figure class="preview-box" data-preview-wrap="front"><img alt="Prévia frente" data-preview="front" loading="lazy" /><figcaption>Sem seleção</figcaption></figure>
+        </div>
+        <div class="photo-field"><label for="back-photo">Verso (opcional)</label>
+          <input id="back-photo" name="back-photo" type="file" accept="image/png,image/jpeg,image/webp,image/tiff,.tif,.tiff" />
+          <label for="back-camera">Tirar foto do verso</label><input id="back-camera" type="file" accept="image/*" capture="environment" />
+          <div class="crop-grid"><label>Recorte em cada lateral (px)<input id="back-crop-x" type="number" value="0" min="0" step="1" inputmode="numeric" /></label><label>Recorte no topo e na base (px)<input id="back-crop-y" type="number" value="0" min="0" step="1" inputmode="numeric" /></label></div>
+          <figure class="preview-box" data-preview-wrap="back"><img alt="Prévia verso" data-preview="back" loading="lazy" /><figcaption>Sem seleção</figcaption></figure>
+        </div>
+      </div>
+    </section>
+
+    <section class="form-section">
+      <h2 class="section-title">4) Campos principais (pré-checagem)</h2>
+      <div class="grid-fields">
+        <label>País
+          <input id="ai-pais" name="ai-pais" type="text" maxlength="120" placeholder="ex.: Brasil" />
+        </label>
+        <label>Tema/personagem
+          <input id="ai-tema" name="ai-tema" type="text" maxlength="220" placeholder="ex.: Campos Salles" />
+        </label>
+        <label>Valor facial
+          <input id="ai-valor" name="ai-valor" type="text" inputmode="decimal" placeholder="ex.: 20" />
+        </label>
+        <label>Unidade
+          <input id="ai-unidade" name="ai-unidade" type="text" maxlength="30" placeholder="ex.: centavos" />
+        </label>
+        <label>Ano de emissão
+          <input id="ai-ano" name="ai-ano" type="number" min="1000" max="9999" inputmode="numeric" placeholder="ex.: 1967" />
+        </label>
+        <label>Quantidade na coleção
+          <input id="quantidade" name="quantidade" type="number" min="1" step="1" inputmode="numeric" placeholder="Ex.: 1" />
+        </label>
+      </div>
+      <label class="check-label"><input type="checkbox" id="confirma-melhor" />
+        O exemplar indicado na fotografia da frente é o de melhor conservação (quando houver repetidos).</label>
+      <p class="field-hint">Cadastre repetidos juntos e escolha o exemplar de melhor conservação. Separe registros quando houver diferença relevante de carimbo, tonalidade, denteação, variedade, defeito, verso ou conservação. Os originais são preservados; somente recorte simétrico e conversão WebP são permitidos.</p>
     </section>
 
     <div class="form-actions">
-      <button type="submit" id="submit-btn" class="button button-primary">
-        <span id="submit-label">Criar rascunho</span>
-      </button>
+      <button type="submit" id="submit-btn" class="button button-primary"><span id="submit-label">Criar rascunho</span></button>
       <a href="/admin/selos" class="button button-ghost">Cancelar</a>
     </div>
   </form>
 
   <div class="panel success-panel" id="success-panel" hidden role="status" aria-live="polite">
     <h2>✓ Rascunho criado com sucesso</h2>
-    <p>O registro foi criado com o ID <strong id="created-id"></strong>.</p>
-    <p class="muted">Redirecionando para a página do registro…</p>
+    <p>Registro criado: <strong id="created-id"></strong>.</p>
+    <p id="created-message">Imagens associadas ao rascunho. Complete os dados e faça a revisão humana antes de publicar.</p>
+    <a class="button" id="created-link">Continuar no registro</a>
   </div>
 
   <script>
-    // Normalização de slug idêntica à do servidor (normalizeSlug)
+    import { buildEditorChanges, buildMediaFormData } from "../../../lib/admin/editor-form.mjs";
     function normalizeSlug(value: string): string {
       return value
         .trim()
@@ -96,20 +150,216 @@ import AdminLayout from '../../../layouts/AdminLayout.astro';
         .replace(/^-|-$/g, '');
     }
 
-    const form      = document.getElementById('novo-selo-form') as HTMLFormElement;
-    const tituloEl  = document.getElementById('titulo') as HTMLInputElement;
-    const slugEl    = document.getElementById('slug') as HTMLInputElement;
+    const entities: Record<string, string> = { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;' };
+    const escape = (value: unknown) => String(value ?? '').replace(/[&<>"']/g, (char) => entities[char] || char);
+
+    const form = document.getElementById('novo-selo-form') as HTMLFormElement;
+    const tituloEl = document.getElementById('titulo') as HTMLInputElement;
+    const slugEl = document.getElementById('slug') as HTMLInputElement;
     const slugValue = document.getElementById('slug-value') as HTMLSpanElement;
-    const regenBtn  = document.getElementById('slug-regenerate') as HTMLButtonElement;
+    const regenBtn = document.getElementById('slug-regenerate') as HTMLButtonElement;
     const submitBtn = document.getElementById('submit-btn') as HTMLButtonElement;
     const submitLbl = document.getElementById('submit-label') as HTMLSpanElement;
-    const errPanel  = document.getElementById('form-errors') as HTMLDivElement;
-    const errList   = document.getElementById('error-list') as HTMLUListElement;
+    const errPanel = document.getElementById('form-errors') as HTMLDivElement;
+    const errList = document.getElementById('error-list') as HTMLUListElement;
     const successPanel = document.getElementById('success-panel') as HTMLDivElement;
     const createdId = document.getElementById('created-id') as HTMLSpanElement;
+    const assistantBtn = document.getElementById('assistant-btn') as HTMLButtonElement;
+    const assistantClear = document.getElementById('assistant-clear') as HTMLButtonElement;
+    const assistantResult = document.getElementById('assistant-result') as HTMLDivElement;
+    const assistantText = document.getElementById('assistant-text') as HTMLParagraphElement;
+    const assistantFields = document.getElementById('assistant-fields') as HTMLDivElement;
+    const applyAssistant = document.getElementById('apply-assistant') as HTMLButtonElement;
+    const aiPais = document.getElementById('ai-pais') as HTMLInputElement;
+    const aiTema = document.getElementById('ai-tema') as HTMLInputElement;
+    const aiValor = document.getElementById('ai-valor') as HTMLInputElement;
+    const aiUnidade = document.getElementById('ai-unidade') as HTMLInputElement;
+    const aiAno = document.getElementById('ai-ano') as HTMLInputElement;
 
-    // Derivar slug do título automaticamente (apenas se slug não foi editado manualmente)
+    const frontPhoto = document.getElementById('front-photo') as HTMLInputElement;
+    const backPhoto = document.getElementById('back-photo') as HTMLInputElement;
+
+    let assistantCache: any = null;
+
     let slugManuallyEdited = false;
+    let previewUrl = { front: '', back: '' };
+
+    function showFieldError(errorId: string, message: string) {
+      const error = document.getElementById(errorId) as HTMLParagraphElement | null;
+      if (error) { error.textContent = message; error.hidden = false; }
+    }
+    function clearError(errorId: string) {
+      const error = document.getElementById(errorId) as HTMLParagraphElement | null;
+      if (error) { error.textContent = ''; error.hidden = true; }
+    }
+    function clearAllErrors() {
+      clearError('titulo-error');
+      clearError('slug-error');
+      errPanel.hidden = true;
+      errList.innerHTML = '';
+    }
+    function showSummaryErrors(messages: string[]) {
+      errList.innerHTML = messages.map((message) => `<li>${escape(message)}</li>`).join('');
+      errPanel.hidden = false;
+      errPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function applyFilePreview(input: HTMLInputElement, kind: 'front' | 'back') {
+      if (previewUrl[kind]) URL.revokeObjectURL(previewUrl[kind]);
+      previewUrl[kind] = "";
+      const inputFile = input.files?.[0];
+      const img = document.querySelector<HTMLImageElement>(`img[data-preview="${kind}"]`);
+      const fig = document.querySelector<HTMLElement>(`figure[data-preview-wrap="${kind}"]`);
+      if (!inputFile || !img || !fig) {
+        if (img) img.removeAttribute('src');
+        if (fig) fig.querySelector('figcaption')!.textContent = 'Sem seleção';
+        return;
+      }
+      const url = URL.createObjectURL(inputFile);
+      if (kind === 'front') previewUrl.front = url;
+      else previewUrl.back = url;
+      img.src = url;
+      fig.querySelector('figcaption')!.textContent = `Prévia: ${inputFile.name}`;
+    }
+
+    function setAssistantMessage(message: string, list: Array<{ field: string; observacao: string }> = []) {
+      assistantText.textContent = message;
+      assistantFields.innerHTML = list.length
+        ? list.map((item) => `<p><strong>${escape(item.field)}:</strong> ${escape(item.observacao)}</p>`).join('')
+        : '<p class="muted">Preencha manualmente os campos e confira as fontes.</p>';
+      assistantResult.hidden = false;
+    }
+
+    function mirrorAssistantToInputs() {
+      if (!assistantCache) return;
+      aiPais.value = assistantCache.pais || '';
+      aiTema.value = assistantCache.tema || '';
+      aiValor.value = assistantCache.valor_facial || '';
+      aiUnidade.value = assistantCache.unidade || '';
+      if (typeof assistantCache.ano === 'number') aiAno.value = String(assistantCache.ano);
+      else aiAno.value = '';
+    }
+
+    async function analyzePhotos() {
+      assistantBtn.disabled = true;
+      applyAssistant.disabled = true;
+      try {
+        const front = frontPhoto.files?.[0] ?? null;
+        const back = backPhoto.files?.[0] ?? null;
+        const payload = new FormData();
+        if (front) payload.append('frente', front);
+        if (back) payload.append('verso', back);
+        const response = await fetch('/api/admin/selos/pre-cadastro', {
+          method: 'POST',
+          body: payload,
+          credentials: 'same-origin'
+        });
+        const data = await response.json();
+        if (!response.ok && !data?.data) throw new Error(data?.error?.message || 'Falha na análise assistida.');
+        assistantCache = data?.data ?? data;
+        const status = data.status || 'fallback';
+        setAssistantMessage((status === 'fallback' || status === 'insufficient_input') ? (assistantCache?.observacao || 'Pré-cadastro sem sugestão automatizada.') : `Sugestão com confiança parcial: ${status}. Revise manualmente antes de salvar.`, assistantCache.campos_baixa_confianca || []);
+        if (status === 'suggested') {
+          assistantFields.insertAdjacentHTML('afterbegin', '<dl>' + ['pais', 'tema', 'valor_facial', 'unidade', 'ano'].map(field => '<dt>' + escape(field) + '</dt><dd>' + escape(assistantCache[field] ?? 'Pendente') + '</dd>').join('') + '</dl>');
+        }
+        applyAssistant.disabled = status !== 'suggested';
+      } catch (error) {
+        setAssistantMessage(error instanceof Error ? error.message : 'Não foi possível analisar as fotografias.', []);
+      } finally {
+        assistantBtn.disabled = false;
+      }
+    }
+
+    function validate() {
+      clearAllErrors();
+      const errors: string[] = [];
+      const titulo = tituloEl.value.trim();
+      const slug = slugEl.value.trim();
+      if (!titulo) {
+        showFieldError('titulo-error', 'Título é obrigatório.');
+        errors.push('Título: campo obrigatório.');
+      }
+      const slugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+      if (!slug) {
+        showFieldError('slug-error', 'Slug é obrigatório.');
+        errors.push('Slug: campo obrigatório.');
+      } else if (!slugPattern.test(slug)) {
+        showFieldError('slug-error', 'Slug inválido. Use apenas letras minúsculas, números e hífens.');
+        errors.push('Slug: formato inválido.');
+      }
+      if (!frontPhoto.files?.[0]) {
+        errors.push('Imagem da frente: seleção obrigatória.');
+      }
+      try {
+        buildEditorChanges({ exemplar: {} }, buildDraftPayload());
+        for (const [input, prefix] of [[frontPhoto, 'front'], [backPhoto, 'back']] as const) {
+          if (input.files?.[0]) buildMediaFormData(input.files[0], 'frente', '0'.repeat(64),
+            (document.getElementById(prefix + '-crop-x') as HTMLInputElement).value,
+            (document.getElementById(prefix + '-crop-y') as HTMLInputElement).value);
+        }
+      } catch (error) { errors.push(error instanceof Error ? error.message : 'Confira os campos.'); }
+      if (errors.length) showSummaryErrors(errors);
+      return errors.length === 0;
+    }
+
+    function buildDraftPayload(): Record<string, string> {
+      const ano = aiAno.value ? Number(aiAno.value) : null;
+      const baseTitle = tituloEl.value.trim() || '';
+      const defaultTitle = [aiTema.value.trim(), baseTitle.includes('—') ? '' : baseTitle].filter(Boolean).join(' — ');
+      const title = baseTitle || defaultTitle;
+      const payload: Record<string, string> = {
+        titulo: title,
+        slug: slugEl.value.trim(),
+      };
+      if (aiPais.value.trim()) payload['identificacao.pais'] = aiPais.value.trim();
+      if (aiTema.value.trim()) payload['identificacao.tema'] = aiTema.value.trim();
+      if (aiValor.value.trim()) payload['identificacao.valor_facial.valor'] = aiValor.value.trim();
+      if (aiUnidade.value.trim()) payload['identificacao.valor_facial.unidade'] = aiUnidade.value.trim();
+      if (Number.isFinite(ano as unknown as number)) payload['emissao.ano'] = String(ano);
+      if (document.getElementById('confirma-melhor') instanceof HTMLInputElement && (document.getElementById('confirma-melhor') as HTMLInputElement).checked) payload['exemplar.melhor_conservacao'] = 'on';
+      const quantidade = (document.getElementById('quantidade') as HTMLInputElement).value.trim();
+      if (quantidade) payload['exemplar.quantidade'] = quantidade;
+      return payload;
+    }
+
+    async function uploadPhoto(id: string, digest: string, input: HTMLInputElement, papel: 'frente' | 'verso' | 'card', cropX: HTMLInputElement, cropY: HTMLInputElement) {
+      const file = input.files?.[0];
+      if (!file) return;
+      const formData = buildMediaFormData(file, papel, digest, cropX.value || '0', cropY.value || '0');
+      const response = await fetch(`/api/admin/selos/${encodeURIComponent(id)}/assets`, {
+        method: 'POST',
+        body: formData,
+        credentials: 'same-origin'
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload?.error?.message || `Não foi possível enviar ${papel}.`);
+      return payload?.data?.record_digest as string;
+    }
+
+    async function applyMetadataIfNeeded(id: string, originalDigest: string) {
+      const draft = buildDraftPayload();
+      delete draft.slug;
+      delete draft.titulo;
+      const changes = buildEditorChanges({ exemplar: {} }, draft);
+      if (!Object.keys(changes).length) return originalDigest;
+      const response = await fetch(`/api/admin/selos/${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ expected_digest: originalDigest, changes })
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload?.error?.message || 'Não foi possível aplicar os campos sugeridos.');
+      return payload?.data?.record_digest;
+    }
+
+    async function ensureDraftDigest(id: string) {
+      const response = await fetch(`/api/admin/selos/${encodeURIComponent(id)}`, { credentials: 'same-origin' });
+      const payload = await response.json();
+      if (!response.ok || !payload?.data?.record_digest) throw new Error('Registro criado sem retorno de controle.');
+      return payload.data.record_digest as string;
+    }
+
     tituloEl.addEventListener('input', () => {
       if (!slugManuallyEdited) {
         const generated = normalizeSlug(tituloEl.value);
@@ -117,10 +367,12 @@ import AdminLayout from '../../../layouts/AdminLayout.astro';
         slugValue.textContent = generated || '—';
       }
     });
+
     slugEl.addEventListener('input', () => {
       slugManuallyEdited = true;
       slugValue.textContent = slugEl.value || '—';
     });
+
     regenBtn.addEventListener('click', () => {
       const generated = normalizeSlug(tituloEl.value);
       slugEl.value = generated;
@@ -128,50 +380,40 @@ import AdminLayout from '../../../layouts/AdminLayout.astro';
       slugManuallyEdited = false;
     });
 
-    function showFieldError(fieldId: string, errorId: string, message: string) {
-      const field = document.getElementById(fieldId);
-      const error = document.getElementById(errorId) as HTMLParagraphElement | null;
-      field?.classList.add('field-invalid');
-      if (error) { error.textContent = message; error.hidden = false; }
-    }
-    function clearFieldError(fieldId: string, errorId: string) {
-      const field = document.getElementById(fieldId);
-      const error = document.getElementById(errorId) as HTMLParagraphElement | null;
-      field?.classList.remove('field-invalid');
-      if (error) { error.hidden = true; error.textContent = ''; }
-    }
-    function clearAllErrors() {
-      clearFieldError('field-titulo', 'titulo-error');
-      clearFieldError('field-slug', 'slug-error');
-      errPanel.hidden = true;
-      errList.innerHTML = '';
-    }
-    function showSummaryErrors(messages: string[]) {
-      errList.innerHTML = messages.map((m) => `<li>${m}</li>`).join('');
-      errPanel.hidden = false;
-      errPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    }
+    ['front-photo', 'back-photo'].forEach((idField) => {
+      const el = document.getElementById(idField);
+      if (!el) return;
+      el.addEventListener('change', () => {
+        if (idField === 'front-photo') applyFilePreview(frontPhoto, 'front');
+        if (idField === 'back-photo') applyFilePreview(backPhoto, 'back');
+      });
+    });
 
-    function validate(): boolean {
-      clearAllErrors();
-      const errors: string[] = [];
-      const titulo = tituloEl.value.trim();
-      const slug   = slugEl.value.trim();
-      if (!titulo) {
-        showFieldError('field-titulo', 'titulo-error', 'O título é obrigatório.');
-        errors.push('Título: campo obrigatório.');
-      }
-      const slugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-      if (!slug) {
-        showFieldError('field-slug', 'slug-error', 'O slug é obrigatório.');
-        errors.push('Slug: campo obrigatório.');
-      } else if (!slugPattern.test(slug)) {
-        showFieldError('field-slug', 'slug-error', 'Slug inválido. Use apenas letras minúsculas, números e hífens.');
-        errors.push('Slug: formato inválido.');
-      }
-      if (errors.length) { showSummaryErrors(errors); return false; }
-      return true;
+    for (const [prefix, target] of [['front', frontPhoto], ['back', backPhoto]] as const) {
+      document.getElementById(prefix + '-camera')?.addEventListener('change', event => {
+        const files = (event.currentTarget as HTMLInputElement).files;
+        if (files?.length) { target.files = files; applyFilePreview(target, prefix); }
+      });
     }
+    assistantBtn.addEventListener('click', () => { void analyzePhotos(); });
+    assistantClear.addEventListener('click', () => {
+      assistantCache = null;
+      assistantResult.hidden = true;
+      assistantText.textContent = '';
+      assistantFields.innerHTML = '';
+      applyAssistant.disabled = true;
+
+    });
+    applyAssistant.addEventListener('click', () => {
+      if (!assistantCache) return;
+      mirrorAssistantToInputs();
+      if (assistantCache?.confiancas) {
+        const notes = Object.entries(assistantCache.confiancas)
+          .map(([field, value]) => `${field}: ${value}`)
+          .join(' | ');
+        assistantText.textContent = `Aplicado com foco. Confiabilidades: ${notes}.`;
+      }
+    });
 
     let submitting = false;
     form.addEventListener('submit', async (event) => {
@@ -186,33 +428,43 @@ import AdminLayout from '../../../layouts/AdminLayout.astro';
         const response = await fetch('/api/admin/selos', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+          credentials: 'same-origin',
           body: JSON.stringify({ titulo: tituloEl.value.trim(), slug: slugEl.value.trim() }),
         });
-
-        if (response.status === 401) { window.dispatchEvent(new Event('admin:session-expired')); return; }
-
-        const payload = await response.json() as { ok: boolean; data?: { id: string; slug: string }; error?: { code: string; message: string; details?: unknown } };
-
-        if (!response.ok || !payload.ok) {
-          const message = payload.error?.message ?? 'Erro ao criar o registro.';
-          const details = payload.error?.details as Record<string, unknown> | undefined;
-          const campos = Array.isArray(details?.campos) ? details.campos as string[] : null;
-          if (campos?.includes('titulo')) showFieldError('field-titulo', 'titulo-error', message);
-          const campo = typeof details?.campo === 'string' ? details.campo : null;
-          if (campo === 'slug' || payload.error?.code === 'TRANSACTION_ERROR') showFieldError('field-slug', 'slug-error', message);
-          showSummaryErrors([message]);
-          return;
-        }
-
-        // Sucesso
+        const payload = await response.json() as { ok: boolean; data?: { id: string; slug: string }; error?: { message?: string; code?: string } };
+        if (!response.ok || !payload.ok) throw new Error(payload.error?.message || 'Erro ao criar o registro.');
+        const id = payload.data!.id;
+        const createdLink = document.getElementById('created-link') as HTMLAnchorElement;
+        createdLink.href = `/admin/selos/${encodeURIComponent(id)}`;
+        createdId.textContent = id;
         form.hidden = true;
-        createdId.textContent = payload.data!.id;
         successPanel.hidden = false;
-        setTimeout(() => { location.assign(`/admin/selos/${encodeURIComponent(payload.data!.id)}`); }, 1500);
-      } catch {
-        showSummaryErrors(['Erro inesperado. Verifique a conexão e tente novamente.']);
+        successPanel.querySelector('h2')!.textContent = 'Rascunho criado; enviando imagens…';
+        document.getElementById('created-message')!.textContent = 'Aguarde a conclusão do envio. O registro já está salvo.';
+        try {
+          let digest = await ensureDraftDigest(id);
+          digest = await applyMetadataIfNeeded(id, digest);
+          const updatedDigest = await uploadPhoto(id, digest, frontPhoto, 'frente', document.getElementById('front-crop-x') as HTMLInputElement, document.getElementById('front-crop-y') as HTMLInputElement);
+          if (updatedDigest) digest = updatedDigest;
+          if (backPhoto.files?.[0]) {
+            const other = await uploadPhoto(id, digest, backPhoto, 'verso', document.getElementById('back-crop-x') as HTMLInputElement, document.getElementById('back-crop-y') as HTMLInputElement);
+            if (other) digest = other;
+          }
+          await uploadPhoto(id, digest, frontPhoto, 'card', document.getElementById('front-crop-x') as HTMLInputElement, document.getElementById('front-crop-y') as HTMLInputElement);
+          successPanel.querySelector('h2')!.textContent = 'Rascunho criado com sucesso';
+          document.getElementById('created-message')!.textContent = 'Imagens associadas ao rascunho. Complete os dados e faça a revisão humana antes de publicar.';
+          form.hidden = true;
+          createdId.textContent = id;
+          successPanel.hidden = false;
+
+        } catch (imageError) {
+          successPanel.querySelector('h2')!.textContent = 'Rascunho salvo com pendências';
+          document.getElementById('created-message')!.textContent = 'O registro foi preservado. Continue nele para concluir os dados e as imagens. ' + (imageError instanceof Error ? imageError.message : 'Falha no envio.');
+        }
+      } catch (error) {
+        showSummaryErrors([error instanceof Error ? error.message : 'Erro inesperado.']);
       } finally {
-        if (!form.hidden) {
+        if (successPanel.hidden) {
           submitting = false;
           submitBtn.disabled = false;
           submitLbl.textContent = 'Criar rascunho';
@@ -220,4 +472,21 @@ import AdminLayout from '../../../layouts/AdminLayout.astro';
       }
     });
   </script>
+  <style>
+    .novo-selo-form{display:grid;gap:1.5rem;min-width:0}
+    .form-section{border-bottom:1px solid var(--admin-border);padding-bottom:1.5rem}
+    .photo-grid,.grid-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,18rem),1fr));gap:1rem}
+    .photo-field{min-width:0;display:grid;gap:.6rem}
+    .caption,.field-hint{color:var(--admin-muted);font-size:.9rem;line-height:1.5}
+    .crop-grid{display:grid;grid-template-columns:1fr 1fr;gap:.7rem}
+    .preview-box{margin:.5rem 0;max-width:100%;overflow-wrap:anywhere}
+    .preview-box img{max-width:100%;max-height:16rem;object-fit:contain}
+    .preview-box img:not([src]){display:none}
+    .form-actions,.slug-row{display:flex;gap:.75rem;flex-wrap:wrap}
+    .slug-row input{flex:1;min-width:12rem}
+    .check-label{display:flex;gap:.6rem;margin-block:1rem;align-items:flex-start}
+    .check-label input{width:auto;min-height:1rem;flex-shrink:0}
+    .field-error{color:var(--admin-danger)}
+    [hidden]{display:none!important}
+  </style>
 </AdminLayout>

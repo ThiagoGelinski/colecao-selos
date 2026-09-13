@@ -11,7 +11,9 @@ export function inspectManifest(manifest, records = []) {
   if (manifest.schema_version !== '2.0.0') errors.push('Manifesto: schema_version deve ser 2.0.0.');
   if (manifest.prefix !== 'SEL') errors.push('Manifesto: prefix deve ser "SEL".');
   if (manifest.digits !== 6) errors.push('Manifesto: digits deve ser 6.');
+  const MAX_SEQUENCE = 1_000_000;
   if (!Number.isInteger(manifest.next_sequence) || manifest.next_sequence < 1) errors.push('Manifesto: next_sequence deve ser inteiro positivo.');
+  if (Number.isInteger(manifest.next_sequence) && manifest.next_sequence > MAX_SEQUENCE) errors.push(`Manifesto: next_sequence deve ser menor ou igual a ${MAX_SEQUENCE}.`);
   if (!Array.isArray(manifest.reserved)) return { errors: [...errors, 'Manifesto: reserved deve ser array.'], warnings, informational };
   const ids = new Set(); const sequences = new Set(); let maximum = 0;
   for (const [index, reservation] of manifest.reserved.entries()) {
@@ -20,7 +22,15 @@ export function inspectManifest(manifest, records = []) {
     for (const field of ['id', 'sequence', 'reserved_at', 'source', 'status', 'slug']) if (reservation[field] === undefined || reservation[field] === null || reservation[field] === '') errors.push(`${label}: ${field} obrigatório.`);
     if (!/^SEL-[0-9]{6}$/.test(reservation.id ?? '')) errors.push(`${label}: ID inválido (${reservation.id ?? 'ausente'}).`);
     if (ids.has(reservation.id)) errors.push(`${label}: ID duplicado (${reservation.id}).`); else ids.add(reservation.id);
-    if (!Number.isInteger(reservation.sequence) || reservation.sequence < 1) errors.push(`${label}: sequence inválida.`); else { maximum = Math.max(maximum, reservation.sequence); if (sequences.has(reservation.sequence)) errors.push(`${label}: sequence duplicada (${reservation.sequence}).`); else sequences.add(reservation.sequence); const expected = sequenceFromId(reservation.id); if (expected !== null && expected !== reservation.sequence) errors.push(`${label}: id e sequence inconsistentes.`); }
+    if (!Number.isInteger(reservation.sequence) || reservation.sequence < 1) errors.push(`${label}: sequence inválida.`);
+    else {
+      if (reservation.sequence > MAX_SEQUENCE - 1) errors.push(`${label}: sequence deve ser menor que ${MAX_SEQUENCE}.`);
+      maximum = Math.max(maximum, reservation.sequence);
+      if (sequences.has(reservation.sequence)) errors.push(`${label}: sequence duplicada (${reservation.sequence}).`);
+      else sequences.add(reservation.sequence);
+      const expected = sequenceFromId(reservation.id);
+      if (expected !== null && expected !== reservation.sequence) errors.push(`${label}: id e sequence inconsistentes.`);
+    }
     if (!validDate(reservation.reserved_at)) errors.push(`${label}: reserved_at inválido.`);
     if (typeof reservation.source !== 'string' || !reservation.source.trim()) errors.push(`${label}: source inválido.`);
     if (typeof reservation.slug !== 'string' || !normalizeSlug(reservation.slug)) errors.push(`${label}: slug inválido.`);
@@ -33,7 +43,13 @@ export function inspectManifest(manifest, records = []) {
     if (reservation.status === 'criando' && validDate(reservation.reserved_at) && Date.now() - Date.parse(reservation.reserved_at) > LOCK_STALE_MS) warnings.push(`${label}: reserva em criação antiga (${reservation.id}).`);
   }
   if (Number.isInteger(manifest.next_sequence) && manifest.next_sequence <= maximum) errors.push(`Manifesto: next_sequence (${manifest.next_sequence}) deve ser maior que a maior sequence (${maximum}).`);
-  if (Number.isInteger(manifest.next_sequence)) { const gaps = []; for (let sequence = 1; sequence < manifest.next_sequence; sequence += 1) if (!sequences.has(sequence)) gaps.push(sequence); if (gaps.length) informational.push(`Manifesto: lacunas permitidas e não reutilizáveis: ${gaps.join(', ')}.`); }
+  if (Number.isInteger(manifest.next_sequence) && manifest.next_sequence <= MAX_SEQUENCE) {
+    const gaps = [];
+    for (let sequence = 1; sequence < manifest.next_sequence; sequence += 1) {
+      if (!sequences.has(sequence)) gaps.push(sequence);
+    }
+    if (gaps.length) informational.push(`Manifesto: lacunas permitidas e não reutilizáveis: ${gaps.join(', ')}.`);
+  }
   for (const { record, path: filePath } of records) if (record?.id && !ids.has(record.id)) errors.push(`${path.relative(ROOT, filePath)}: arquivo sem reserva no manifesto (${record.id}).`);
   return { errors, warnings, informational };
 }
