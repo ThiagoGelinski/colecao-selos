@@ -1,0 +1,131 @@
+{
+  "schema_version": "1.0.0",
+  "id": "SEL-000008",
+  "slug": "teste-operacional-temporario-20260913",
+  "titulo": "Teste operacional temporário — remoção após validação",
+  "descricao_curta": "Registro temporário para validar a automação autorizada. Reutiliza fotos do SEL-000001; não representa nova peça da coleção.",
+  "identificacao": {
+    "pais": "Brasil",
+    "tipo": "Selo postal",
+    "categoria": "Definitivo / regular",
+    "serie": "Presidentes da República",
+    "tema": [
+      "Personalidades",
+      "Presidentes do Brasil",
+      "História política"
+    ],
+    "personagem": {
+      "nome": "Manuel Ferraz de Campos Salles",
+      "nascimento": "1841-02-15",
+      "falecimento": "1913-06-28",
+      "funcao": "4º Presidente da República do Brasil",
+      "mandato": "1898–1902"
+    },
+    "valor_facial": {
+      "valor": 20,
+      "unidade": "centavos",
+      "inscricao": "20 CTS."
+    },
+    "cor": "castanho / ocre",
+    "orientacao": "vertical",
+    "continente": "América do Sul",
+    "administracao_postal": "Correio do Brasil"
+  },
+  "emissao": {
+    "ano": null,
+    "data_oficial": null,
+    "data_status": "Teste técnico; sem identificação de nova emissão",
+    "tiragem": null
+  },
+  "tecnica": {},
+  "catalogos": {},
+  "exemplar": {
+    "quantidade": 1,
+    "observacao": "Registro exclusivamente técnico e temporário; não contar como novo exemplar."
+  },
+  "imagens": {
+    "frente": "/assets/selos/SEL-000008/SEL-000008-frente.webp",
+    "verso": "/assets/selos/SEL-000008/SEL-000008-verso.webp",
+    "card": "/assets/selos/SEL-000008/SEL-000008-card.webp",
+    "thumb": null,
+    "alt": "Fotografia existente do SEL-000001 reutilizada exclusivamente em teste operacional temporário."
+  },
+  "historico": {},
+  "historico_editorial": [
+    {
+      "tipo": "rejeicao",
+      "ocorrido_em": "2026-09-13T20:23:49.965Z",
+      "responsavel": "thiagogelinski",
+      "motivo": "Conteúdo editado no painel; nova revisão humana necessária",
+      "hash": null,
+      "versao": "0.1.0-rascunho"
+    },
+    {
+      "tipo": "rejeicao",
+      "ocorrido_em": "2026-09-13T20:23:57.082Z",
+      "responsavel": "thiagogelinski",
+      "motivo": "upload inicial administrativo do asset frente",
+      "hash": null,
+      "versao": "0.1.0-rascunho+edicao.1789331029965"
+    },
+    {
+      "tipo": "rejeicao",
+      "ocorrido_em": "2026-09-13T20:24:03.265Z",
+      "responsavel": "thiagogelinski",
+      "motivo": "upload inicial administrativo do asset verso",
+      "hash": null,
+      "versao": "0.1.0-rascunho+edicao.1789331029965+upload.1789331037082"
+    },
+    {
+      "tipo": "rejeicao",
+      "ocorrido_em": "2026-09-13T20:24:09.975Z",
+      "responsavel": "thiagogelinski",
+      "motivo": "upload inicial administrativo do asset card",
+      "hash": null,
+      "versao": "0.1.0-rascunho+edicao.1789331029965+upload.1789331037082+upload.1789331043265"
+    },
+    {
+      "tipo": "aprovacao",
+      "ocorrido_em": "2026-09-13T20:36:10.234Z",
+      "responsavel": "thiagogelinski",
+      "motivo": null,
+      "hash": "3b56b9451eec2c419d7b6d2b49a1f77489c5f4e9bf1a91a4a07ee993da628c62",
+      "versao": "0.1.0-rascunho+edicao.1789331029965+upload.1789331037082+upload.1789331043265+upload.1789331049975"
+    },
+    {
+      "tipo": "publicacao",
+      "ocorrido_em": "2026-09-13T20:36:10.234Z",
+      "responsavel": "thiagogelinski",
+      "motivo": "Snapshot aprovado para inclusão no catálogo após testes e integração na main",
+      "hash": "3b56b9451eec2c419d7b6d2b49a1f77489c5f4e9bf1a91a4a07ee993da628c62",
+      "versao": "0.1.0-rascunho+edicao.1789331029965+upload.1789331037082+upload.1789331043265+upload.1789331049975"
+    }
+  ],
+  "fontes": [],
+  "seo": {
+    "title": "Teste operacional temporário da Coleção Selos",
+    "meta_description": "Registro temporário de validação do fluxo administrativo. Será retirado após conferir publicação e deploy.",
+    "canonical_path": "/selos/teste-operacional-temporario-20260913"
+  },
+  "aprovacao_humana": {
+    "status": "aprovado",
+    "decisao": "aprovado",
+    "aprovado_por": "thiagogelinski",
+    "aprovado_em": "2026-09-13T20:36:10.234Z",
+    "hash_do_registro_aprovado": "3b56b9451eec2c419d7b6d2b49a1f77489c5f4e9bf1a91a4a07ee993da628c62",
+    "versao_aprovada": "0.1.0-rascunho+edicao.1789331029965+upload.1789331037082+upload.1789331043265+upload.1789331049975",
+    "escopo": "publicacao_catalogo",
+    "observacao": "Conteúdo e imagens do snapshot confirmados no painel por revisão humana."
+  },
+  "publicacao": {
+    "status": "publicado",
+    "apto_para_preview": true,
+    "apto_para_publicacao": true,
+    "motivo": "Snapshot aprovado para inclusão no catálogo após testes e integração na main"
+  },
+  "auditoria": {
+    "criado_em": "2026-09-13",
+    "ultima_revisao": "2026-09-13",
+    "versao": "0.1.0-rascunho+edicao.1789331029965+upload.1789331037082+upload.1789331043265+upload.1789331049975"
+  }
+}
