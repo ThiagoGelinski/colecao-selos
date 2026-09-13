@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
+import { readdir } from 'node:fs/promises';
 import { catalogStoreName, readJson } from '../src/lib/catalogo/io.mjs';
 
 test('Seleção explícita de geração do catálogo preserva stores legados', async t => {
@@ -32,7 +33,7 @@ test('Seleção explícita de geração do catálogo preserva stores legados', a
       globalThis.__MOCK_BLOB_STORE=priorMock;globalThis.__MOCK_NETLIFY_ENV=priorEngine;
     }
   });
-  await t.test('store v2 vazio permite painel ler os sete selos oficiais sem gravar nem importar legado', async () => {
+  await t.test('store v2 vazio permite painel ler todo o catálogo versionado sem gravar nem importar legado', async () => {
     const priorName=process.env.CATALOG_BLOB_STORE, priorMock=globalThis.__MOCK_BLOB_STORE, priorEngine=globalThis.__MOCK_NETLIFY_ENV;
     process.env.CATALOG_BLOB_STORE='colecao-selos-catalogo-v2';
     globalThis.__MOCK_NETLIFY_ENV=true;
@@ -43,9 +44,17 @@ test('Seleção explícita de geração do catálogo preserva stores legados', a
     };
     try {
       const { getAdminStamps } = await import('../src/lib/admin/catalog-service.ts');
-      const result=await getAdminStamps({pageSize:20});
-      assert.deepEqual(result.items.map(item=>item.id),Array.from({length:7},(_,i)=>'SEL-'+String(i+1).padStart(6,'0')));
-      assert.ok(result.items.every(item=>item.status==='publicado' && item.validacao.valida));
+      const expectedIds=(await readdir(new URL('../src/data/selos/',import.meta.url)))
+        .filter(name=>/^SEL-\d{6}\.json$/.test(name)).map(name=>name.slice(0,-5)).sort();
+      assert.ok(expectedIds.length >= 7, 'O acervo inicial deve continuar preservado');
+      const items=[];
+      for(let page=1;;page++) {
+        const result=await getAdminStamps({pageSize:100,page});
+        items.push(...result.items);
+        if(page>=result.meta.pages)break;
+      }
+      assert.deepEqual(items.map(item=>item.id),expectedIds);
+      assert.ok(items.every(item=>item.status==='publicado' && item.validacao.valida));
     } finally {
       if(priorName===undefined)delete process.env.CATALOG_BLOB_STORE;else process.env.CATALOG_BLOB_STORE=priorName;
       globalThis.__MOCK_BLOB_STORE=priorMock;globalThis.__MOCK_NETLIFY_ENV=priorEngine;
