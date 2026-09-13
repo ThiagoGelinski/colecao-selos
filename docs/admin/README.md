@@ -176,3 +176,7 @@ Configure no servidor: `GPT_PRECADASTRO_ENABLED=true`, `OPENAI_API_KEY` e `OPENA
 A integração usa a Responses API com `store: false`, timeout de 20 segundos, validação de JSON Schema e limite de cinco análises por minuto por sessão de usuário/instância. O botão usa frente e verso já selecionados; as fotos são enviadas apenas ao solicitar análise e se a integração estiver configurada. Receber uma proposta não grava nem aprova o selo. PNG, JPEG e WebP são enviados com seus bytes originais; TIFF permite cadastro/upload normal e usa fallback manual na análise.
 
 Referências: [entradas de imagem](https://developers.openai.com/api/docs/guides/images-vision) e [Structured Outputs](https://developers.openai.com/api/docs/guides/structured-outputs).
+
+## Verificação operacional de 13/09/2026
+
+O teste real de cadastro, uploads, revisão, CI, publicação na main e deploy está registrado no [relatório operacional](../homologacao/automacao-operacional-2026-09-13.md). A credencial GitHub existente ainda não permite criar PR; a chave OpenAI foi validada, mas a conta Netlify recusou seu armazenamento como segredo nos escopos disponíveis. O relatório distingue a intervenção pela conexão GitHub já autorizada da automação ainda pendente. O registro temporário foi retirado, preservando originais e histórico.
