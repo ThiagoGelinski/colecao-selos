@@ -34,6 +34,14 @@ Salvar no painel persiste o trabalho administrativo nos Blobs. Para chegar à fo
 
 A ativação depende do segredo de integração no servidor e da conexão Git do projeto Netlify à main. A existência do código não comprova que essas configurações estejam ativas nem que um teste real em produção tenha sido concluído. Veja [arquitetura de publicação](docs/publicacao/arquitetura.md).
 
+## Acesso administrativo e fluxo operacional
+
+- O catálogo público exibe o acesso ao painel em um botão visível no cabeçalho e no rodapé, com redirecionamento para `/admin/login` e retorno para o painel após autenticação.
+- O painel usa aprovação humana obrigatória por status: `rascunho` → `em revisão` → `aprovado` → `publicado`.
+- O painel grava o trabalho administrativo no Netlify Blobs; o catálogo público só lê os JSONs aprovados no build da main em `src/data/selos`.
+- Alterações de status/publicação são sincronizadas por **Preparar revisão** + **Aprovar e enviar ao GitHub** + **Publicar versão aprovada** com validação de CI e publicação do Netlify.
+- O pré-cadastro por IA é opcional e pode ser mantido em fallback manual (`status: fallback`) sem travar o fluxo.
+
 ## Estrutura
 
 - `public/assets/selos/SEL-xxxxxx/`: derivados WebP publicados, agrupados pelo ID permanente.
@@ -100,7 +108,7 @@ Não exclua, mova ou sobrescreva backups/cópias existentes. Não inclua em comm
 
 ## Configuração Netlify e GitHub
 
-O `netlify.toml` usa `npm run build` e publica `dist`. Produção usa `PUBLICATION_MODE=production`: somente registros publicados e aptos para publicação entram no catálogo. Deploy previews usam `preview` para registros aptos à homologação. `SITE_URL` define a origem HTTPS; a URL provisória é [Coleção Selos](https://colecaodeselos.netlify.app).
+O `netlify.toml` usa `npm run build` e publica `dist`. Produção usa `PUBLICATION_MODE=production`: somente registros publicados e aptos para publicação entram no catálogo. Deploy previews mantêm a identificação de homologação, mas o catálogo público também exige registros publicados e aptos; o trabalho ainda não publicado fica nas rotas administrativas autenticadas. `SITE_URL` define a origem HTTPS; a URL provisória é [Coleção Selos](https://colecaodeselos.netlify.app).
 
 Configure `GITHUB_PUBLISH_TOKEN` somente no servidor, com escopo **Functions** no Netlify e acesso restrito a `ThiagoGelinski/colecao-selos`: Contents e Pull requests em leitura/escrita, Actions e Metadata em leitura. Nunca coloque o token no cliente, Git, logs ou `netlify.toml`. Sem a configuração, as ações de publicação retornam `PUBLICATION_NOT_CONFIGURED`; edição e upload permanecem independentes.
 
@@ -138,3 +146,5 @@ Na unidade virtual Google Drive foi observada falha EISDIR em hardlinks da escri
 
 
 Nota operacional de 2026-09-10: o site Netlify está ligado à main oficial. O backup dos quatro objetos legados foi verificado por dupla leitura e SHA-256; nenhum objeto remoto foi removido. CATALOG_BLOB_STORE=colecao-selos-catalogo-v2 foi configurado para o próximo deploy. O plano atual recusou escopos granulares; foram usados os escopos padrão. Para GITHUB_PUBLISH_TOKEN, prefira Functions quando o plano permitir; caso contrário, use os escopos padrão com valor de produção. O código consome esse segredo apenas no servidor e não o inclui no cliente. A credencial GitHub do painel ainda aguarda configuração e verificação.
+
+Validação desta etapa: [usabilidade e automação — 2026-09-13](docs/homologacao/validacao-usabilidade-2026-09-13.md).

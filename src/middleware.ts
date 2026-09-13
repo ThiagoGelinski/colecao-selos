@@ -5,7 +5,7 @@ import { loadAuthConfig } from './lib/admin/config.mjs';
 import { createNetlifyAdminStore, loadAdminCredentials } from './lib/admin/credential-store.mjs';
 import { logAdminAuth } from './lib/admin/logging.mjs';
 import { SESSION_COOKIE, verifySession } from './lib/admin/session.mjs';
-const securityHeaders = { 'X-Content-Type-Options': 'nosniff', 'X-Frame-Options': 'DENY', 'Referrer-Policy': 'strict-origin-when-cross-origin', 'Permissions-Policy': 'camera=(), microphone=(), geolocation=()', 'Content-Security-Policy': "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'" };
+const securityHeaders = { 'X-Content-Type-Options': 'nosniff', 'X-Frame-Options': 'DENY', 'Referrer-Policy': 'strict-origin-when-cross-origin', 'Permissions-Policy': 'camera=(self), microphone=(), geolocation=()', 'Content-Security-Policy': "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'" };
 export const onRequest = defineMiddleware(async (context, next) => {
   const pathname = context.url.pathname; const adminSurface = pathname.startsWith('/admin') || pathname.startsWith('/api/admin'); if (!adminSurface) return next();
   let sessionValid = false; let sessionReason = 'missing'; let bootstrapRequired = false;

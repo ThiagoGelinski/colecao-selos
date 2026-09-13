@@ -10,11 +10,14 @@ export default defineConfig({
   output: 'static',
   // Keep the previous HTML whitespace behavior while upgrading the compiler.
   compressHTML: true,
-  adapter: netlify({ imageCDN: false, includeFiles: [
-    './public/assets/selos/**/*',
-    './src/data/selos/*.json',
-    './manifests/ids.json',
-    './templates/selo.template.json',
-  ] }),
+  adapter: netlify({
+    imageCDN: false,
+    includeFiles: [
+      './public/assets/selos/**/*',
+      './src/data/selos/*.json',
+      './manifests/ids.json',
+      './templates/selo.template.json',
+    ],
+  }),
   integrations: [sitemap()],
 });

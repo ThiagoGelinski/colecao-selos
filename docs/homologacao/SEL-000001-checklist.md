@@ -114,3 +114,10 @@ A recuperação implementa edição protegida, arquivo de fotografias originais,
 Os testes de software e de fluxo isolado não comprovam as verificações visuais acima, a localização das capturas históricas ou o deploy público efetivo. As caixas permanecem desmarcadas até registro individual de evidência humana. A nova cadeia de procedência aplica-se a uploads novos e não certifica retroativamente os WebPs históricos.
 
 A quantidade de exemplares não foi presumida. Se houver repetidos, a contagem e a escolha do exemplar de melhor conservação dependem de conferência do responsável. Originais e backups devem permanecer intactos.
+
+
+## Observações técnicas adicionais
+
+- Esta lista não infere conclusões visuais além das verificadas.
+- `status` no JSON e eventos de aprovação histórica não representam verificação fotográfica de cada item deste checklist.
+- Fotos históricas e backups permanecem preservados; o fluxo novo preserva apenas recorte simétrico e conversão WebP.

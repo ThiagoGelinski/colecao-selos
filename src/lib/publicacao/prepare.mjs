@@ -103,12 +103,24 @@ export async function preparePublication(packet, { root, baseCommit, baselineRec
   if (approval.decided_at && (Date.parse(approval.decided_at) < Date.parse(packet.created_at) || Date.parse(approval.decided_at) > now.getTime())) errors.push('Data de aprovação incompatível com o snapshot.');
   if (packet.ids.base_sha256 !== jsonHash(baselineManifest)) errors.push('Manifesto base divergente.');
 
+  const manifest = packet.ids.value;
+  const manifestMaxSequence = 1_000_000;
+  const highSequence = Number.isInteger(manifest?.next_sequence) && manifest.next_sequence > manifestMaxSequence;
+  const highReservationSequence = Array.isArray(manifest?.reserved) && manifest.reserved.some((reservation) => Number.isInteger(reservation?.sequence) && reservation.sequence > manifestMaxSequence - 1);
+  if (highSequence) errors.push(`Manifesto: next_sequence deve ser menor ou igual a ${manifestMaxSequence}.`);
+  if (highReservationSequence) errors.push('Manifesto: reservation sequence inválida.');
+
   const baseline = new Map(baselineRecords.map(record => [record.id, record]));
   const candidates = new Map(baseline);
   const submitted = new Set();
   const planned = [];
   let packetRoot;
   try { packetRoot = await realpath(root); } catch { errors.push('Pasta do pacote inexistente.'); return result; }
+
+  if (errors.length > 0) {
+    return result;
+  }
+
   for (const entry of packet.records) {
     const { id, record } = entry;
     const label = id + ': ';
@@ -146,7 +158,6 @@ export async function preparePublication(packet, { root, baseCommit, baselineRec
     }
   }
 
-  const manifest = packet.ids.value;
   const inspection = inspectManifest(manifest, [...candidates.values()].map(record => ({ record, path: 'src/data/selos/' + record.id + '.json' })));
   errors.push(...inspection.errors);
   if (Array.isArray(manifest.reserved)) {
